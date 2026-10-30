@@ -1,0 +1,5 @@
+# Netlify settings for lucindha-website
+# Netlify publishes everything inside the "site" folder. No build step is needed.
+[build]
+  publish = "site"
+  command = ""
