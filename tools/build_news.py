@@ -124,6 +124,7 @@ PAGE = '''<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Articles, interviews, match reports and videos about Lucindha Lawson, England deaf futsal player, Deaflympian and Deaf accessibility campaigner.">
 <title>News – Lucindha Lawson</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&amp;display=swap">
 <style>
