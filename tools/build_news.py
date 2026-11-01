@@ -94,6 +94,7 @@ ICONS = {  # simple stroke icons, decorative
 AREA = {"article": "#0B2945", "interview": "#0B2945", "video": "#0B2945", "match": "#2A3D3B", "squad": "#2A3D3B", "campaign": "#4A3046"}
 MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"]
 
+
 def nice_date(d):
     p = d.split("-")
     if len(p) == 3: return f"{int(p[2])} {MONTHS[int(p[1])-1]} {p[0]}"
@@ -107,122 +108,58 @@ def card(s):
     if s.get("image"):
         thumb = f'<img src="{e(s["image"])}" alt="{e(s.get("alt",""))}" style="width: 100%; height: 100%; object-fit: cover; display: block">'
     else:
-        thumb = f'<svg aria-hidden="true" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#CBAB74" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">{ICONS.get(s["kind"], ICONS["article"])}</svg>'
-    note = (f'\n<p style="margin: 0; font-size: 1rem; background: #0B1F33; border-radius: 8px; padding: 10px 14px"><strong>Content note:</strong> {e(s["note"])}</p>'
-            if s.get("note") else "")
-    return f'''<li class="card">
-<div class="thumb" style="border-top: 4px solid #A87928; background: linear-gradient(160deg, rgba(255,255,255,.07), rgba(0,0,0,.2)), {area}">{thumb}</div>
-<div style="flex: 999 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 10px">
-<p style="margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 1rem; color: #C5CFDD"><time datetime="{e(s["date"])}" style="color: #CBAB74; font-weight: 700">{nice_date(s["date"])}</time><span>{e(s["outlet"])}</span><span>· {e(s["label"])}</span></p>
-<h2 style="margin: 0; font-size: 1.4rem; line-height: 1.3">{e(s["title"])}</h2>
-<p style="margin: 0; color: #C5CFDD">{e(s["summary"])}</p>{note}
-<a href="{e(s["url"])}" target="_blank" rel="noopener" style="font-weight: 700; padding: 6px 0; align-self: flex-start">{e(s["link"])}<span class="sr"> (opens in a new tab)</span></a>
+        thumb = f'<svg aria-hidden="true" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#CBAB74" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">{ICONS.get(s["kind"], ICONS["article"])}</svg>'
+    note = f'<p class="note-box"><strong>Content note:</strong> {e(s["note"])}</p>' if s.get("note") else ""
+    return f"""<li class="card news-card">
+<div class="news-thumb" style="background: {area}">{thumb}</div>
+<div class="stack" style="gap: 10px; flex: 999 1 320px; min-width: 0">
+<p class="news-meta"><time datetime="{e(s["date"])}">{nice_date(s["date"])}</time><span>{e(s["outlet"])}</span><span>{e(s["label"])}</span></p>
+<h2 class="news-title">{e(s["title"])}</h2>
+<p>{e(s["summary"])}</p>{note}
+<a href="{e(s["url"])}" class="link" target="_blank" rel="noopener" style="align-self: flex-start">{e(s["link"])}<span class="sr"> (opens in a new tab)</span></a>
 </div>
-</li>'''
+</li>"""
 
-PAGE = '''<!doctype html>
-<html lang="en-GB">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
-<link rel="apple-touch-icon" href="images/apple-touch-icon.png">
-<meta name="description" content="Articles, interviews, match reports and videos about Lucindha Lawson, England deaf futsal player, Deaflympian and Deaf accessibility campaigner.">
-<title>News – Lucindha Lawson</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&amp;family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,100;1,9..144,300..700,100&amp;display=swap">
-<style>
-body{margin:0;background-color:#0B1F33;background-image:radial-gradient(1100px 620px at 88% -8%,rgba(168,121,40,.16),transparent 62%),radial-gradient(900px 560px at -12% 18%,rgba(28,74,120,.30),transparent 60%),radial-gradient(800px 600px at 100% 70%,rgba(74,48,70,.38),transparent 60%),linear-gradient(180deg,#0B1F33 0%,#0D2338 45%,#09192A 100%)}
-a{color:#CBAB74}a:hover{color:#DCC499}
-a:focus-visible,button:focus-visible{outline:3px solid #CBAB74;outline-offset:3px}
-.skip{position:absolute;left:16px;top:-80px;background:#CBAB74;color:#0B1F33;padding:12px 16px;font-weight:700;border-radius:6px;z-index:10}
-.skip:focus{top:12px}
-.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.card{background:linear-gradient(160deg,#103253 0%,#0B2945 55%,#0A233D 100%);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;border:1px solid #1F3D5C;border-radius:14px;padding:24px;display:flex;flex-wrap:wrap;gap:20px 24px;align-items:flex-start}
-.card:hover{border-color:#A87928;transform:translateY(-2px);box-shadow:0 14px 34px rgba(0,0,0,.35)}
-@media (prefers-reduced-motion:reduce){.card{transition:none}.card:hover{transform:none}}
-.thumb{flex:0 0 120px;height:120px;border-radius:10px;background:radial-gradient(120px 90px at 70% 20%,rgba(168,121,40,.14),transparent 70%),linear-gradient(160deg,#0E2B48,#081A2B);display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box}
-@media (max-width:520px){.thumb{flex:1 1 100%;height:140px}}
-/* gradient-layer */
-header{position:relative;background:linear-gradient(180deg,rgba(8,22,37,.85),rgba(11,31,51,.35))}
-header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:linear-gradient(90deg,transparent,#A87928 25%,#CBAB74 50%,#A87928 75%,transparent);opacity:.75}
-footer{position:relative}
-footer::before{content:"";position:absolute;left:0;right:0;top:-1px;height:2px;background:linear-gradient(90deg,transparent,#1F3D5C 20%,#A87928 50%,#1F3D5C 80%,transparent);opacity:.6}
-.gold-text{background:linear-gradient(100deg,#DCC499 0%,#C29E61 50%,#B1863B 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
-.glow{position:relative;overflow:hidden}
-.glow::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(700px 360px at 80% 0%,rgba(168,121,40,.16),transparent 65%),radial-gradient(600px 380px at 0% 0%,rgba(28,74,120,.26),transparent 65%)}
-.glow>*{position:relative}
-a[class~="btn"],.btn{transition:transform .15s ease,box-shadow .15s ease}
-.btn:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(168,121,40,.35)}
-.lift{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
-.lift:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(0,0,0,.35);border-color:#A87928}
-@media (prefers-reduced-motion:reduce){.btn,.lift{transition:none}.btn:hover,.lift:hover{transform:none}}
-.quote-pill{display:inline-flex;align-items:center;margin-left:4px;padding:10px 20px;white-space:nowrap;border-radius:999px;border:1.5px solid #A87928;background:linear-gradient(135deg,#BC8E42 0%,#A87928 55%,#9A6D22 100%);color:#0B1F33;text-decoration:none;font-family:Fraunces,Georgia,serif;font-variation-settings:"SOFT" 100;font-weight:600;font-size:1.06rem;line-height:1.2;transition:background .25s ease}
-.quote-pill:hover{color:#0B1F33;background:linear-gradient(135deg,#C99C50 0%,#B4852F 55%,#A47528 100%)}
-</style>
-</head>
-<body>
-<div style="position: relative; background: transparent; color: #F7F3E8; font-family: 'Atkinson Hyperlegible', Arial, sans-serif; font-size: 1.125rem; line-height: 1.6">
-<a href="#main" class="skip">Skip to main content</a>
-
-<header style="border-bottom: 1px solid #1F3D5C">
-<div style="max-width: 1180px; margin: 0 auto; padding: 18px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px">
-<a href="home.html" aria-label="Lucindha Lawson – home" style="display: flex; align-items: center; gap: 14px; text-decoration: none; color: #F7F3E8">
-<img src="images/logo-mark.png" alt="" width="41" height="52" style="display: block; width: auto; height: 52px">
-<div style="display: flex; flex-direction: column; line-height: 1.2">
-<span style="font-weight: 700; letter-spacing: 0.14em; font-size: 1.05rem">LUCINDHA LAWSON</span>
-<span style="font-size: 0.875rem; color: #C5CFDD; letter-spacing: 0.06em">Accounting &amp; Bookkeeping</span>
+def body(stories):
+    return f"""
+<section class="hero" aria-labelledby="page-title">
+<div class="wrap">
+<div class="hero-text" style="flex-basis: 100%">
+<nav aria-label="Breadcrumb" class="crumbs"><a href="home.html">Home</a> <span aria-hidden="true">/</span> News</nav>
+<p class="eyebrow">News &amp; media</p>
+<h1 id="page-title">In the <em>news.</em></h1>
+<p class="lead">Articles, interviews, match reports and videos about Lucindha – from winning medals with England and Great Britain to campaigning for Deaf accessibility. Links open the original story on the publisher's website.</p>
 </div>
-</a>
-<nav aria-label="Main" style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 22px">
-<a href="home.html" style="color: #F7F3E8; text-decoration: none; padding: 10px 0">Home</a>
-<a href="about.html" style="color: #F7F3E8; text-decoration: none; padding: 10px 0">About</a>
-<a href="accounting.html" style="color: #F7F3E8; text-decoration: none; padding: 10px 0">Accounting</a>
-<a href="community.html" style="color: #F7F3E8; text-decoration: none; padding: 10px 0">Community Work</a>
-<a href="news.html" aria-current="page" style="color: #F7F3E8; text-decoration: underline; text-decoration-color: #A87928; text-decoration-thickness: 3px; text-underline-offset: 8px; padding: 10px 0; font-weight: 700">News</a>
-<a href="contact.html" style="color: #F7F3E8; text-decoration: none; padding: 10px 0">Contact</a>
-<a href="contact.html" class="quote-pill">Request a quote</a>
-</nav>
-</div>
-</header>
-
-<main id="main">
-
-<section class="glow" aria-labelledby="news-title" style="padding: 72px 0 48px">
-<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; display: flex; flex-direction: column; gap: 20px">
-<nav aria-label="Breadcrumb" style="font-size: 1rem; color: #C5CFDD"><a href="home.html">Home</a> <span aria-hidden="true">/</span> News</nav>
-<h1 id="news-title" style="margin: 0; font-size: clamp(2.1rem, 4vw, 3rem); line-height: 1.15">News &amp; media</h1>
-<p style="margin: 0; font-size: 1.2rem; color: #C5CFDD; max-width: 40em">Articles, interviews, match reports and videos about Lucindha – from winning medals with England and Great Britain to campaigning for Deaf accessibility. Links open the original story on the publisher's website.</p>
 </div>
 </section>
 
-<div style="max-width: 960px; margin: 0 auto; padding: 0 24px 88px; display: flex; flex-direction: column; gap: 32px">
-<ol reversed aria-label="Stories, newest first" style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 20px">
-%CARDS%
+<section class="band" aria-label="Stories, newest first" style="padding-top: 72px">
+<div class="wrap" style="max-width: 1000px">
+<ol reversed class="news-list">
+{chr(10).join(card(s) for s in stories)}
 </ol>
+</div>
+</section>
 
-<aside aria-label="Media enquiries" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; border: 2px solid #A87928; border-radius: 16px; background: linear-gradient(135deg, rgba(168,121,40,.14) 0%, rgba(23,52,95,.5) 60%, rgba(12,31,64,.35) 100%); padding: 28px 32px">
-<p style="margin: 0; flex: 1 1 380px"><strong>Media and speaking enquiries</strong> <span style="color: #C5CFDD">– to feature Lucindha or invite her to speak, get in touch.</span></p>
-<a href="contact.html" class="btn" style="background: linear-gradient(135deg, #D4B886 0%, #C29E61 50%, #B58C44 100%); box-shadow: 0 6px 18px rgba(168,121,40,.25); color: #0B1F33; text-decoration: none; font-weight: 700; padding: 14px 24px; border-radius: 10px">Contact Lucindha</a>
-</aside>
+<section aria-labelledby="cta-title">
+<div class="wrap">
+<div class="cta">
+<div>
+<h2 id="cta-title">Media and speaking enquiries</h2>
+<p class="muted">To feature Lucindha, request an interview or invite her to speak, get in touch.</p>
 </div>
-</main>
-
-<footer style="border-top: 1px solid #1F3D5C; background: linear-gradient(180deg, #0B1F33 0%, #061321 100%); padding: 40px 0; font-size: 0.95rem">
-<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; display: flex; flex-wrap: wrap; gap: 16px 28px; justify-content: space-between; color: #C5CFDD">
-<span>© 2026 LUCINDHA LAWSON LTD · Registered in England &amp; Wales · Company no. 17408408 · AAT licence no. 1010532</span>
-<nav aria-label="Legal" style="display: flex; flex-wrap: wrap; gap: 8px 20px">
-<a href="#" style="color: #F7F3E8">Privacy</a><a href="#" style="color: #F7F3E8">Cookies</a><a href="#" style="color: #F7F3E8">Accessibility</a><a href="#" style="color: #F7F3E8">Terms</a>
-</nav>
+<a href="contact.html" class="pill">Contact Lucindha</a>
 </div>
-</footer>
 </div>
-<script src="site.js?v=8"></script>
-</body>
-</html>
-'''
+</section>
+"""
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+    from page_shell import page
     out = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".")
     stories = sorted(STORIES, key=lambda s: s["date"], reverse=True)
-    (out / "news.html").write_text(PAGE.replace("%CARDS%", "\n".join(card(s) for s in stories)))
+    (out / "news.html").write_text(page("News",
+        "Articles, interviews, match reports and videos about Lucindha Lawson, England deaf futsal player, Deaflympian and Deaf accessibility campaigner.",
+        "news.html", body(stories)))
     print(f"news.html written with {len(stories)} stories")
