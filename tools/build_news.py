@@ -90,7 +90,8 @@ ICONS = {  # simple stroke icons, decorative
     "squad":     '<circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20a6.5 6.5 0 0 1 13 0"></path><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6.5 6.5 0 0 1 3.5 6"></path>',
     "campaign":  '<path d="M3 11v2a1 1 0 0 0 1 1h3l6 5V5L7 10H4a1 1 0 0 0-1 1z"></path><path d="M17 8a5 5 0 0 1 0 8M19.5 5.5a8.5 8.5 0 0 1 0 13"></path>',
 }
-TINT = {"article": "#F2C14E", "interview": "#F2C14E", "video": "#9CC8FF", "match": "#6FD3A8", "squad": "#6FD3A8", "campaign": "#FF9F87"}
+# tile background = brand area colour (Accounting navy, Sport & Coaching green, Public Speaking plum)
+AREA = {"article": "#0B2945", "interview": "#0B2945", "video": "#0B2945", "match": "#2A3D3B", "squad": "#2A3D3B", "campaign": "#4A3046"}
 MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"]
 
 def nice_date(d):
@@ -102,17 +103,17 @@ def nice_date(d):
 e = lambda s: html.escape(s, quote=True)
 
 def card(s):
-    tint = TINT.get(s["kind"], "#F2C14E")
+    area = AREA.get(s["kind"], "#0B2945")
     if s.get("image"):
         thumb = f'<img src="{e(s["image"])}" alt="{e(s.get("alt",""))}" style="width: 100%; height: 100%; object-fit: cover; display: block">'
     else:
-        thumb = f'<svg aria-hidden="true" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="{tint}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">{ICONS.get(s["kind"], ICONS["article"])}</svg>'
-    note = (f'\n<p style="margin: 0; font-size: 1rem; background: #0A1D37; border-radius: 8px; padding: 10px 14px"><strong>Content note:</strong> {e(s["note"])}</p>'
+        thumb = f'<svg aria-hidden="true" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#CBAB74" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">{ICONS.get(s["kind"], ICONS["article"])}</svg>'
+    note = (f'\n<p style="margin: 0; font-size: 1rem; background: #0B1F33; border-radius: 8px; padding: 10px 14px"><strong>Content note:</strong> {e(s["note"])}</p>'
             if s.get("note") else "")
     return f'''<li class="card">
-<div class="thumb" style="border-top: 4px solid {tint}">{thumb}</div>
+<div class="thumb" style="border-top: 4px solid #A87928; background: linear-gradient(160deg, rgba(255,255,255,.07), rgba(0,0,0,.2)), {area}">{thumb}</div>
 <div style="flex: 999 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 10px">
-<p style="margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 1rem; color: #C5CFDD"><time datetime="{e(s["date"])}" style="color: #F2C14E; font-weight: 700">{nice_date(s["date"])}</time><span>{e(s["outlet"])}</span><span>· {e(s["label"])}</span></p>
+<p style="margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 1rem; color: #C5CFDD"><time datetime="{e(s["date"])}" style="color: #CBAB74; font-weight: 700">{nice_date(s["date"])}</time><span>{e(s["outlet"])}</span><span>· {e(s["label"])}</span></p>
 <h2 style="margin: 0; font-size: 1.4rem; line-height: 1.3">{e(s["title"])}</h2>
 <p style="margin: 0; color: #C5CFDD">{e(s["summary"])}</p>{note}
 <a href="{e(s["url"])}" target="_blank" rel="noopener" style="font-weight: 700; padding: 6px 0; align-self: flex-start">{e(s["link"])}<span class="sr"> (opens in a new tab)</span></a>
@@ -130,30 +131,30 @@ PAGE = '''<!doctype html>
 <title>News – Lucindha Lawson</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&amp;display=swap">
 <style>
-body{margin:0;background-color:#0A1D37;background-image:radial-gradient(1100px 620px at 88% -8%,rgba(242,193,78,.16),transparent 62%),radial-gradient(900px 560px at -12% 18%,rgba(156,200,255,.12),transparent 60%),radial-gradient(800px 600px at 100% 70%,rgba(111,211,168,.07),transparent 60%),linear-gradient(180deg,#0A1D37 0%,#0C2244 45%,#081830 100%)}
-a{color:#F2C14E}a:hover{color:#FFD97A}
-a:focus-visible,button:focus-visible{outline:3px solid #F2C14E;outline-offset:3px}
-.skip{position:absolute;left:16px;top:-80px;background:#F2C14E;color:#0A1D37;padding:12px 16px;font-weight:700;border-radius:6px;z-index:10}
+body{margin:0;background-color:#0B1F33;background-image:radial-gradient(1100px 620px at 88% -8%,rgba(168,121,40,.16),transparent 62%),radial-gradient(900px 560px at -12% 18%,rgba(28,74,120,.30),transparent 60%),radial-gradient(800px 600px at 100% 70%,rgba(74,48,70,.38),transparent 60%),linear-gradient(180deg,#0B1F33 0%,#0D2338 45%,#09192A 100%)}
+a{color:#CBAB74}a:hover{color:#DCC499}
+a:focus-visible,button:focus-visible{outline:3px solid #CBAB74;outline-offset:3px}
+.skip{position:absolute;left:16px;top:-80px;background:#CBAB74;color:#0B1F33;padding:12px 16px;font-weight:700;border-radius:6px;z-index:10}
 .skip:focus{top:12px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.card{background:linear-gradient(160deg,#18355F 0%,#12294D 55%,#0E2242 100%);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;border:1px solid #2A4370;border-radius:14px;padding:24px;display:flex;flex-wrap:wrap;gap:20px 24px;align-items:flex-start}
-.card:hover{border-color:#F2C14E;transform:translateY(-2px);box-shadow:0 14px 34px rgba(0,0,0,.35)}
+.card{background:linear-gradient(160deg,#103253 0%,#0B2945 55%,#0A233D 100%);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;border:1px solid #1F3D5C;border-radius:14px;padding:24px;display:flex;flex-wrap:wrap;gap:20px 24px;align-items:flex-start}
+.card:hover{border-color:#A87928;transform:translateY(-2px);box-shadow:0 14px 34px rgba(0,0,0,.35)}
 @media (prefers-reduced-motion:reduce){.card{transition:none}.card:hover{transform:none}}
-.thumb{flex:0 0 120px;height:120px;border-radius:10px;background:radial-gradient(120px 90px at 70% 20%,rgba(242,193,78,.14),transparent 70%),linear-gradient(160deg,#102849,#081730);display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box}
+.thumb{flex:0 0 120px;height:120px;border-radius:10px;background:radial-gradient(120px 90px at 70% 20%,rgba(168,121,40,.14),transparent 70%),linear-gradient(160deg,#0E2B48,#081A2B);display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box}
 @media (max-width:520px){.thumb{flex:1 1 100%;height:140px}}
 /* gradient-layer */
-header{position:relative;background:linear-gradient(180deg,rgba(7,21,40,.85),rgba(10,29,55,.35))}
-header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:linear-gradient(90deg,transparent,#F2C14E 30%,#FFD97A 50%,#F2C14E 70%,transparent);opacity:.75}
+header{position:relative;background:linear-gradient(180deg,rgba(8,22,37,.85),rgba(11,31,51,.35))}
+header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:linear-gradient(90deg,transparent,#A87928 25%,#CBAB74 50%,#A87928 75%,transparent);opacity:.75}
 footer{position:relative}
-footer::before{content:"";position:absolute;left:0;right:0;top:-1px;height:2px;background:linear-gradient(90deg,transparent,#2A4370 20%,#F2C14E 50%,#2A4370 80%,transparent);opacity:.6}
-.gold-text{background:linear-gradient(100deg,#FFE08F 0%,#F2C14E 45%,#E8AE35 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+footer::before{content:"";position:absolute;left:0;right:0;top:-1px;height:2px;background:linear-gradient(90deg,transparent,#1F3D5C 20%,#A87928 50%,#1F3D5C 80%,transparent);opacity:.6}
+.gold-text{background:linear-gradient(100deg,#DCC499 0%,#C29E61 50%,#B1863B 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .glow{position:relative;overflow:hidden}
-.glow::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(700px 360px at 80% 0%,rgba(242,193,78,.16),transparent 65%),radial-gradient(600px 380px at 0% 0%,rgba(156,200,255,.10),transparent 65%)}
+.glow::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(700px 360px at 80% 0%,rgba(168,121,40,.16),transparent 65%),radial-gradient(600px 380px at 0% 0%,rgba(28,74,120,.26),transparent 65%)}
 .glow>*{position:relative}
 a[class~="btn"],.btn{transition:transform .15s ease,box-shadow .15s ease}
-.btn:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(242,193,78,.35)}
+.btn:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(168,121,40,.35)}
 .lift{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
-.lift:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(0,0,0,.35);border-color:#F2C14E}
+.lift:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(0,0,0,.35);border-color:#A87928}
 @media (prefers-reduced-motion:reduce){.btn,.lift{transition:none}.btn:hover,.lift:hover{transform:none}}
 </style>
 </head>
@@ -161,7 +162,7 @@ a[class~="btn"],.btn{transition:transform .15s ease,box-shadow .15s ease}
 <div style="position: relative; background: transparent; color: #F7F3E8; font-family: 'Atkinson Hyperlegible', Arial, sans-serif; font-size: 1.125rem; line-height: 1.6">
 <a href="#main" class="skip">Skip to main content</a>
 
-<header style="border-bottom: 1px solid #2A4370">
+<header style="border-bottom: 1px solid #1F3D5C">
 <div style="max-width: 1180px; margin: 0 auto; padding: 18px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px">
 <a href="index.html" aria-label="Lucindha Lawson – home" style="display: flex; align-items: center; gap: 14px; text-decoration: none; color: #F7F3E8">
 <img src="images/logo-mark.png" alt="" width="41" height="52" style="display: block; width: auto; height: 52px">
@@ -175,9 +176,9 @@ a[class~="btn"],.btn{transition:transform .15s ease,box-shadow .15s ease}
 <a href="index.html#about" style="color: #F7F3E8; text-decoration: none; padding: 10px 0">About</a>
 <a href="accounting.html" style="color: #F7F3E8; text-decoration: none; padding: 10px 0">Accounting</a>
 <a href="community.html" style="color: #F7F3E8; text-decoration: none; padding: 10px 0">Community Work</a>
-<a href="news.html" aria-current="page" style="color: #F7F3E8; text-decoration: underline; text-decoration-color: #F2C14E; text-decoration-thickness: 3px; text-underline-offset: 8px; padding: 10px 0; font-weight: 700">News</a>
+<a href="news.html" aria-current="page" style="color: #F7F3E8; text-decoration: underline; text-decoration-color: #A87928; text-decoration-thickness: 3px; text-underline-offset: 8px; padding: 10px 0; font-weight: 700">News</a>
 <a href="contact.html" style="color: #F7F3E8; text-decoration: none; padding: 10px 0">Contact</a>
-<a href="contact.html" class="btn" style="background: linear-gradient(135deg, #FFDC85 0%, #F2C14E 48%, #E3AA32 100%); box-shadow: 0 6px 18px rgba(242,193,78,.25); color: #0A1D37; text-decoration: none; font-weight: 700; padding: 12px 20px; border-radius: 8px">Request a quote</a>
+<a href="contact.html" class="btn" style="background: linear-gradient(135deg, #D4B886 0%, #C29E61 50%, #B58C44 100%); box-shadow: 0 6px 18px rgba(168,121,40,.25); color: #0B1F33; text-decoration: none; font-weight: 700; padding: 12px 20px; border-radius: 8px">Request a quote</a>
 </nav>
 </div>
 </header>
@@ -197,14 +198,14 @@ a[class~="btn"],.btn{transition:transform .15s ease,box-shadow .15s ease}
 %CARDS%
 </ol>
 
-<aside aria-label="Media enquiries" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; border: 2px solid #F2C14E; border-radius: 16px; background: linear-gradient(135deg, rgba(242,193,78,.14) 0%, rgba(23,52,95,.5) 60%, rgba(12,31,64,.35) 100%); padding: 28px 32px">
+<aside aria-label="Media enquiries" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; border: 2px solid #A87928; border-radius: 16px; background: linear-gradient(135deg, rgba(168,121,40,.14) 0%, rgba(23,52,95,.5) 60%, rgba(12,31,64,.35) 100%); padding: 28px 32px">
 <p style="margin: 0; flex: 1 1 380px"><strong>Media and speaking enquiries</strong> <span style="color: #C5CFDD">– to feature Lucindha or invite her to speak, get in touch.</span></p>
-<a href="contact.html" class="btn" style="background: linear-gradient(135deg, #FFDC85 0%, #F2C14E 48%, #E3AA32 100%); box-shadow: 0 6px 18px rgba(242,193,78,.25); color: #0A1D37; text-decoration: none; font-weight: 700; padding: 14px 24px; border-radius: 10px">Contact Lucindha</a>
+<a href="contact.html" class="btn" style="background: linear-gradient(135deg, #D4B886 0%, #C29E61 50%, #B58C44 100%); box-shadow: 0 6px 18px rgba(168,121,40,.25); color: #0B1F33; text-decoration: none; font-weight: 700; padding: 14px 24px; border-radius: 10px">Contact Lucindha</a>
 </aside>
 </div>
 </main>
 
-<footer style="border-top: 1px solid #2A4370; background: linear-gradient(180deg, #0A1D37 0%, #061226 100%); padding: 40px 0; font-size: 0.95rem">
+<footer style="border-top: 1px solid #1F3D5C; background: linear-gradient(180deg, #0B1F33 0%, #061321 100%); padding: 40px 0; font-size: 0.95rem">
 <div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; display: flex; flex-wrap: wrap; gap: 16px 28px; justify-content: space-between; color: #C5CFDD">
 <span>© 2026 LUCINDHA LAWSON LTD · Company no. [NUMBER] · AAT licence no. [NUMBER]</span>
 <nav aria-label="Legal" style="display: flex; flex-wrap: wrap; gap: 8px 20px">

@@ -4,7 +4,10 @@ The live website for LUCINDHA LAWSON LTD, hosted on Netlify.
 
 - `site/` – the pages that are published (index, accounting, community, news, contact, thanks).
 - `tools/build_news.py` – rebuilds `site/news.html` from the list of stories: `python3 tools/build_news.py site`
-- `tools/polish.py` – the gradient visual layer applied to the pages.
 - `netlify.toml` – tells Netlify to publish the `site` folder.
 
 Every change saved to the `main` branch is published by Netlify automatically.
+
+## Brand colours
+- Gold `#A87928` – logo, lines, borders. Small text and links use the lighter tint `#CBAB74` so they stay readable.
+- Main background `#0B1F33` · Accounting `#0B2945` · Sport & Coaching `#2A3D3B` · Public Speaking `#4A3046` · Workshops `#343B40`
