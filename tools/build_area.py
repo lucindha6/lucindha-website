@@ -39,9 +39,42 @@ AREAS = {
          "Available for", ["School assemblies", "Sports clubs", "Community events", "Panel discussions", "Inclusion initiatives", "Youth development programmes"],
          "Contact Lucindha"),
   ),
+
+  "speaking": dict(
+    file="speaking.html", title="Public Speaking", colour="#4A3046", light="#4F344B", dark="#3E2839", deep="#2A1A27", logo="logo-speaking-hero.png",
+    description="Book Lucindha Lawson to speak on Deaf awareness, inclusion, resilience, women's sport, elite sport and education. Talks tailored to schools, businesses, charities and conferences.",
+    tagline="Inspiring audiences through lived experience, leadership and inclusion.",
+    intro=["Whether speaking to schools, businesses, charities, conferences or sports organisations, I enjoy sharing my journey to inspire confidence, resilience and a greater understanding of Deaf culture and inclusion.",
+           "From experiencing language deprivation as a child and living with Long QT syndrome to competing as an international Deaf athlete and building a professional career in accountancy, my journey has been shaped by resilience, determination and the belief that with the right support and opportunities, barriers can be overcome."],
+    groups=[
+      ("topics-title", "Speaking topics",
+       "Every audience is different. Whether I’m speaking to schools, businesses, charities or sporting organisations, every talk is tailored to your audience, objectives and event.",
+       [("Deaf Awareness", "Helping organisations better understand Deaf culture, communication and inclusion."),
+        ("Women’s Sport", "Sharing experiences of competing as an elite female Deaf athlete."),
+        ("Disability, Diversity & Inclusion (EDI)", "Sharing practical insights into Deaf culture, accessibility and inclusive communication, helping organisations create environments where everyone can thrive."),
+        ("Resilience", "Sharing how I’ve overcome challenges, including language deprivation, Long QT syndrome and the pressures of elite sport, while maintaining a positive mindset and determination to succeed."),
+        ("Inclusion & Accessibility", "Creating environments where everyone feels valued and included."),
+        ("Education, Language & Career", "From experiencing language deprivation as a child to becoming a graduate accountant and international athlete, I share how education, determination and the right support can transform lives."),
+        ("Role Model", "Encouraging young people to believe in themselves and achieve their ambitions."),
+        ("Elite Sport", "What it takes to compete at the highest international level, perform under pressure and develop a high-performance mindset."),
+        ("Question & Answer Sessions", "Interactive question and answer sessions, encouraging open conversations tailored to your audience.")]),
+    ],
+    why=("Why invite Lucindha?",
+         "Whether speaking in a classroom, conference, or boardroom, I bring lived experience, authenticity and practical insights that inspire audiences to think differently, overcome challenges and create more inclusive communities.",
+         [("Authentic Story", "A journey few people will ever experience.", "From language deprivation as a child to becoming a graduate accountant, international Deaf athlete and public speaker, I share an honest story of resilience, growth and possibility."),
+          ("Real-World Experience", "Experience that goes beyond the stage.", "My talks are shaped by experiences in elite sport, education, local government, voluntary work and Deaf advocacy, making every presentation practical and relatable."),
+          ("Audience Engagement", "More than just a presentation.", "I encourage discussion, reflection and participation, creating engaging experiences that audiences remember."),
+          ("Lasting Impact", "Inspiring action, not just applause.", "I want every audience to leave with greater confidence, empathy and practical ideas they can apply in their workplace, school or community.")]),
+    cta=("Ready to inspire your audience?",
+         "Whether you’re organising a school assembly, conference, business event, charity fundraiser or community programme, I’d be delighted to discuss how I can tailor a talk to suit your audience.",
+         "Available for", ["Schools and colleges", "Universities", "Businesses and workplaces", "Local authorities and public sector organisations", "Charities and community groups", "Sports clubs and governing bodies", "Conferences and events"],
+         "Enquire today"),
+  ),
 }
 
 def build(key, a):
+    from PIL import Image
+    lw, lh = Image.open(ROOT / "images" / a["logo"]).size
     groups = ""
     for i, (sid, title, intro, cards) in enumerate(a["groups"]):
         groups += f'''
@@ -57,7 +90,7 @@ def build(key, a):
 <section{' class="band"' if band_next else ''} aria-labelledby="why-title">
 <div class="wrap">
 <div class="head"><h2 id="why-title">{e(wt)}</h2><p class="muted">{e(wi)}</p></div>
-<ul class="ticks two">{"".join(f'<li>{CHECK}<span><strong>{e(t)}</strong> – {e(d)}</span></li>' for t, d in wl)}</ul>
+<ul class="ticks two">{"".join(f'<li>{CHECK}<span><strong>{e(w[0])}</strong> – {e(" ".join(w[1:]))}</span></li>' for w in wl)}</ul>
 </div>
 </section>'''
     ct, cp, cl, chips, cb = a["cta"]
@@ -89,7 +122,7 @@ def build(key, a):
 <a href="#why-title" class="pill ghost">Why invite me?</a>
 </div>
 </div>
-<div class="hero-logo"><img src="images/{a["logo"]}" alt="Lucindha Lawson {e(a["title"])} logo" width="600" height="641" style="width: 320px; height: auto"></div>
+<div class="hero-logo"><img src="images/{a["logo"]}" alt="Lucindha Lawson {e(a["title"])} logo" width="{lw}" height="{lh}" style="width: 320px; height: auto"></div>
 </div>
 </section>
 {groups}
