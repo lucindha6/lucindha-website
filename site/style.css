@@ -194,3 +194,7 @@ section:not(.band) .ticks li{background:linear-gradient(160deg,#0F3051 0%,#0B294
 .theme-area .cta{background:linear-gradient(135deg,rgba(168,121,40,.18) 0%,var(--area-dk) 60%,var(--area) 100%)}
 .theme-area .lead,.theme-area .muted,.theme-area .card p{color:#D9DEE4}
 .grid-2{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
+
+/* Area pages: footer in a deep shade of the page's own colour instead of navy */
+.theme-area .site-footer{background:linear-gradient(180deg,var(--area-dk) 0%,var(--area-deep,#1A2624) 100%);border-top-color:rgba(203,171,116,.3)}
+.theme-area .site-footer .legal{border-top-color:rgba(203,171,116,.25)}

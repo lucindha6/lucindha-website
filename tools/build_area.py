@@ -10,7 +10,7 @@ CHECK = ('<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fil
 
 AREAS = {
   "sport": dict(
-    file="sport.html", title="Sport & Coaching", colour="#2A3D3B", light="#2F4441", dark="#22322F", logo="logo-sport-hero.png",
+    file="sport.html", title="Sport & Coaching", colour="#2A3D3B", light="#2F4441", dark="#22322F", deep="#18231F", logo="logo-sport-hero.png",
     description="Lucindha Lawson – England Deaf futsal international, four-time Deaflympian and volunteer coach. Talks, mentoring and coaching for schools, clubs and organisations.",
     tagline="Helping athletes, teams and organisations develop on and off the court.",
     intro=["Alongside my finance career, I represent England internationally in Deaf football and futsal and coach players of different ages and abilities. I enjoy helping individuals and teams reach their potential through practical coaching, mentoring and education."],
@@ -97,7 +97,7 @@ def build(key, a):
 {cta}
 '''
     out = page(a["title"], a["description"], "community.html", body)
-    out = out.replace("<body>", f'<body class="theme-area" style="--area: {a["colour"]}; --area-lt: {a["light"]}; --area-dk: {a["dark"]}">', 1)
+    out = out.replace("<body>", f'<body class="theme-area" style="--area: {a["colour"]}; --area-lt: {a["light"]}; --area-dk: {a["dark"]}; --area-deep: {a.get("deep", a["dark"])}">', 1)
     (ROOT / a["file"]).write_text(out)
     print(a["file"], "written")
 
