@@ -1,0 +1,107 @@
+/* Lucindha Lawson – shared styles (soft, flat brand look introduced with the welcome page).
+   Pages move onto this stylesheet one at a time. */
+:root{
+  --navy:#0B1F33;      /* main logo background */
+  --navy-2:#0B2945;    /* Accounting */
+  --navy-3:#081828;    /* footer */
+  --sport:#2A3D3B; --speaking:#4A3046; --workshops:#343B40;
+  --gold:#A87928;      /* brand gold – logo, large headings, lines */
+  --gold-text:#CBAB74; /* lighter tint for small gold text (readable on every background) */
+  --cream:#F7F3E8; --mist:#C5CFDD;
+  --line:rgba(168,121,40,.38);
+  --serif:'Fraunces',Georgia,serif; --logo:'Montserrat',Arial,sans-serif; --body:'Atkinson Hyperlegible',Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--navy);color:var(--cream);font-family:var(--body);font-size:1.125rem;line-height:1.65}
+a{color:var(--gold-text)}a:hover{color:#DCC499}
+a:focus-visible,button:focus-visible{outline:3px solid var(--gold-text);outline-offset:4px;border-radius:6px}
+img{max-width:100%}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+.skip{position:absolute;left:16px;top:-80px;background:var(--gold-text);color:var(--navy);padding:12px 16px;font-weight:700;border-radius:8px;z-index:10}
+.skip:focus{top:12px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* headings */
+h1,h2,h3{font-family:var(--serif);font-variation-settings:"SOFT" 100;font-weight:400;margin:0}
+h1{font-size:clamp(2.6rem,5.2vw,4.2rem);line-height:1.08;letter-spacing:-.01em;font-variation-settings:"SOFT" 100,"opsz" 144}
+h1 em{font-style:italic;font-weight:300;color:var(--gold)}
+h2{font-size:clamp(2.1rem,3.6vw,2.9rem);line-height:1.12;color:var(--gold);font-variation-settings:"SOFT" 100,"opsz" 96}
+h3{font-size:1.4rem;line-height:1.3;font-weight:500;color:var(--cream)}
+.eyebrow{margin:0;font-family:var(--logo);font-weight:500;font-size:.85rem;letter-spacing:.28em;text-transform:uppercase;color:var(--gold-text)}
+.lead{margin:0;font-size:1.25rem;color:var(--mist);max-width:36em}
+.muted{color:var(--mist)}
+p{margin:0}
+
+/* header */
+.site-header{border-bottom:1px solid var(--line)}
+.site-header .wrap{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;padding-top:20px;padding-bottom:20px}
+.brand{display:flex;align-items:center;gap:16px;text-decoration:none}
+.brand img{height:52px;width:auto;display:block}
+.brand-text{display:flex;flex-direction:column;line-height:1.25}
+.brand-name{font-family:var(--logo);font-weight:400;font-size:1.05rem;letter-spacing:.32em;color:var(--gold);text-transform:uppercase}
+.brand-sub{font-family:var(--logo);font-weight:400;font-size:.78rem;letter-spacing:.14em;color:var(--mist)}
+.nav{display:flex;flex-wrap:wrap;align-items:center;gap:4px 24px}
+.nav a{color:var(--cream);text-decoration:none;padding:10px 0}
+.nav a:hover{color:var(--gold-text)}
+.nav a[aria-current="page"]{text-decoration:underline;text-decoration-color:var(--gold);text-decoration-thickness:2px;text-underline-offset:9px}
+
+/* buttons – soft pills */
+.pill{display:inline-flex;align-items:center;gap:10px;padding:14px 30px;border-radius:999px;font-family:var(--serif);font-variation-settings:"SOFT" 100;font-weight:600;font-size:1.25rem;line-height:1.2;text-decoration:none;background:var(--gold);color:var(--navy);border:1.5px solid var(--gold);transition:background .25s ease,gap .25s ease}
+.pill:hover{background:#B88A3A;color:var(--navy);gap:14px}
+.pill.ghost{background:transparent;color:var(--cream);font-weight:400;font-style:italic}
+.pill.ghost:hover{background:rgba(168,121,40,.14);color:var(--cream)}
+.pill.small{padding:10px 22px;font-size:1.2rem}
+.link{font-weight:700;padding:6px 0;display:inline-block}
+
+/* sections */
+section{padding:96px 0}
+.band{background:var(--navy-2)}
+.stack{display:flex;flex-direction:column;gap:18px}
+.head{display:flex;flex-direction:column;gap:14px;max-width:46em;margin-bottom:40px}
+.rule{width:72px;height:1.5px;border:0;margin:0;background:var(--gold)}
+.grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px}
+.card{background:var(--navy-2);border:1px solid var(--line);border-radius:22px;padding:30px;display:flex;flex-direction:column;gap:12px;transition:transform .25s ease,border-color .25s ease}
+.band .card{background:var(--navy)}
+.card:hover{transform:translateY(-3px);border-color:var(--gold)}
+.card p{color:var(--mist)}
+.card svg{stroke:var(--gold-text)}
+.card.dashed{border-style:dashed;background:transparent}
+.num{width:52px;height:52px;border-radius:50%;border:1.5px solid var(--gold);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-style:italic;font-size:1.5rem;color:var(--gold-text)}
+
+/* hero */
+.hero{padding:88px 0 104px}
+.hero .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:56px}
+.hero-text{flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:24px}
+.hero-logo{flex:1 1 280px;display:flex;justify-content:center}
+.hero-logo img{width:320px;height:auto}
+.note{display:flex;align-items:center;gap:10px;font-size:1rem;color:var(--mist)}
+
+/* two-column blocks */
+.split{display:flex;flex-wrap:wrap;gap:56px;align-items:center}
+.split > *{flex:1 1 420px;min-width:0}
+.ticks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+.ticks li{display:flex;gap:16px;align-items:flex-start;background:var(--navy);border:1px solid var(--line);border-radius:18px;padding:20px 22px}
+.ticks svg{flex:none;margin-top:3px;stroke:var(--gold-text)}
+.photo{aspect-ratio:4/5;max-width:420px;border-radius:26px;border:1.5px dashed var(--line);background:var(--navy-2);display:flex;align-items:center;justify-content:center;color:var(--mist);font-size:1rem}
+
+/* community area links */
+.areas{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.areas a{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:24px 26px;border-radius:20px;border:1px solid var(--line);color:var(--cream);text-decoration:none;font-family:var(--serif);font-variation-settings:"SOFT" 100;font-size:1.35rem;transition:transform .25s ease,border-color .25s ease}
+.areas a:hover{transform:translateY(-3px);border-color:var(--gold)}
+.areas a span[aria-hidden]{color:var(--gold-text)}
+
+/* call to action */
+.cta{border:1.5px solid var(--gold);border-radius:28px;padding:56px 48px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:28px}
+.cta > div{flex:1 1 420px;display:flex;flex-direction:column;gap:12px}
+
+/* footer */
+.site-footer{background:var(--navy-3);border-top:1px solid var(--line);padding:64px 0 40px;font-size:1rem}
+.site-footer .cols{display:flex;flex-wrap:wrap;gap:40px;justify-content:space-between;margin-bottom:36px}
+.site-footer .cols > *{flex:1 1 200px;display:flex;flex-direction:column;gap:6px}
+.site-footer .cols > :first-child{flex-basis:280px}
+.site-footer nav a{color:var(--cream);padding:4px 0}
+.site-footer .legal{color:var(--mist);font-size:.95rem;border-top:1px solid var(--line);padding-top:24px}
+
+@media (max-width:640px){section{padding:72px 0}.cta{padding:40px 28px}.hero{padding:56px 0 80px}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.card,.areas a,.pill{transition:none}.card:hover,.areas a:hover{transform:none}}
