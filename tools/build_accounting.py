@@ -20,7 +20,6 @@ SERVICES = [
     ("Financial health check", "Reviewing your finances and identifying practical ways to improve your business performance.", "any business that wants a fresh look at its numbers."),
 ]
 QUALS = [
-    ("AAT Licensed Accountant", "Licensed & Regulated", "Authorised to provide accountancy services in accordance with AAT's professional, ethical and regulatory standards. Licence no. 1010532."),
     ("MAAT", "Association of Accounting Technicians", "Full member of the Association of Accounting Technicians, demonstrating recognised professional competence and a commitment to high ethical standards."),
     ("CIPFA Student", "Chartered Public Finance Accountant", "Currently studying towards the internationally recognised Chartered Public Finance Accountant qualification through CIPFA."),
 ]
