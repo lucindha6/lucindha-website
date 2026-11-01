@@ -122,7 +122,7 @@ def card(s):
 
 def body(stories):
     return f"""
-<section class="hero" aria-labelledby="page-title">
+<section class="hero news-hero" aria-labelledby="page-title">
 <div class="wrap">
 <div class="hero-text" style="flex-basis: 100%">
 <nav aria-label="Breadcrumb" class="crumbs"><a href="home.html">Home</a> <span aria-hidden="true">/</span> News</nav>
@@ -133,8 +133,8 @@ def body(stories):
 </div>
 </section>
 
-<section class="band" aria-label="Stories, newest first" style="padding-top: 72px">
-<div class="wrap" style="max-width: 1000px">
+<section class="band news-band" aria-label="Stories, newest first">
+<div class="wrap">
 <ol reversed class="news-list">
 {chr(10).join(card(s) for s in stories)}
 </ol>
