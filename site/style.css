@@ -142,3 +142,26 @@ section{padding:96px 0}
 .band .ticks li{background:linear-gradient(160deg,#0F2640 0%,#0B1F33 70%)}
 section:not(.band) .ticks li{background:linear-gradient(160deg,#0F3051 0%,#0B2945 70%)}
 @media (max-width:480px){.ticks.two{grid-template-columns:1fr}}
+
+/* ---------- shared bits used on Accounting ---------- */
+.tagline{font-family:var(--serif);font-variation-settings:"SOFT" 100;font-style:italic;font-weight:400;font-size:clamp(1.6rem,2.8vw,2.1rem);line-height:1.25;color:var(--gold)}
+.chips{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:10px}
+.chips li{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;border:1px solid var(--line);font-size:1rem}
+.good{color:var(--cream)!important;font-size:1rem}
+.faq{display:flex;flex-direction:column;gap:14px}
+.faq details{border:1px solid var(--line);border-radius:20px;padding:20px 26px;background:linear-gradient(160deg,#0F3051 0%,#0B2945 70%)}
+.faq summary{cursor:pointer;font-family:var(--serif);font-variation-settings:"SOFT" 100;font-weight:500;font-size:1.3rem;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:16px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";font-size:1.6rem;color:var(--gold-text);transition:transform .25s ease}
+.faq details[open] summary::after{transform:rotate(45deg)}
+.faq details p{margin-top:12px;color:var(--mist)}
+
+/* ---------- Accounting theme: page on the Accounting navy #0B2945 ---------- */
+.theme-acc{background:#0B2945}
+.theme-acc .smart-header{background-color:#0B2945!important}
+.theme-acc .hero{background:none}
+.theme-acc .band{background:linear-gradient(180deg,#0B2945 0,rgba(11,41,69,0) 160px,rgba(11,41,69,0) calc(100% - 160px),#0B2945 100%),linear-gradient(160deg,#0A2440 0%,#09213A 55%,#081D34 100%)}
+.theme-acc .card{background:linear-gradient(160deg,#11375C 0%,#0E3052 60%,#0C2B4A 100%)}
+.theme-acc .band .card{background:linear-gradient(160deg,#0E2E4E 0%,#0B2945 65%,#0A2440 100%)}
+.theme-acc .faq details{background:linear-gradient(160deg,#11375C 0%,#0D2E4E 70%)}
+.theme-acc .cta{background:linear-gradient(135deg,rgba(168,121,40,.18) 0%,rgba(8,29,52,.7) 55%,rgba(11,41,69,.4) 100%)}
