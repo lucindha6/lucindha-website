@@ -1,5 +1,7 @@
-"""Social media links (all use the handle lucindha6). Used in the footer (via home.html) and on the Media page."""
+"""Social media links (LinkedIn company page + personal accounts @lucindha6 until business accounts exist). Used in the footer (via home.html) and on the Media page."""
 SOCIAL = [
+    ("LinkedIn", "https://www.linkedin.com/company/lucindhalawson",
+     '<rect x="3" y="3" width="18" height="18" rx="3"></rect><path d="M8 10.5V16M8 7.8v.01M11.5 16v-5.5M11.5 13a2.5 2.5 0 0 1 5 0v3"></path>'),
     ("Instagram", "https://www.instagram.com/lucindha6/",
      '<rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="0.6" fill="currentColor"></circle>'),
     ("TikTok", "https://www.tiktok.com/@lucindha6",
