@@ -230,3 +230,37 @@ section:not(.band) .ticks li{background:linear-gradient(160deg,#0F3051 0%,#0B294
 .nav{gap:4px 18px}
 .nav a{font-size:1.05rem}
 .nav a.pill{padding:10px 20px;font-size:1.06rem}
+
+/* ---------- Contact page ---------- */
+.contact-hero{padding-top:64px}
+.contact-grid{display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start}
+.contact-side{flex:1 1 340px;min-width:0;gap:20px}
+.contact-side .card h2{font-size:1.6rem}
+.steps ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+.steps li{display:flex;gap:14px;align-items:flex-start;color:var(--mist)}
+.steps .num{width:38px;height:38px;font-size:1.15rem;flex:none}
+.form-card{flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:24px;padding:40px;border-radius:28px;border:1px solid var(--line);background:linear-gradient(160deg,#0F3051 0%,#0B2945 70%)}
+.form-card h2{font-size:2rem}
+.small{font-size:1rem}
+.row{display:flex;flex-wrap:wrap;gap:20px}
+.row .field{flex:1 1 240px}
+.field{display:flex;flex-direction:column;gap:8px}
+.field > label,legend{font-weight:700;color:var(--cream)}
+.hint{color:var(--mist);font-size:1rem}
+.fld{font:inherit;font-size:1.125rem;color:#0B1F33;background:#FBF8F1;border:2px solid #C5CFDD;border-radius:14px;padding:12px 16px;min-height:52px;width:100%}
+.fld:focus-visible{outline:3px solid var(--gold-text);outline-offset:2px;border-color:var(--gold)}
+textarea.fld{resize:vertical}
+fieldset{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+legend{padding:0;margin-bottom:10px;font-family:var(--serif);font-variation-settings:"SOFT" 100;font-weight:500;font-size:1.25rem}
+fieldset.highlight{border:1.5px solid var(--gold);border-radius:20px;padding:20px 22px 22px}
+fieldset.highlight legend{padding:0 8px}
+.group-label{font-family:var(--logo);font-size:.8rem;letter-spacing:.24em;text-transform:uppercase;color:var(--gold-text);margin-top:6px}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opts.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 24px}
+.opt{display:flex;gap:12px;align-items:flex-start;min-height:32px;cursor:pointer}
+.opt input{width:24px;height:24px;flex:none;margin:2px 0 0;accent-color:#A87928;cursor:pointer}
+.opt input:focus-visible{outline:3px solid var(--gold-text);outline-offset:2px}
+.consent{color:var(--mist)}
+@media (max-width:640px){.form-card{padding:28px 20px}}
+.contact-hero .contact-grid{align-items:flex-start;gap:40px}
+
