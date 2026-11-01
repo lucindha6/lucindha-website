@@ -71,7 +71,7 @@ body = f'''
 <p class="goal">{e(GOAL)}</p>
 </div>
 <div class="hero-logo">
-<img class="portrait" src="images/lucindha.jpg" alt="Lucindha Lawson smiling, wearing a cream blazer" width="800" height="1000">
+<img class="portrait" src="images/lucindha.jpg" alt="Lucindha Lawson smiling, wearing a navy blazer" width="800" height="1000">
 </div>
 </div>
 </section>

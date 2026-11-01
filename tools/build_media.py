@@ -42,7 +42,7 @@ body = f'''
 </div>
 </div>
 <div class="hero-logo">
-<img class="portrait" src="images/lucindha.jpg" alt="Lucindha Lawson smiling, wearing a cream blazer" width="800" height="1000">
+<img class="portrait" src="images/lucindha.jpg" alt="Lucindha Lawson smiling, wearing a navy blazer" width="800" height="1000">
 </div>
 </div>
 </section>
@@ -87,7 +87,7 @@ body = f'''
 
 <section class="band" aria-labelledby="photos-title">
 <div class="wrap split">
-<img class="photo" src="images/lucindha.jpg" alt="Lucindha Lawson smiling, wearing a cream blazer" width="800" height="1000" style="flex: 1 1 260px; max-width: 360px; width: 100%; height: auto; border-radius: 22px; border: 1px solid var(--line); display: block">
+<img class="photo" src="images/lucindha.jpg" alt="Lucindha Lawson smiling, wearing a navy blazer" width="800" height="1000" style="flex: 1 1 260px; max-width: 360px; width: 100%; height: auto; border-radius: 22px; border: 1px solid var(--line); display: block">
 <div class="stack" style="flex: 999 1 420px">
 <h2 id="photos-title">Photos</h2>
 <p class="muted">You're welcome to use this photo alongside coverage of Lucindha and her work. Please don't crop it in a way that changes its meaning or use it to suggest an endorsement. For other or higher-resolution photos, just ask.</p>

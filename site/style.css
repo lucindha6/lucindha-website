@@ -336,6 +336,3 @@ section{padding:60px 0}
 /* Community Work hub: centre each area logo when the panel stacks on phones and tablets */
 @media (max-width:860px){.area-panel > img{margin:0 auto}}
 
-/* Portrait photo kept smaller to reduce glare for low-vision and Deafblind visitors (bright background). */
-.portrait, img.photo{width:100%;max-width:280px!important;flex:0 1 280px!important;margin-inline:auto}
-@media (max-width:940px){.portrait, img.photo{max-width:220px!important}}
