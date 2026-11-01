@@ -50,7 +50,7 @@
     '.dd-btn{background:none;border:0;color:inherit;cursor:pointer;min-width:34px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;padding:0 2px;margin-left:-2px}' +
     '.dd-btn svg{transition:transform .2s ease}.dd.open .dd-btn svg{transform:rotate(180deg)}' +
     '.dd-btn:focus-visible{outline:3px solid #CBAB74;outline-offset:2px}' +
-    '.dd-menu{display:none;position:absolute;top:100%;left:-18px;width:290px;max-width:calc(100vw - 32px);margin:10px 0 0;padding:10px;list-style:none;background:var(--area,#0B1F33);border:1px solid rgba(168,121,40,.5);border-radius:20px;box-shadow:0 20px 44px rgba(0,0,0,.45);z-index:60}' +
+    '.dd-menu{display:none;position:absolute;top:100%;left:-14px;width:290px;max-width:calc(100vw - 32px);margin:10px 0 0;padding:10px;list-style:none;background:var(--area,#0B1F33);border:1px solid rgba(168,121,40,.5);border-radius:20px;box-shadow:0 20px 44px rgba(0,0,0,.45);z-index:60}' +
     '.dd-menu::before{content:"";position:absolute;left:0;right:0;top:-12px;height:12px}' +
     '.dd.open .dd-menu{display:block}' +
     '@media (hover:hover){.dd:hover .dd-menu{display:block}.dd:hover .dd-btn svg{transform:rotate(180deg)}}' +

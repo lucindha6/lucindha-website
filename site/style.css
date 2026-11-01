@@ -209,3 +209,24 @@ section:not(.band) .ticks li{background:linear-gradient(160deg,#0F3051 0%,#0B294
 .ex-more{color:var(--gold-text);font-weight:700;text-decoration:underline;text-underline-offset:4px}
 @media (prefers-reduced-motion:reduce){.explore-card{transition:none}.explore-card:hover{transform:none}}
 @media (max-width:480px){.explore-card img{width:96px;height:96px}}
+
+/* ---------- header: keep logo, menu and button on one line ---------- */
+.site-header .wrap{max-width:1360px;flex-wrap:nowrap;gap:28px}
+.brand{flex:none}
+.brand-name{letter-spacing:.26em}
+.nav{flex-wrap:nowrap;gap:4px 22px;justify-content:flex-end}
+.nav a{white-space:nowrap}
+.nav a.pill{padding:11px 24px;font-size:1.12rem;margin-left:4px}
+@media (max-width:1180px){
+  .site-header .wrap{flex-wrap:wrap;row-gap:10px}
+  .nav{flex-wrap:wrap;justify-content:flex-start;width:100%}
+}
+/* header aligned with page content (1180px) */
+.site-header .wrap{max-width:1180px;gap:24px}
+.brand{gap:14px}
+.brand img{height:48px}
+.brand-name{font-size:.98rem;letter-spacing:.22em}
+.brand-sub{font-size:.74rem;letter-spacing:.1em}
+.nav{gap:4px 18px}
+.nav a{font-size:1.05rem}
+.nav a.pill{padding:10px 20px;font-size:1.06rem}
