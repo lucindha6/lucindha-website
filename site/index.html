@@ -7,56 +7,49 @@
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 <meta name="description" content="Lucindha Lawson – Accountant. Athlete. Coach. Speaker. AAT licensed accounting, sport and coaching, public speaking and accessible workshops for Deaf and hearing clients across the UK.">
 <title>Welcome – Lucindha Lawson</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&amp;display=swap">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..500,100;1,9..144,300..500,100&amp;display=swap">
 <style>
 html,body{height:100%}
-body{margin:0;color:#F7F3E8;font-family:'Atkinson Hyperlegible',Arial,sans-serif;font-size:1.125rem;line-height:1.6;
-background-color:#0B1F33;background-image:radial-gradient(900px 600px at 50% -10%,rgba(168,121,40,.24),transparent 65%),radial-gradient(800px 600px at -10% 30%,rgba(28,74,120,.34),transparent 60%),radial-gradient(800px 600px at 110% 80%,rgba(74,48,70,.42),transparent 60%),linear-gradient(180deg,#0B1F33 0%,#0D2338 50%,#09192A 100%);min-height:100%}
-a{color:#CBAB74}a:hover{color:#DCC499}
-a:focus-visible{outline:3px solid #CBAB74;outline-offset:4px}
-.wrap{min-height:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:48px 24px 40px;text-align:center}
-.mark{width:auto;height:96px;filter:drop-shadow(0 0 36px rgba(168,121,40,.35))}
-h1{margin:0;font-size:clamp(4rem,14vw,9rem);line-height:.95;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
-background:linear-gradient(180deg,#E1CAA3 0%,#CBAB74 45%,#B1863B 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
-.rule{width:min(320px,60vw);height:2px;border:0;margin:0;background:linear-gradient(90deg,transparent,#A87928 25%,#CBAB74 50%,#A87928 75%,transparent)}
-.intro{margin:0;font-size:clamp(1.5rem,3vw,2rem);font-weight:700}
-.roles{margin:0;font-size:clamp(1.15rem,2.4vw,1.45rem);color:#CBAB74;letter-spacing:.04em}
-.lead{margin:0;max-width:34em;color:#C5CFDD}
-.btn{display:inline-flex;align-items:center;gap:12px;background:linear-gradient(135deg,#D4B886 0%,#C29E61 50%,#B58C44 100%);box-shadow:0 8px 24px rgba(168,121,40,.3);color:#0B1F33;text-decoration:none;font-weight:700;font-size:1.2rem;padding:18px 34px;border-radius:12px;transition:transform .15s ease,box-shadow .15s ease}
-.btn:hover{color:#0B1F33;transform:translateY(-1px);box-shadow:0 12px 32px rgba(168,121,40,.45)}
-.areas{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;width:min(960px,100%)}
-.areas a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:84px;padding:16px 12px;box-sizing:border-box;border-radius:14px;border:1px solid rgba(168,121,40,.55);border-top:4px solid #A87928;color:#F7F3E8;text-decoration:none;font-weight:700;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
-.areas a span{font-weight:400;font-size:.95rem;color:#CBAB74}
-.areas a:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(0,0,0,.35);border-color:#A87928}
-.small{margin:6px 0 0;font-size:1rem;color:#C5CFDD}
-@media (max-width:760px){.areas{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:380px){.areas{grid-template-columns:1fr}}
-.rise{opacity:0;transform:translateY(14px);animation:rise .8s ease forwards}
-.d1{animation-delay:.05s}.d2{animation-delay:.25s}.d3{animation-delay:.45s}.d4{animation-delay:.65s}.d5{animation-delay:.85s}
-@keyframes rise{to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.rise{opacity:1;transform:none;animation:none}.btn,.areas a{transition:none}.btn:hover,.areas a:hover{transform:none}}
+body{margin:0;min-height:100%;color:#F7F3E8;font-family:'Atkinson Hyperlegible',Arial,sans-serif;font-size:1.125rem;line-height:1.6;background:#0B1F33;overflow-x:hidden}
+/* soft, slowly breathing candle-light glow */
+.glow{position:fixed;inset:0;pointer-events:none;z-index:0;
+background:radial-gradient(60vmax 45vmax at 50% 38%,rgba(168,121,40,.20),transparent 62%),
+radial-gradient(70vmax 60vmax at 0% 100%,rgba(74,48,70,.38),transparent 60%),
+radial-gradient(70vmax 60vmax at 100% 0%,rgba(28,74,120,.32),transparent 60%),
+linear-gradient(180deg,#0B1F33 0%,#0D2338 55%,#0A1B2D 100%)}
+.glow::after{content:"";position:absolute;inset:0;background:radial-gradient(38vmax 30vmax at 50% 40%,rgba(203,171,116,.10),transparent 70%);animation:breathe 9s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:.55;transform:scale(1)}50%{opacity:1;transform:scale(1.06)}}
+.wrap{position:relative;z-index:1;min-height:100vh;min-height:100svh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:56px 24px;text-align:center}
+.mark{width:auto;height:64px;opacity:.95;margin-bottom:28px}
+h1{margin:0;font-family:'Fraunces',Georgia,serif;font-weight:300;font-style:italic;font-variation-settings:"SOFT" 100,"opsz" 144;
+font-size:clamp(4.75rem,17vw,11rem);line-height:.9;letter-spacing:-.01em;
+background:linear-gradient(180deg,#EAD8B6 0%,#CBAB74 55%,#B58C44 100%);-webkit-background-clip:text;background-clip:text;color:transparent;padding:0 .08em .06em}
+.name{margin:22px 0 0;font-family:'Fraunces',Georgia,serif;font-weight:400;font-variation-settings:"SOFT" 100,"opsz" 48;font-size:clamp(1.6rem,3.6vw,2.2rem);color:#F7F3E8}
+.roles{margin:14px 0 0;font-size:clamp(1rem,2.2vw,1.15rem);letter-spacing:.22em;text-transform:uppercase;color:#CBAB74}
+.roles span{color:#A87928}
+@media (max-width:560px){.roles{letter-spacing:.14em;max-width:16em;line-height:1.9}}
+.in{margin-top:44px;display:inline-flex;align-items:center;gap:12px;padding:14px 30px;border-radius:999px;border:1.5px solid rgba(203,171,116,.7);
+color:#F7F3E8;text-decoration:none;font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:400;font-variation-settings:"SOFT" 100;font-size:1.3rem;
+background:rgba(168,121,40,.08);transition:background .3s ease,border-color .3s ease,gap .3s ease}
+.in:hover{background:rgba(168,121,40,.2);border-color:#CBAB74;gap:16px}
+.in:focus-visible{outline:3px solid #CBAB74;outline-offset:4px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.fade{opacity:0;animation:fade 1.6s cubic-bezier(.2,.7,.2,1) forwards}
+.f1{animation-delay:.1s}.f2{animation-delay:.5s}.f3{animation-delay:1.1s}.f4{animation-delay:1.5s}.f5{animation-delay:2s}
+@keyframes fade{from{opacity:0;transform:translateY(10px);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+@media (prefers-reduced-motion:reduce){.fade{opacity:1;animation:none}.glow::after{animation:none}.in{transition:none}}
 </style>
 </head>
 <body>
+<div class="glow" aria-hidden="true"></div>
 <main class="wrap">
-<img class="mark rise d1" src="images/logo-mark.png" alt="" width="163" height="208">
-<h1 class="rise d2">Hello</h1>
-<hr class="rule rise d2" aria-hidden="true">
-<div class="rise d3" style="display: flex; flex-direction: column; gap: 6px">
-<p class="intro">I'm Lucindha.</p>
-<p class="roles">Accountant. Athlete. Coach. Speaker.</p>
-</div>
-<p class="lead rise d3">Professional, accessible services across the UK – for Deaf and hearing clients alike.</p>
-<a class="btn rise d4" href="home.html">Enter website <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
-<nav aria-label="Go straight to" class="rise d5" style="width: 100%; display: flex; justify-content: center">
-<ul class="areas">
-<li><a href="accounting.html" style="background: linear-gradient(160deg, #103253 0%, #0B2945 60%, #0A233D 100%)">Accounting<span>Main service</span></a></li>
-<li><a href="sport.html" style="background: linear-gradient(160deg, #314744 0%, #2A3D3B 60%, #243533 100%)">Sport &amp; Coaching<span>Community Work</span></a></li>
-<li><a href="speaking.html" style="background: linear-gradient(160deg, #523650 0%, #4A3046 60%, #40293D 100%)">Public Speaking<span>Community Work</span></a></li>
-<li><a href="workshops.html" style="background: linear-gradient(160deg, #3B434A 0%, #343B40 60%, #2D3337 100%)">Workshops<span>Community Work</span></a></li>
-</ul>
-</nav>
-<p class="small rise d5">LUCINDHA LAWSON LTD · <a href="contact.html">Contact</a></p>
+<img class="mark fade f1" src="images/logo-mark.png" alt="" width="163" height="208">
+<h1 class="fade f2">Hello</h1>
+<p class="name fade f3">I'm Lucindha.</p>
+<p class="roles fade f4">Accountant <span aria-hidden="true">·</span> Athlete <span aria-hidden="true">·</span> Coach <span aria-hidden="true">·</span> Speaker</p>
+<a class="in fade f5" href="home.html">Come on in<span class="sr"> – enter the website</span> <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#CBAB74" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
 </main>
 </body>
 </html>
