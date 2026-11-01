@@ -129,3 +129,16 @@ section{padding:96px 0}
 /* header quote button: stop the menu-link style overriding the pill */
 .nav a.pill{padding:14px 30px;color:var(--navy);text-decoration:none;margin-left:6px}
 .nav a.pill:hover{color:var(--navy)}
+
+/* ---------- inner pages ---------- */
+.crumbs{font-size:1rem;color:var(--mist)}
+.sub{color:var(--gold-text)!important;font-weight:700}
+.goal{font-family:var(--serif);font-variation-settings:"SOFT" 100;font-style:italic;font-size:1.35rem;line-height:1.45;color:var(--gold-text);border-left:2px solid var(--gold);padding-left:18px}
+.portrait{width:380px;max-width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;object-position:center top;border-radius:26px;border:1px solid var(--line);display:block}
+.values{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.values .card{padding:24px}
+.split .stack > h2{margin-bottom:10px}
+.ticks.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px}
+.band .ticks li{background:linear-gradient(160deg,#0F2640 0%,#0B1F33 70%)}
+section:not(.band) .ticks li{background:linear-gradient(160deg,#0F3051 0%,#0B2945 70%)}
+@media (max-width:480px){.ticks.two{grid-template-columns:1fr}}
