@@ -337,9 +337,9 @@ section{padding:60px 0}
 @media (max-width:860px){.area-panel > img{margin:0 auto}}
 
 
-/* Phones and small tablets: show the portrait first (above the heading), a little smaller */
+/* Phones and small tablets: the side portrait is replaced by a smaller one placed right under the heading */
+.portrait-m{display:none}
 @media (max-width:940px){
-  .hero-logo:has(.portrait){order:-1;justify-content:flex-start}
-  .hero .portrait{width:240px}
-  .hero .wrap:has(.portrait){gap:28px}
+  .hero-logo:has(.portrait){display:none}
+  .portrait-m{display:block;width:200px;max-width:60%;height:auto;aspect-ratio:4/5;object-fit:cover;border-radius:22px;border:1px solid var(--line)}
 }

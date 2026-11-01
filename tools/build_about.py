@@ -66,6 +66,7 @@ body = f'''
 <nav aria-label="Breadcrumb" class="crumbs"><a href="home.html">Home</a> <span aria-hidden="true">/</span> About</nav>
 <p class="eyebrow">About Lucindha</p>
 <h1 id="page-title">Hello, I’m <em>Lucindha Lawson.</em></h1>
+<img class="portrait-m" src="images/lucindha.jpg" alt="Lucindha Lawson smiling, wearing a navy blazer" width="800" height="1000">
 <p class="lead" style="color: var(--cream)">{e(BIO[0])}</p>
 {"".join(f'<p class="muted">{e(p)}</p>' for p in BIO[1:])}
 <p class="goal">{e(GOAL)}</p>
