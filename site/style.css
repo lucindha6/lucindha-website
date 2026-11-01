@@ -165,3 +165,17 @@ section:not(.band) .ticks li{background:linear-gradient(160deg,#0F3051 0%,#0B294
 .theme-acc .band .card{background:linear-gradient(160deg,#0E2E4E 0%,#0B2945 65%,#0A2440 100%)}
 .theme-acc .faq details{background:linear-gradient(160deg,#11375C 0%,#0D2E4E 70%)}
 .theme-acc .cta{background:linear-gradient(135deg,rgba(168,121,40,.18) 0%,rgba(8,29,52,.7) 55%,rgba(11,41,69,.4) 100%)}
+
+/* ---------- Community Work hub ---------- */
+.jumps{display:flex;flex-wrap:wrap;gap:12px;margin-top:6px}
+.jump{display:inline-flex;align-items:center;gap:10px;padding:12px 22px;border-radius:999px;border:1.5px solid var(--gold);color:var(--cream);text-decoration:none;font-family:var(--serif);font-variation-settings:"SOFT" 100;font-size:1.15rem}
+.jump:hover{color:var(--cream);border-color:var(--gold-text)}
+.jump .dot{width:10px;height:10px;border-radius:50%;background:var(--gold)}
+.areas-stack{display:flex;flex-direction:column;gap:28px;padding-bottom:24px}
+.area-panel{border-radius:28px;border:1px solid var(--line);padding:48px;display:flex;flex-wrap:wrap;gap:32px 56px;align-items:center;scroll-margin-top:110px}
+.area-panel > img{flex:0 1 240px;width:240px;max-width:100%;height:auto;display:block}
+.area-panel > .stack{flex:999 1 420px;min-width:0}
+.mini-ticks{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.mini-ticks li{display:flex;gap:12px;align-items:flex-start}
+@media (max-width:640px){.area-panel{padding:32px 24px}.area-panel > img{width:180px}}
+.area-panel h2{color:var(--gold-text)}
