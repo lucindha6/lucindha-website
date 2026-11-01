@@ -104,7 +104,7 @@ body = f'''
 </div>
 </fieldset>
 
-<label class="opt consent"><input type="checkbox" name="consent" value="yes" required><span>I agree that my details will be used to respond to this enquiry, as explained in the <a href="#">privacy notice</a>. (required)</span></label>
+<label class="opt consent"><input type="checkbox" name="consent" value="yes" required><span>I agree that my details will be used to respond to this enquiry, as explained in the <a href="privacy.html">privacy notice</a>. (required)</span></label>
 
 <button type="submit" class="pill" style="align-self: flex-start; border: 0; cursor: pointer">Send enquiry <span aria-hidden="true">→</span></button>
 </form>
