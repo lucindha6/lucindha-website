@@ -125,3 +125,7 @@ section{padding:96px 0}
   .js .reveal{opacity:0;transform:translateY(34px);filter:blur(4px);transition:opacity 1.2s cubic-bezier(.2,.7,.2,1),transform 1.2s cubic-bezier(.2,.7,.2,1),filter 1.2s ease;transition-delay:calc(var(--i,0) * 140ms)}
   .js .reveal.in{opacity:1;transform:none;filter:none}
 }
+
+/* header quote button: stop the menu-link style overriding the pill */
+.nav a.pill{padding:14px 30px;color:var(--navy);text-decoration:none;margin-left:6px}
+.nav a.pill:hover{color:var(--navy)}
