@@ -2,7 +2,7 @@
 
 The live website for LUCINDHA LAWSON LTD, hosted on Netlify.
 
-- `site/` – the pages that are published (index, accounting, community, news, contact, thanks).
+- `site/` – the published pages: `index.html` (welcome page), `home.html`, `about.html`, `accounting.html`, `community.html` (hub), `sport.html`, `speaking.html`, `workshops.html`, `news.html`, `contact.html`, `thanks.html`.
 - `tools/build_news.py` – rebuilds `site/news.html` from the list of stories: `python3 tools/build_news.py site`
 - `netlify.toml` – tells Netlify to publish the `site` folder.
 
