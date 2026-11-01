@@ -278,3 +278,16 @@ fieldset.highlight legend{padding:0 8px}
 .news-hero{padding-bottom:36px}
 .news-band{padding-top:32px;background:linear-gradient(180deg,var(--navy) 0,rgba(11,31,51,0) 220px,rgba(11,31,51,0) calc(100% - 160px),var(--navy) 100%),linear-gradient(160deg,#0E2F50 0%,#0B2945 55%,#0A2440 100%)}
 .news-list{max-width:1000px}
+
+/* ---------- tighter vertical rhythm (gaps between sections ~120px) ---------- */
+section{padding:60px 0}
+.hero{padding:72px 0 60px}
+.contact-hero{padding-top:56px}
+.news-hero{padding-bottom:28px}
+.news-band{padding-top:28px}
+.head{margin-bottom:32px}
+.areas-stack{padding-bottom:0}
+.site-footer{padding-top:56px}
+@media (max-width:640px){section{padding:44px 0}.hero{padding:48px 0 44px}}
+#about{padding-bottom:36px}
+.hero + .areas-stack{margin-top:-26px}
