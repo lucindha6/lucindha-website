@@ -327,3 +327,8 @@ section{padding:60px 0}
 .aat-panel img{height:auto;width:200px;background:#fff;border-radius:12px;padding:18px 22px;box-sizing:content-box;display:block}
 .aat-panel p{color:var(--cream)!important;margin:0;max-width:24em}
 .prose .aat-panel{margin-bottom:20px}
+
+/* Phones and small tablets: when the hero stacks, hide the big decorative logo (the header already shows the monogram). Photos (.portrait) stay. */
+@media (max-width:940px){
+  .hero-logo:not(:has(.portrait)){display:none}
+}
