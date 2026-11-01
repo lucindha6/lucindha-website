@@ -320,7 +320,7 @@ section{padding:60px 0}
 }
 
 /* AAT Licensed Accountant logo – always full colour on a white panel with clear space (AAT brand rules: never recolour, stretch or alter) */
-.aat-badge{align-self:flex-start;display:inline-flex;background:#fff;border-radius:10px;padding:14px 18px;margin-top:14px}
+.aat-badge{align-self:flex-start;display:inline-flex;background:#fff;border-radius:10px;padding:14px 18px;margin-top:4px}
 .aat-badge img{height:42px;width:auto;display:block}
 .aat-line{color:var(--mist);font-size:.95rem;max-width:22em}
 .aat-panel{display:flex;flex-wrap:wrap;align-items:center;gap:20px 28px;margin:0 0 32px}
