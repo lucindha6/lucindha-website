@@ -52,7 +52,7 @@ dict(slug="privacy", title="Privacy notice", h1='Privacy <em>notice.</em>',
 <p>I don't send marketing emails. If I ever do, I'll only send them with your consent, and you'll be able to unsubscribe at any time.</p>"""),
  ("share", "Who I share it with", """
 <p>I never sell your information. I only share it where I need to, with:</p>
-<ul><li><strong>Netlify</strong>, which hosts this website and receives the enquiry form.</li>
+<ul><li><strong>My website hosting provider</strong>, which hosts this website and receives the enquiry form.</li>
 <li><strong>Microsoft</strong> (Microsoft 365), which provides my email and secure file storage.</li>
 <li><strong>Google Fonts</strong>, which delivers the fonts used on this website. Your browser connects to Google to download them, so Google receives your IP address.</li>
 <li><strong>The accounting and tax software I use</strong> to deliver your work.</li>
@@ -61,7 +61,7 @@ dict(slug="privacy", title="Privacy notice", h1='Privacy <em>notice.</em>',
 <li><strong>The Association of Accounting Technicians (AAT)</strong>, my professional body and anti-money laundering supervisor, when it monitors or inspects my practice.</li>
 <li><strong>My insurers and professional advisers</strong>, if needed to manage a claim or a complaint.</li>
 <li><strong>The National Crime Agency or other authorities</strong>, where the law requires it. In some cases the law doesn't allow me to tell you.</li></ul>
-<p>Netlify, Microsoft, Google and some software providers may store or process data outside the UK, including in the United States. Where that happens, the safeguards UK data protection law requires are in place, such as an adequacy decision or approved contract clauses.</p>"""),
+<p>My hosting provider, Microsoft, Google and some software providers may store or process data outside the UK, including in the United States. Where that happens, the safeguards UK data protection law requires are in place, such as an adequacy decision or approved contract clauses.</p>"""),
  ("keep", "How long I keep it", """
 <ul><li><strong>Enquiries</strong> that don't lead to work: up to 12 months after our last contact.</li>
 <li><strong>Client identity and due diligence records</strong>: 5 years after our business relationship ends, as anti-money laundering law requires.</li>
@@ -95,7 +95,7 @@ dict(slug="cookies", title="Cookie policy", h1='Cookie <em>policy.</em>',
 <p>Cookies are small files that a website can save in your browser. They're often used to remember settings, count visitors or show adverts.</p>"""),
  ("use", "Cookies on this website", """
 <p>This website doesn't set any cookies. There's no analytics, advertising or social media tracking, and nothing is saved in your browser's storage.</p>
-<p>The enquiry form sends your answers straight to me through my hosting provider, Netlify. It doesn't place a cookie on your device.</p>"""),
+<p>The enquiry form sends your answers straight to me through my website hosting provider. It doesn't place a cookie on your device.</p>"""),
  ("third", "Other services the website uses", """
 <p>The fonts come from <strong>Google Fonts</strong>. When a page loads, your browser connects to Google to download them, which shares your IP address with Google. Google Fonts doesn't set cookies. The <a href="privacy.html">privacy notice</a> explains more.</p>
 <p>Links to other websites, such as news stories, take you to sites with their own cookie policies.</p>"""),
