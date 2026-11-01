@@ -105,3 +105,23 @@ section{padding:96px 0}
 
 @media (max-width:640px){section{padding:72px 0}.cta{padding:40px 28px}.hero{padding:56px 0 80px}}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.card,.areas a,.pill{transition:none}.card:hover,.areas a:hover{transform:none}}
+
+/* ---------- soft gradients (kept gentle) ---------- */
+.hero{background:radial-gradient(520px 420px at 80% 50%,rgba(168,121,40,.13),transparent 70%),radial-gradient(700px 500px at 0% 0%,rgba(11,41,69,.9),transparent 70%)}
+.band{background:linear-gradient(160deg,#0E2F50 0%,#0B2945 55%,#0A2440 100%)}
+.card{background:linear-gradient(160deg,#0F3051 0%,#0B2945 60%,#0A2541 100%)}
+.band .card{background:linear-gradient(160deg,#0F2640 0%,#0B1F33 65%,#0A1C2E 100%)}
+.card.dashed{background:transparent}
+.ticks li{background:linear-gradient(160deg,#0F2640 0%,#0B1F33 70%)}
+.pill{background:linear-gradient(135deg,#BC8E42 0%,#A87928 55%,#9A6D22 100%)}
+.pill:hover{background:linear-gradient(135deg,#C99C50 0%,#B4852F 55%,#A47528 100%)}
+.pill.ghost,.pill.ghost:hover{background:transparent}
+.pill.ghost:hover{background:rgba(168,121,40,.14)}
+.cta{background:linear-gradient(135deg,rgba(168,121,40,.18) 0%,rgba(11,41,69,.75) 55%,rgba(11,31,51,.4) 100%)}
+.site-footer{background:linear-gradient(180deg,#0A1B2C 0%,#071522 100%)}
+
+/* ---------- gentle scroll reveal (only when JavaScript runs and motion is allowed) ---------- */
+@media (prefers-reduced-motion:no-preference){
+  .js .reveal{opacity:0;transform:translateY(18px);transition:opacity .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1);transition-delay:calc(var(--i,0) * 90ms)}
+  .js .reveal.in{opacity:1;transform:none}
+}
