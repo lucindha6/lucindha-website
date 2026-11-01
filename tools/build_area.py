@@ -103,6 +103,26 @@ AREAS = {
   ),
 }
 
+EXPLORE = {
+    "sport": ("sport.html", "Sport & Coaching", "#2A3D3B", "logo-sport.png", "International Deaf football and futsal player and coach."),
+    "speaking": ("speaking.html", "Public Speaking", "#4A3046", "logo-speaking.png", "Talks on leadership, Deaf awareness, inclusion and elite sport."),
+    "workshops": ("workshops.html", "Workshops", "#343B40", "logo-workshops.png", "Interactive workshops on BSL, Deaf awareness, accessibility and more."),
+}
+
+def explore(current):
+    items = "".join(
+        f'<li><a class="explore-card" href="{f}" style="background: {c}"><img src="images/{l}" alt="" width="360" height="360">'
+        f'<span class="stack" style="gap: 6px"><span class="ex-title">{e(t)}</span><span class="ex-text">{e(d)}</span>'
+        f'<span class="ex-more">Find out more <span aria-hidden="true">→</span></span></span></a></li>'
+        for k, (f, t, c, l, d) in EXPLORE.items() if k != current)
+    return f'''
+<section aria-labelledby="explore-title" style="padding-bottom: 24px">
+<div class="wrap">
+<div class="head"><h2 id="explore-title">Explore my other community work</h2></div>
+<ul class="explore">{items}</ul>
+</div>
+</section>'''
+
 def build(key, a):
     from PIL import Image
     lw, lh = Image.open(ROOT / "images" / a["logo"]).size
@@ -158,6 +178,7 @@ def build(key, a):
 </section>
 {groups}
 {why}
+{explore(key)}
 {cta}
 '''
     out = page(a["title"], a["description"], "community.html", body)

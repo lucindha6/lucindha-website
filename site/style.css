@@ -198,3 +198,14 @@ section:not(.band) .ticks li{background:linear-gradient(160deg,#0F3051 0%,#0B294
 /* Area pages: footer in a deep shade of the page's own colour instead of navy */
 .theme-area .site-footer{background:linear-gradient(180deg,var(--area-dk) 0%,var(--area-deep,#1A2624) 100%);border-top-color:rgba(203,171,116,.3)}
 .theme-area .site-footer .legal{border-top-color:rgba(203,171,116,.25)}
+
+/* "Explore my other community work" panels on the area pages */
+.explore{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:20px}
+.explore-card{display:flex;align-items:center;gap:22px;padding:20px 26px 20px 14px;border-radius:24px;border:1px solid rgba(168,121,40,.5);text-decoration:none;color:var(--cream);transition:transform .25s ease,border-color .25s ease}
+.explore-card:hover{transform:translateY(-3px);border-color:var(--gold-text);color:var(--cream)}
+.explore-card img{width:130px;height:130px;flex:none;display:block}
+.ex-title{font-family:var(--serif);font-variation-settings:"SOFT" 100;font-size:1.5rem;color:var(--gold-text)}
+.ex-text{color:#D9DEE4}
+.ex-more{color:var(--gold-text);font-weight:700;text-decoration:underline;text-underline-offset:4px}
+@media (prefers-reduced-motion:reduce){.explore-card{transition:none}.explore-card:hover{transform:none}}
+@media (max-width:480px){.explore-card img{width:96px;height:96px}}

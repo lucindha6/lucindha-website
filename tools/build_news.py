@@ -216,7 +216,7 @@ a[class~="btn"],.btn{transition:transform .15s ease,box-shadow .15s ease}
 </div>
 </footer>
 </div>
-<script src="site.js?v=4"></script>
+<script src="site.js?v=5"></script>
 </body>
 </html>
 '''
