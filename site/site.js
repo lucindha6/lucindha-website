@@ -2,7 +2,7 @@
 (function () {
   if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   document.documentElement.classList.add('js');
-  var sel = '.hero-text > *, .hero-logo, .head, .grid > li, .ticks > li, .areas > li, .split > *, .cta, section .stack > h2, .site-footer .cols > *';
+  var sel = '.hero-text > *, .hero-logo, .head, .grid > li, .ticks > li, .areas > li, .split > *, .cta, .area-panel, .news-list > li, .site-footer .cols > *';
   var els = Array.prototype.slice.call(document.querySelectorAll(sel));
   els.forEach(function (el) {
     var sibs = Array.prototype.filter.call(el.parentElement.children, function (c) { return els.indexOf(c) > -1; });
