@@ -343,3 +343,9 @@ section{padding:60px 0}
   .hero-logo:has(.portrait){display:none}
   .portrait-m{display:block;width:200px;max-width:60%;height:auto;aspect-ratio:4/5;object-fit:cover;border-radius:22px;border:1px solid var(--line)}
 }
+
+/* Social media icons (footer and Media page) */
+.social{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.social a{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:999px;border:1px solid var(--line);color:var(--gold-text);transition:background .2s ease,color .2s ease}
+.social a:hover{background:rgba(203,171,116,.14);color:#DCC499}
+.handle{color:var(--cream)}
