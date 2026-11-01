@@ -336,3 +336,10 @@ section{padding:60px 0}
 /* Community Work hub: centre each area logo when the panel stacks on phones and tablets */
 @media (max-width:860px){.area-panel > img{margin:0 auto}}
 
+
+/* Phones and small tablets: show the portrait first (above the heading), a little smaller */
+@media (max-width:940px){
+  .hero-logo:has(.portrait){order:-1;justify-content:flex-start}
+  .hero .portrait{width:240px}
+  .hero .wrap:has(.portrait){gap:28px}
+}
