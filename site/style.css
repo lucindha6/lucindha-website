@@ -179,3 +179,18 @@ section:not(.band) .ticks li{background:linear-gradient(160deg,#0F3051 0%,#0B294
 .mini-ticks li{display:flex;gap:12px;align-items:flex-start}
 @media (max-width:640px){.area-panel{padding:32px 24px}.area-panel > img{width:180px}}
 .area-panel h2{color:var(--gold-text)}
+
+/* ---------- Area theme (Sport & Coaching / Public Speaking / Workshops): page on the area's brand colour ---------- */
+.theme-area{background:var(--area)}
+.theme-area .smart-header{background-color:var(--area)!important}
+.theme-area .site-header{border-bottom-color:rgba(203,171,116,.35)}
+.theme-area .hero{background:none}
+.theme-area h2,.theme-area .tagline,.theme-area h1 em{color:var(--gold-text)}
+.theme-area .band{background:linear-gradient(180deg,var(--area) 0,transparent 160px,transparent calc(100% - 160px),var(--area) 100%),var(--area-dk)}
+.theme-area .card{background:linear-gradient(160deg,var(--area-lt) 0%,var(--area) 100%)}
+.theme-area .band .card{background:linear-gradient(160deg,var(--area) 0%,var(--area-dk) 100%)}
+.theme-area .ticks li,.theme-area section:not(.band) .ticks li{background:linear-gradient(160deg,var(--area-lt) 0%,var(--area) 100%)}
+.theme-area .band .ticks li{background:linear-gradient(160deg,var(--area) 0%,var(--area-dk) 100%)}
+.theme-area .cta{background:linear-gradient(135deg,rgba(168,121,40,.18) 0%,var(--area-dk) 60%,var(--area) 100%)}
+.theme-area .lead,.theme-area .muted,.theme-area .card p{color:#D9DEE4}
+.grid-2{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
