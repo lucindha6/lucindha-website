@@ -79,6 +79,10 @@ body = f'''
 <h2 id="quals-title">Qualified and regulated</h2>
 <p class="muted">Accountancy services delivered to recognised professional, ethical and regulatory standards.</p>
 </div>
+<div class="aat-panel">
+<img src="images/aat-licensed-accountant.svg" alt="AAT Licensed Accountant" width="160" height="51">
+<p>Lucindha Lawson is licensed and regulated by AAT under licence number 1010532.</p>
+</div>
 <ul class="grid">
 {"".join(f'<li class="card"><h3>{e(t)}</h3><p class="sub">{e(s)}</p><p>{e(d)}</p></li>' for t, s, d in QUALS)}
 </ul>

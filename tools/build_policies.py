@@ -200,6 +200,7 @@ dict(slug="professional", title="Professional information", h1='Professional <em
 <li><strong>Director:</strong> Lucindha Lawson MAAT</li>
 <li><strong>Email:</strong> {HELLO}</li></ul>"""),
  ("licence", "Professional body and licence", f"""
+<div class="aat-panel"><img src="images/aat-licensed-accountant.svg" alt="AAT Licensed Accountant" width="160" height="51"><p>Lucindha Lawson is licensed and regulated by AAT under licence number 1010532.</p></div>
 <p>Lucindha Lawson is a full member (MAAT) of the <strong>Association of Accounting Technicians (AAT)</strong> and an AAT licensed accountant, licence no. <strong>1010532</strong>.</p>
 <p>The practice follows {AAT_ETHICS}, including its rules on professional conduct, client care and continuing professional development.</p>"""),
  ("aml", "Anti-money laundering supervision", """
