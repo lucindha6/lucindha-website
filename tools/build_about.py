@@ -25,6 +25,8 @@ QUALS = [
     ("National Futsal Course", "The Football Association", "Successfully completed The Football Association's National Futsal Course, strengthening my specialist coaching knowledge to support the development of players and teams."),
     ("UEFA C Licence", "The Football Association", "Successfully completed The Football Association's UEFA C Licence, developing the coaching knowledge and practical skills to support player development in football and futsal."),
 ]
+# BDA trusteeship is not announced until the BDA AGM on 21 November 2026 - set SHOW_GOV = True after that.
+SHOW_GOV = False
 GOV = [("British Deaf Association", "Trustee · 2026–2029", "Serving on the Board of Trustees, contributing to good governance and supporting the BDA’s work to strengthen, protect and promote British Sign Language and the Deaf community.", "https://bda.org.uk/board/")]
 AMB = [
     ("Sporting Equals", "Official Ambassador · Since 2025", "As a Sporting Equals Ambassador, I use my platform and lived experience in elite Deaf sport to champion equality, inclusion and representation, helping to break down barriers and create greater opportunities in sport.", "https://www.sportingequals.org.uk/about-us/ambassadors/"),
@@ -93,12 +95,12 @@ body = f'''
 ''' + section("quals-title", "Qualifications & Professional Memberships",
               "Committed to continuous professional development and recognised professional standards.",
               '<ul class="grid">' + "".join(card(*q) for q in QUALS) + "</ul>", anchor="qualifications") \
-  + section("gov-title", "Leadership & Governance",
+  + (section("gov-title", "Leadership & Governance",
               "Contributing professional expertise, lived experience and leadership to support strong governance and positive change.",
-              '<ul class="grid" style="grid-template-columns: minmax(0, 760px)">' + "".join(card(*g) for g in GOV) + "</ul>", band=True) \
+              '<ul class="grid" style="grid-template-columns: minmax(0, 760px)">' + "".join(card(*g) for g in GOV) + "</ul>", band=True) if SHOW_GOV else "") \
   + section("amb-title", "Ambassador Roles",
               "Using sport, lived experience and advocacy to champion inclusion, representation and positive change.",
-              '<ul class="grid">' + "".join(card(*a) for a in AMB) + "</ul>") \
+              '<ul class="grid">' + "".join(card(*a) for a in AMB) + "</ul>", band=not SHOW_GOV) \
   + section("why-title", "Why Choose Lucindha?",
               "I believe great service is about more than qualifications. It's about building trust, communicating clearly and helping every client achieve their goals with confidence.",
               '<ul class="ticks two">' + "".join(f'<li>{CHECK}<span><strong>{e(t)}</strong> – {e(d)}</span></li>' for t, d in WHY) + "</ul>", band=True) \
@@ -117,6 +119,6 @@ body = f'''
 '''
 
 (ROOT / "about.html").write_text(page("About",
-    "About Lucindha Lawson: AAT Licensed Accountant and MAAT member studying CIPFA, England Deaf futsal international, BDA trustee and ambassador for Sporting Equals, Brown Girl Sport and Beat The Block.",
+    "About Lucindha Lawson: AAT Licensed Accountant and MAAT member studying CIPFA, England Deaf futsal international" + (", BDA trustee" if SHOW_GOV else "") + " and ambassador for Sporting Equals, Brown Girl Sport and Beat The Block.",
     "about.html", body))
 print("about.html written")
