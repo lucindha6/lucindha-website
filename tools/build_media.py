@@ -105,7 +105,7 @@ body = f'''
 <h2 id="interviews-title">Interviews and bookings</h2>
 <p class="muted">I'm a BSL user. Interviews can be arranged with a BSL interpreter, or questions can be sent by email. For talks and events, please include the date, location and audience.</p>
 <p class="muted">Email <a href="mailto:hello@lucindhalawson.co.uk?subject=Media%20enquiry">hello@lucindhalawson.co.uk</a></p>
-<p class="muted">Follow Lucindha <span class="handle">@lucindha6</span></p>
+<p class="muted">Follow Lucindha</p>
 {social_links()}
 </div>
 <a href="mailto:hello@lucindhalawson.co.uk?subject=Media%20enquiry" class="pill">Send an email</a>
