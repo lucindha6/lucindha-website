@@ -3,3 +3,10 @@
 [build]
   publish = "site"
   command = ""
+
+# PRE-LAUNCH: tells Google and other search engines not to list any page yet.
+# Delete this whole [[headers]] block on launch day so the site can appear in search results.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
