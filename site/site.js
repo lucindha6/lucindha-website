@@ -42,7 +42,7 @@
 
 /* Community Work drop-down in the header menu (works on every page, keyboard and screen-reader friendly). */
 (function () {
-  var link = Array.prototype.find.call(document.querySelectorAll('header nav a'), function (a) { return a.getAttribute('href') === 'community.html'; });
+  var link = Array.prototype.find.call(document.querySelectorAll('header nav a'), function (a) { return /(^|\/)community(\.html)?$/.test(a.getAttribute('href') || ''); });
   if (!link) return;
   var css = document.createElement('style');
   css.textContent =
@@ -70,7 +70,7 @@
   btn.setAttribute('aria-label', 'Show Community Work pages');
   btn.innerHTML = '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CBAB74" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>';
   var menu = document.createElement('ul'); menu.id = 'dd-community'; menu.className = 'dd-menu';
-  var here = location.pathname.split('/').pop();
+  var here = (location.pathname.split('/').pop() || '').replace(/\.html$/, '');
   [['sport.html', 'Sport & Coaching', '#2A3D3B'], ['speaking.html', 'Public Speaking', '#4A3046'], ['workshops.html', 'Workshops', '#343B40'], ['community.html', 'All Community Work', '']]
     .forEach(function (it) {
       var li = document.createElement('li'), a = document.createElement('a');
@@ -78,7 +78,7 @@
       if (it[2]) { var sw = document.createElement('span'); sw.className = 'sw'; sw.setAttribute('aria-hidden', 'true'); sw.style.background = it[2]; a.appendChild(sw); }
       else a.className = 'hub';
       a.appendChild(document.createTextNode(it[1]));
-      if (here === it[0]) a.setAttribute('aria-current', 'page');
+      if (here === it[0].replace(/\.html$/, '')) a.setAttribute('aria-current', 'page');
       li.appendChild(a); menu.appendChild(li);
     });
   wrap.appendChild(btn); wrap.appendChild(menu);
