@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://www.lucindhalawson.co.uk/sitemap.xml
