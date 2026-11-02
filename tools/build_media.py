@@ -26,7 +26,7 @@ FACTS = ["AAT licensed accountant and MAAT member (licence no. 1010532)", "Study
          "England Deaf women's futsal international", "Back-to-back European champion", "Four-time Deaflympian",
          "UEFA C Licence and FA National Futsal Course", "Ambassador for Sporting Equals, Brown Girl Sport and Beat The Block",
          "Profoundly Deaf British Sign Language user"]
-TOPICS = ["Deaf awareness and Deaf culture", "Language deprivation and education", "Disability, diversity and inclusion",
+TOPICS = ["Deaf awareness and Deaf culture", "Language deprivation and education", "Equality, diversity and inclusion (EDI)",
           "Women's and elite sport", "Resilience and living with Long QT syndrome", "Accessible professional services and finance"]
 
 body = f'''
