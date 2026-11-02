@@ -35,6 +35,11 @@ body = f'''
 </div>
 
 <div class="card">
+<h2>Meetings</h2>
+<p>Weekday evenings and Saturdays, by video call or in person, by arrangement.</p>
+</div>
+
+<div class="card">
 <h2>Prefer email?</h2>
 <p><a href="mailto:hello@lucindhalawson.co.uk" class="link">hello@lucindhalawson.co.uk</a></p>
 <p>Based in London, working with clients across the UK. BSL interpreters can be arranged where required.</p>

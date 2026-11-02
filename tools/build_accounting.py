@@ -52,7 +52,7 @@ FAQ = [
     ("What do I need to send you to get started?", "I'll send you a simple checklist. Usually it's photo ID and proof of address, your Unique Taxpayer Reference (UTR), and your recent records, such as bank statements, receipts and invoices."),
     ("Why do you need to check my identity?", "Anti-money laundering law requires every accountant to check the identity of new clients before starting work. It's quick, and your documents are kept securely."),
     ("Do you work with clients outside London?", "Yes. I'm based in London and work with clients across the UK, by email, text message and video call."),
-    ("How do video calls work?", "We agree the format in advance. Calls can include a BSL interpreter, live captions or the chat box – whatever works best for both of us. If you'd prefer, we can do everything by email instead."),
+    ("How do video calls work?", "Meetings are on weekday evenings and Saturdays, by arrangement, and we agree the format in advance. Calls can include a BSL interpreter, live captions or the chat box – whatever works best for both of us. If you'd prefer, we can do everything by email instead."),
     ("Can you help if I'm behind with my tax or bookkeeping?", "Yes. Many people come to an accountant when things have piled up. Tell me where you're at in your enquiry, with no judgement, and I'll suggest a plan to get you back on track."),
     ("Can I book an appointment directly?", "Please send an enquiry first. Once I've reviewed it, I'll offer you an appointment if one is needed."),
 ]
