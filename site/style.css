@@ -370,3 +370,6 @@ section{padding:60px 0}
 
 /* Media appearances */
 .featured-on{font-family:var(--serif);font-variation-settings:"SOFT" 100;font-size:1.25rem;line-height:1.6;color:var(--gold-text)}
+.appear-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px}
+.appear-grid .card{padding:24px;gap:8px}
+.appear-grid h3{font-size:1.25rem}

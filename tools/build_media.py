@@ -29,15 +29,25 @@ FACTS = ["AAT licensed accountant and MAAT member (licence no. 1010532)", "Study
 TOPICS = ["Deaf awareness and Deaf culture", "Language deprivation and education", "Equality, diversity and inclusion (EDI)",
           "Women's and elite sport", "Resilience and living with Long QT syndrome", "Accessible professional services and finance"]
 
-FEATURED_ON = ["Sky Sports News", "BBC", "COPA90", "England Football", "The FA", "LumoTV (BSL Zone)"]
-# Media appearances: (kind, outlet, title, when, description, url or None, link text)
+FEATURED_ON = ["Sky Sports", "BBC", "ITV", "TNT Sports", "COPA90", "England Football", "The FA", "LumoTV", "Together TV"]
+# Media appearances, newest first: (kind, outlet, title, when, description, url or None, link text)
 APPEARANCES = [
-    ("Television", "Sky Sports News", "TV interviews", "", "Interviewed on Sky Sports News.", None, ""),
-    ("Television", "BBC", "TV interviews", "", "Interviewed by the BBC.", None, ""),
-    ("Video", "England Football", "Origins: Lucindha Lawson", "May 2026", "England Football's Origins series on how football shaped Lucindha's life, from foster care to the England deaf team.", "https://www.englandfootball.com/articles/2026/May/05/england-football-origins-lucindha-lawson-20260505", "Watch on England Football"),
-    ("Documentary", "COPA90 (YouTube)", "Finding the First South Asian Lioness", "June 2025", "COPA90 documentary on why England is still waiting for its first senior South Asian Lioness, featuring Lucindha.", "https://youtu.be/jy944wVYxUw", "Watch on YouTube"),
-    ("Photoshoot", "England women's senior team", "England EURO match photoshoot", "", "Photoshoot at an England senior women's European Championship match.", None, ""),
-    ("TV programme", "LumoTV (BSL Zone)", "Getting Personal with Lucindha Lawson", "2022", "A 27-minute conversation in British Sign Language with presenter Deepa Shastri about Lucindha's life and football career.", "https://lumotv.co.uk/watch/getting-personal/getting-personal-with-lucindha-lawson", "Watch on LumoTV"),
+    ("Interview", "TNT Sports · Sign Up – Into Football", "Back-to-back European champions", "May 2026", "Talking about what England's second European title means for the Deaf community.", "https://www.facebook.com/signupfootball/videos/huge-congratulations-to-englands-deaf-womens-futsal-team-who-have-won-back-to-ba/1418088730336805/", "Watch on Facebook"),
+    ("Video", "England Football", "Origins: Lucindha Lawson", "May 2026", "England Football's Origins series on how football gave Lucindha a place to belong.", "https://www.youtube.com/watch?v=sXu4XlGvY8M", "Watch on YouTube"),
+    ("Interview", "Cambridgeshire Deaf Association", "Inside England's European title", "March 2026", "Lucindha's first interview after scoring both goals in the European final against Poland.", "https://www.facebook.com/CambsDeaf/videos/meet-one-of-the-stars-of-the-england-deaf-futsal-team-lucindha-lawson-lucindha6-/1364586379035219/", "Watch on Facebook"),
+    ("Video", "Maidenhead United FC", "International Women's Day special", "March 2026", "Lucindha on why Maidenhead United is \"the best club to have deaf awareness\" she has played for.", "https://www.facebook.com/MUFCYorkRoad/videos/this-is-the-best-club-to-have-deaf-awareness-that-ive-ever-played-foras-we-mark-/814940748292343/", "Watch on Facebook"),
+    ("Photoshoot", "Hilton × England", "Hilton and England FA photoshoot", "January 2026", "A photoshoot with Hilton and England.", None, ""),
+    ("TV news", "BBC London", "Calling for fair funding for deaf athletes", "November 2025", "Lucindha calls on the government to give deaf athletes the same support as Olympians and Paralympians.", "https://www.facebook.com/BBCLondon/videos/north-london-footballer-lucindha-lawson-is-calling-on-the-government-to-give-dea/4140561222861792/", "Watch on Facebook"),
+    ("TV programme", "LumoTV", "LumoTV Deaflympics: episode 1", "September 2025", "A surprise visit to the Royal School for the Deaf Derby, where pupils guess her sport.", None, ""),
+    ("Documentary", "COPA90", "Finding the First South Asian Lioness", "June 2025", "COPA90 documentary on why England is still waiting for its first senior South Asian Lioness.", "https://youtu.be/jy944wVYxUw", "Watch on YouTube"),
+    ("TV interview", "Sky Sports", "Pre-tournament interview", "June 2025", "Before the World Deaf Futsal Championship: \"On and off the pitch, we're strong.\"", "https://www.facebook.com/SkySports/videos/england-deaf-womens-fustal-teams-lucindha-lawson-is-confident-that-they-can-win-/1264661925308587/", "Watch on Facebook"),
+    ("Kit launch", "England Football · Nike", "England women's 2025 kit launch", "May 2025", "One of the Para Lionesses featured in the launch of England's new Nike kit, worn at the Euros.", "https://www.englandfootball.com/england/womens-senior-team/stories/England-womens-2025-nike-kits-in-detail", "See the kit launch"),
+    ("TV programme", "LumoTV · BSL Zone", "Getting Personal with Lucindha Lawson", "September 2023", "A 27-minute conversation in British Sign Language with presenter Deepa Shastri. Contains discussion of suicide and childhood trauma.", "https://www.youtube.com/watch?v=AYvOo446Awk", "Watch on YouTube"),
+    ("Campaign", "EE", "Media day with the Lionesses", "June 2023", "An EE media day with Lionesses players at St George's Park.", None, ""),
+    ("Campaign", "Kick It Out", "Kick It Out campaign", "July 2022", "Featured in a Kick It Out campaign.", None, ""),
+    ("TV interview", "ITV Anglia", "Interview with Cambridgeshire Deaf Association", "March 2021", "A television interview filmed with Cambridgeshire Deaf Association.", None, ""),
+    ("TV feature", "BBC · Match of the Day", "Brighton & Hove Albion community feature", "March 2020", "Part of a Match of the Day feature on Brighton & Hove Albion's community work.", None, ""),
+    ("TV programme", "Together TV", "The Muddy Boot Room", "October 2019", "Appeared in The Muddy Boot Room on Together TV.", None, ""),
     ("Campaign video", "The FA", "Asian Inclusion campaign", "2019", "Featured in The FA's campaign to increase Asian participation in football.", "https://youtu.be/edPNPflDgdk", "Watch on YouTube"),
 ]
 
@@ -73,7 +83,7 @@ body = f'''
 <h2 id="appear-title">Media appearances</h2>
 <p class="featured-on">{" · ".join(e(x) for x in FEATURED_ON)}</p>
 </div>
-<ul class="grid">{"".join(appearance(*a) for a in APPEARANCES)}</ul>
+<ul class="grid appear-grid">{"".join(appearance(*a) for a in APPEARANCES)}</ul>
 <p class="muted" style="margin-top: 28px">For articles and match reports, see the <a href="news.html">News page</a>.</p>
 </div>
 </section>
