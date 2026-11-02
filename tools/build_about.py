@@ -10,7 +10,7 @@ CHECK = ('<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fil
 
 BIO = [
     "I’m an AAT Licensed Accountant and MAAT member, currently studying towards the Chartered Public Finance Accountant (CPFA) qualification through CIPFA. Alongside my finance career in local government, I represent England internationally in Deaf football and futsal, while also coaching, speaking and delivering workshops.",
-    "As a profoundly Deaf British Sign Language (BSL) user, I understand first-hand how communication barriers affect access to professional services. My aim is to provide clear, honest and accessible support so everyone can communicate with confidence.",
+    "I grew up in foster care from the age of seven until I was 18, with leaving-care support until 25. As a profoundly Deaf British Sign Language (BSL) user, I understand first-hand how communication barriers affect access to professional services. My aim is to provide clear, honest and accessible support so everyone can communicate with confidence.",
     "Whether I’m helping a client understand their finances, coaching young athletes or delivering workshops, my aim is always the same: build trust, create lasting relationships and make a positive difference.",
 ]
 GOAL = "My goal is simple: to make professional services more accessible, build lasting relationships and help people and organisations succeed with confidence."

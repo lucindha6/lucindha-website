@@ -52,6 +52,7 @@ AREAS = {
        [("Deaf Awareness", "Helping organisations better understand Deaf culture, communication and inclusion."),
         ("Women’s Sport", "Sharing experiences of competing as an elite female Deaf athlete."),
         ("Equality, Diversity & Inclusion (EDI)", "Sharing practical insights into disability, Deaf culture, accessibility and inclusive communication, helping organisations create environments where everyone can thrive."),
+        ("Care Experience", "Sharing what growing up in foster care taught me about resilience, belonging and the support young people need."),
         ("Resilience", "Sharing how I’ve overcome challenges, including language deprivation, Long QT syndrome and the pressures of elite sport, while maintaining a positive mindset and determination to succeed."),
         ("Inclusion & Accessibility", "Creating environments where everyone feels valued and included."),
         ("Education, Language & Career", "From experiencing language deprivation as a child to becoming a graduate accountant and international athlete, I share how education, determination and the right support can transform lives."),

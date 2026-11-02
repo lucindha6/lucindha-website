@@ -17,7 +17,7 @@ SHORT_BIO = ("Lucindha Lawson is an AAT licensed accountant, England Deaf futsal
 LONG_BIO = [
     "Lucindha Lawson is an AAT licensed accountant and MAAT member, currently studying towards the Chartered Public Finance Accountant (CPFA) qualification through CIPFA. "
     "She is the founder of LUCINDHA LAWSON LTD, an accountancy practice built to be accessible to Deaf, Deafblind, hard-of-hearing, visually impaired and hearing clients.",
-    "As a profoundly Deaf British Sign Language (BSL) user, Lucindha experienced language deprivation as a child and lives with Long QT syndrome. "
+    "Lucindha grew up in foster care from the age of seven until 18, with leaving-care support until 25. As a profoundly Deaf British Sign Language (BSL) user, she experienced language deprivation as a child, and she lives with Long QT syndrome. "
     "She went on to become a graduate accountant, a back-to-back European champion and a four-time Deaflympian, representing England in Deaf women's futsal as part of the FA England Para Programme.",
     "Lucindha is a volunteer coach in youth and Deaf football, holds the FA's UEFA C Licence, and is an ambassador for Sporting Equals, Brown Girl Sport and Beat The Block. "
     "She speaks and delivers workshops on Deaf awareness, inclusion, accessibility, women's sport, resilience and elite sport.",
@@ -27,7 +27,7 @@ FACTS = ["AAT licensed accountant and MAAT member (licence no. 1010532)", "Study
          "UEFA C Licence and FA National Futsal Course", "Ambassador for Sporting Equals, Brown Girl Sport and Beat The Block",
          "Profoundly Deaf British Sign Language user"]
 TOPICS = ["Deaf awareness and Deaf culture", "Language deprivation and education", "Equality, diversity and inclusion (EDI)",
-          "Women's and elite sport", "Resilience and living with Long QT syndrome", "Accessible professional services and finance"]
+          "Women's and elite sport", "Growing up in care", "Resilience and living with Long QT syndrome", "Accessible professional services and finance"]
 
 FEATURED_ON = ["Sky Sports", "BBC", "ITV", "TNT Sports", "COPA90", "England Football", "The FA", "LumoTV", "Together TV"]
 # Media appearances (TV, video, documentaries, campaigns, photoshoots) - written articles go on the News page instead. Newest first: (kind, outlet, title, when, description, url or None, link text)
@@ -99,7 +99,7 @@ body = f'''
 </div>
 <div class="card">
 <h3>Full biography</h3>
-<p class="sub">About 150 words</p>
+<p class="sub">About 160 words</p>
 <div id="bio-long" class="stack" style="gap: 12px">{"".join(f"<p>{e(p)}</p>" for p in LONG_BIO)}</div>
 <button type="button" class="pill ghost copy-btn" data-copy="bio-long" style="align-self: flex-start; cursor: pointer">Copy full biography</button>
 </div>
