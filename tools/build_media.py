@@ -65,7 +65,7 @@ body = f'''
 <h1 id="page-title">Media <em>&amp; press.</em></h1>
 <p class="lead">Media appearances, short and full biographies, key facts, the topics I speak about and a photo to download.</p>
 <div style="display: flex; flex-wrap: wrap; gap: 14px; margin-top: 6px">
-<a href="mailto:hello@lucindhalawson.co.uk?subject=Media%20enquiry" class="pill">Media enquiries</a>
+<a href="mailto:media@lucindhalawson.co.uk?subject=Media%20enquiry" class="pill">Media enquiries</a>
 <a href="#photos-title" class="pill ghost">Download a photo</a>
 </div>
 </div>
@@ -140,7 +140,7 @@ body = f'''
 <div>
 <h2 id="interviews-title">Interviews and bookings</h2>
 <p class="muted">I'm a BSL user. Interviews can be arranged with a BSL interpreter, or questions can be sent by email. For talks and events, please include the date, location and audience.</p>
-<p class="muted">Email <a href="mailto:hello@lucindhalawson.co.uk?subject=Media%20enquiry">hello@lucindhalawson.co.uk</a></p>
+<p class="muted">Email <a href="mailto:media@lucindhalawson.co.uk?subject=Media%20enquiry">media@lucindhalawson.co.uk</a></p>
 <div class="social-groups">
 <div><p class="muted"><strong class="handle">Lucindha (personal)</strong> · @lucindha6</p>
 {social_links(PERSONAL, "Lucindha's personal social media")}</div>
@@ -148,7 +148,7 @@ body = f'''
 {social_links(BUSINESS, "LUCINDHA LAWSON LTD on social media")}</div>
 </div>
 </div>
-<a href="mailto:hello@lucindhalawson.co.uk?subject=Media%20enquiry" class="pill">Send an email</a>
+<a href="mailto:media@lucindhalawson.co.uk?subject=Media%20enquiry" class="pill">Send an email</a>
 </div>
 </div>
 </section>
