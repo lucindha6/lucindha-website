@@ -373,3 +373,10 @@ section{padding:60px 0}
 .appear-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px}
 .appear-grid .card{padding:24px;gap:8px}
 .appear-grid h3{font-size:1.25rem}
+
+/* Home: "As featured on" strip */
+.featured-strip{padding:8px 0 28px}
+.featured-strip p{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 18px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:18px 0}
+.featured-strip .outlets{font-family:var(--serif);font-variation-settings:"SOFT" 100;font-size:1.2rem;color:var(--cream)}
+.featured-strip .link{margin-left:auto;padding:0}
+@media (max-width:640px){.featured-strip .link{margin-left:0}}

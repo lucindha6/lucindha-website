@@ -30,7 +30,7 @@ TOPICS = ["Deaf awareness and Deaf culture", "Language deprivation and education
           "Women's and elite sport", "Resilience and living with Long QT syndrome", "Accessible professional services and finance"]
 
 FEATURED_ON = ["Sky Sports", "BBC", "ITV", "TNT Sports", "COPA90", "England Football", "The FA", "LumoTV", "Together TV"]
-# Media appearances, newest first: (kind, outlet, title, when, description, url or None, link text)
+# Media appearances (TV, video, documentaries, campaigns, photoshoots) - written articles go on the News page instead. Newest first: (kind, outlet, title, when, description, url or None, link text)
 APPEARANCES = [
     ("Interview", "TNT Sports · Sign Up – Into Football", "Back-to-back European champions", "May 2026", "Talking about what England's second European title means for the Deaf community.", "https://www.facebook.com/signupfootball/videos/huge-congratulations-to-englands-deaf-womens-futsal-team-who-have-won-back-to-ba/1418088730336805/", "Watch on Facebook"),
     ("Video", "England Football", "Origins: Lucindha Lawson", "May 2026", "England Football's Origins series on how football gave Lucindha a place to belong.", "https://www.youtube.com/watch?v=sXu4XlGvY8M", "Watch on YouTube"),

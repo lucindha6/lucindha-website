@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Builds news.html for the Lucindha Lawson website.
+News = written coverage (articles, interviews in print/online, match reports). TV, video, documentaries,
+campaigns and photoshoots go on the Media page instead (APPEARANCES in tools/build_media.py) - never list the same item in both.
 To add a story: add a dict to STORIES (any order - the page sorts newest first), then run:
     python3 build_news.py <output folder>
 """
@@ -7,11 +9,6 @@ import sys, html, pathlib
 
 # kind: article | interview | video | match | squad | campaign
 STORIES = [
-    dict(date="2026-05-05", outlet="England Football", kind="video", label="Video & article",
-         title="Origins: how football found Lucindha",
-         summary="In England Football's Origins series, Lucindha looks back on growing up in London, her years in foster care, the deaf school where she found belonging, and how football has supported her wellbeing and her England career.",
-         url="https://www.englandfootball.com/articles/2026/May/05/england-football-origins-lucindha-lawson-20260505",
-         link="Watch on England Football"),
     dict(date="2026-03-23", outlet="England Football", kind="match", label="Match report",
          title="Two goals in the European final",
          summary="England's deaf women were crowned European futsal champions in Croatia with a 2-0 win over Poland in the final. Lucindha scored both goals, and captain Zara Musker said she took her chances brilliantly.",
@@ -112,12 +109,6 @@ STORIES = [
          summary="Lucindha describes starting football at nine and catching up on communication through hard work, calls the European futsal title a career highlight, and says she plans to keep playing until she's 40.",
          url="https://www.englandfootball.com/articles/2023/Apr/18/england-womens-deaf-team-interview-lucindha-lawson-20231804",
          link="Read on England Football"),
-    dict(date="2023", outlet="LumoTV · Getting Personal", kind="video", label="Video interview",
-         title="Getting Personal with Lucindha Lawson",
-         summary="Presenter Deepa Shastri talks with Lucindha, the first deaf Asian woman to win gold for England at the European Women's Deaf Futsal Championship, about her childhood, time in care, losing her brother, and how football gave her stability and belonging. Produced with BSLBT.",
-         url="https://lumotv.co.uk/watch/getting-personal/getting-personal-with-lucindha-lawson",
-         link="Watch on LumoTV",
-         note="this interview discusses suicide and childhood trauma."),
 ]
 
 # Optional photo per story: put the file in the site's images/ folder and add image="images/name.jpg", alt="..." to the story.
@@ -168,7 +159,8 @@ def body(stories):
 <nav aria-label="Breadcrumb" class="crumbs"><a href="home.html">Home</a> <span aria-hidden="true">/</span> News</nav>
 <p class="eyebrow">News &amp; media</p>
 <h1 id="page-title">In the <em>news.</em></h1>
-<p class="lead">Articles, interviews, match reports and videos about Lucindha – from winning medals with England and Great Britain to campaigning for Deaf accessibility. Links open the original story on the publisher's website.</p>
+<p class="lead">Articles, interviews and match reports about Lucindha – from winning medals with England and Great Britain to campaigning for Deaf accessibility. Links open the original story on the publisher's website.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 14px; margin-top: 6px"><a href="media.html#appear-title" class="pill ghost">TV &amp; video appearances</a><a href="media.html#bio-title" class="pill ghost">Press kit</a></div>
 </div>
 </div>
 </section>
@@ -200,6 +192,6 @@ if __name__ == "__main__":
     out = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".")
     stories = sorted(STORIES, key=lambda s: s["date"], reverse=True)
     (out / "news.html").write_text(page("News",
-        "Articles, interviews, match reports and videos about Lucindha Lawson, England deaf futsal player, Deaflympian and Deaf accessibility campaigner.",
+        "Articles, interviews and match reports about Lucindha Lawson, England deaf futsal player, Deaflympian and Deaf accessibility campaigner.",
         "news.html", body(stories)))
     print(f"news.html written with {len(stories)} stories")

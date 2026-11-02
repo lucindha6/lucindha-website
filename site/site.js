@@ -40,10 +40,8 @@
   header.addEventListener('focusin', function () { header.classList.remove('is-hidden'); });
 })();
 
-/* Community Work drop-down in the header menu (works on every page, keyboard and screen-reader friendly). */
+/* Header drop-downs (Community Work, Media) - keyboard and screen-reader friendly. */
 (function () {
-  var link = Array.prototype.find.call(document.querySelectorAll('header nav a'), function (a) { return /(^|\/)community(\.html)?$/.test(a.getAttribute('href') || ''); });
-  if (!link) return;
   var css = document.createElement('style');
   css.textContent =
     '.dd{position:relative;display:inline-flex;align-items:center}' +
@@ -59,33 +57,41 @@
     '.dd-menu a[aria-current="page"]{background:rgba(168,121,40,.22)}' +
     '.dd-menu .sw{width:12px;height:12px;border-radius:50%;border:1.5px solid #A87928;flex:none}' +
     '.dd-menu .hub{font-size:.98rem;color:#CBAB74!important;border-top:1px solid rgba(168,121,40,.3);border-radius:0 0 10px 10px;margin-top:4px}' +
+    '#dd-media{left:auto;right:-12px}' +
     '@media (prefers-reduced-motion:reduce){.dd-btn svg{transition:none}}';
   document.head.appendChild(css);
-
-  var wrap = document.createElement('div'); wrap.className = 'dd';
-  link.parentNode.insertBefore(wrap, link); wrap.appendChild(link);
-  var btn = document.createElement('button');
-  btn.type = 'button'; btn.className = 'dd-btn';
-  btn.setAttribute('aria-expanded', 'false'); btn.setAttribute('aria-controls', 'dd-community');
-  btn.setAttribute('aria-label', 'Show Community Work pages');
-  btn.innerHTML = '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CBAB74" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>';
-  var menu = document.createElement('ul'); menu.id = 'dd-community'; menu.className = 'dd-menu';
   var here = (location.pathname.split('/').pop() || '').replace(/\.html$/, '');
-  [['sport.html', 'Sport & Coaching', '#2A3D3B'], ['speaking.html', 'Public Speaking', '#4A3046'], ['workshops.html', 'Workshops', '#343B40'], ['community.html', 'All Community Work', '']]
-    .forEach(function (it) {
+
+  function dropdown(pattern, id, label, items) {
+    var link = Array.prototype.find.call(document.querySelectorAll('header nav a'), function (a) { return pattern.test(a.getAttribute('href') || ''); });
+    if (!link) return;
+    var wrap = document.createElement('div'); wrap.className = 'dd';
+    link.parentNode.insertBefore(wrap, link); wrap.appendChild(link);
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'dd-btn';
+    btn.setAttribute('aria-expanded', 'false'); btn.setAttribute('aria-controls', id);
+    btn.setAttribute('aria-label', label);
+    btn.innerHTML = '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CBAB74" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>';
+    var menu = document.createElement('ul'); menu.id = id; menu.className = 'dd-menu';
+    items.forEach(function (it) {
       var li = document.createElement('li'), a = document.createElement('a');
       a.href = it[0];
       if (it[2]) { var sw = document.createElement('span'); sw.className = 'sw'; sw.setAttribute('aria-hidden', 'true'); sw.style.background = it[2]; a.appendChild(sw); }
-      else a.className = 'hub';
+      else if (it[3]) a.className = 'hub';
       a.appendChild(document.createTextNode(it[1]));
-      if (here === it[0].replace(/\.html$/, '')) a.setAttribute('aria-current', 'page');
+      if (it[0].indexOf('#') < 0 && here === it[0].replace(/\.html$/, '')) a.setAttribute('aria-current', 'page');
       li.appendChild(a); menu.appendChild(li);
     });
-  wrap.appendChild(btn); wrap.appendChild(menu);
+    wrap.appendChild(btn); wrap.appendChild(menu);
+    function setOpen(o) { wrap.classList.toggle('open', o); btn.setAttribute('aria-expanded', o ? 'true' : 'false'); }
+    btn.addEventListener('click', function (ev) { ev.stopPropagation(); setOpen(!wrap.classList.contains('open')); });
+    document.addEventListener('click', function (ev) { if (!wrap.contains(ev.target)) setOpen(false); });
+    wrap.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && wrap.classList.contains('open')) { setOpen(false); btn.focus(); } });
+    wrap.addEventListener('focusout', function (ev) { if (!wrap.contains(ev.relatedTarget)) setOpen(false); });
+  }
 
-  function setOpen(o) { wrap.classList.toggle('open', o); btn.setAttribute('aria-expanded', o ? 'true' : 'false'); }
-  btn.addEventListener('click', function (ev) { ev.stopPropagation(); setOpen(!wrap.classList.contains('open')); });
-  document.addEventListener('click', function (ev) { if (!wrap.contains(ev.target)) setOpen(false); });
-  wrap.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && wrap.classList.contains('open')) { setOpen(false); btn.focus(); } });
-  wrap.addEventListener('focusout', function (ev) { if (!wrap.contains(ev.relatedTarget)) setOpen(false); });
+  dropdown(/(^|\/)community(\.html)?$/, 'dd-community', 'Show Community Work pages',
+    [['sport.html', 'Sport & Coaching', '#2A3D3B'], ['speaking.html', 'Public Speaking', '#4A3046'], ['workshops.html', 'Workshops', '#343B40'], ['community.html', 'All Community Work', '', true]]);
+  dropdown(/(^|\/)media(\.html)?$/, 'dd-media', 'Show Media pages',
+    [['news.html', 'In the news'], ['media.html#appear-title', 'TV & video appearances'], ['media.html#bio-title', 'Press kit'], ['media.html', 'All media', '', true]]);
 })();
