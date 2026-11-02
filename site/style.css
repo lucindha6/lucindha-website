@@ -380,3 +380,5 @@ section{padding:60px 0}
 .featured-strip .outlets{font-family:var(--serif);font-variation-settings:"SOFT" 100;font-size:1.2rem;color:var(--cream)}
 .featured-strip .link{margin-left:auto;padding:0}
 @media (max-width:640px){.featured-strip .link{margin-left:0}}
+.social-groups{display:flex;flex-wrap:wrap;gap:18px 40px;margin-top:4px}
+.social-groups .social{margin-top:8px}

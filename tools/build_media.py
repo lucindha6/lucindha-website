@@ -5,7 +5,7 @@ Note: keep the BDA trustee role out of these bios until it's announced (after th
 import sys, pathlib, html
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from page_shell import page, ROOT
-from social import social_links, PERSONAL
+from social import social_links, PERSONAL, BUSINESS
 e = lambda s: html.escape(s, quote=False)
 
 CHECK = ('<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#CBAB74" stroke-width="2" '
@@ -140,8 +140,12 @@ body = f'''
 <h2 id="interviews-title">Interviews and bookings</h2>
 <p class="muted">I'm a BSL user. Interviews can be arranged with a BSL interpreter, or questions can be sent by email. For talks and events, please include the date, location and audience.</p>
 <p class="muted">Email <a href="mailto:hello@lucindhalawson.co.uk?subject=Media%20enquiry">hello@lucindhalawson.co.uk</a></p>
-<p class="muted">Follow Lucindha <span class="handle">@lucindha6</span></p>
-{social_links(PERSONAL, "Lucindha on social media")}
+<div class="social-groups">
+<div><p class="muted"><strong class="handle">Lucindha (personal)</strong> · @lucindha6</p>
+{social_links(PERSONAL, "Lucindha's personal social media")}</div>
+<div><p class="muted"><strong class="handle">LUCINDHA LAWSON LTD (business)</strong></p>
+{social_links(BUSINESS, "LUCINDHA LAWSON LTD on social media")}</div>
+</div>
 </div>
 <a href="mailto:hello@lucindhalawson.co.uk?subject=Media%20enquiry" class="pill">Send an email</a>
 </div>
