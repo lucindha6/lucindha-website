@@ -382,3 +382,4 @@ section{padding:60px 0}
 @media (max-width:640px){.featured-strip .link{margin-left:0}}
 .social-groups{display:flex;flex-wrap:wrap;gap:18px 40px;margin-top:4px}
 .social-groups .social{margin-top:8px}
+.credit{font-size:1rem;color:var(--gold-text)}
