@@ -367,3 +367,6 @@ section{padding:60px 0}
 .price-notes strong{color:var(--cream)}
 @media (max-width:940px){.pricing-grid{grid-template-columns:1fr}}
 @media (max-width:560px){.price-list li{flex-direction:column;gap:2px}.price-list strong{text-align:left;white-space:normal}}
+
+/* Media appearances */
+.featured-on{font-family:var(--serif);font-variation-settings:"SOFT" 100;font-size:1.25rem;line-height:1.6;color:var(--gold-text)}

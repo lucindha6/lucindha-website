@@ -29,6 +29,23 @@ FACTS = ["AAT licensed accountant and MAAT member (licence no. 1010532)", "Study
 TOPICS = ["Deaf awareness and Deaf culture", "Language deprivation and education", "Equality, diversity and inclusion (EDI)",
           "Women's and elite sport", "Resilience and living with Long QT syndrome", "Accessible professional services and finance"]
 
+FEATURED_ON = ["Sky Sports News", "BBC", "COPA90", "England Football", "The FA", "LumoTV (BSL Zone)"]
+# Media appearances: (kind, outlet, title, when, description, url or None, link text)
+APPEARANCES = [
+    ("Television", "Sky Sports News", "TV interviews", "", "Interviewed on Sky Sports News.", None, ""),
+    ("Television", "BBC", "TV interviews", "", "Interviewed by the BBC.", None, ""),
+    ("Video", "England Football", "Origins: Lucindha Lawson", "May 2026", "England Football's Origins series on how football shaped Lucindha's life, from foster care to the England deaf team.", "https://www.englandfootball.com/articles/2026/May/05/england-football-origins-lucindha-lawson-20260505", "Watch on England Football"),
+    ("Documentary", "COPA90 (YouTube)", "Finding the First South Asian Lioness", "June 2025", "COPA90 documentary on why England is still waiting for its first senior South Asian Lioness, featuring Lucindha.", "https://youtu.be/jy944wVYxUw", "Watch on YouTube"),
+    ("Photoshoot", "England women's senior team", "England EURO match photoshoot", "", "Photoshoot at an England senior women's European Championship match.", None, ""),
+    ("TV programme", "LumoTV (BSL Zone)", "Getting Personal with Lucindha Lawson", "2022", "A 27-minute conversation in British Sign Language with presenter Deepa Shastri about Lucindha's life and football career.", "https://lumotv.co.uk/watch/getting-personal/getting-personal-with-lucindha-lawson", "Watch on LumoTV"),
+    ("Campaign video", "The FA", "Asian Inclusion campaign", "2019", "Featured in The FA's campaign to increase Asian participation in football.", "https://youtu.be/edPNPflDgdk", "Watch on YouTube"),
+]
+
+def appearance(kind, outlet, title, when, desc, url, linktext):
+    meta = " · ".join(x for x in [kind, outlet, when] if x)
+    link = (f'<a href="{url}" class="link" target="_blank" rel="noopener">{e(linktext)}<span class="sr"> – {e(title)} (opens in a new tab)</span></a>' if url else "")
+    return f'<li class="card"><p class="sub">{e(meta)}</p><h3>{e(title)}</h3><p>{e(desc)}</p>{link}</li>'
+
 body = f'''
 <section class="hero" aria-labelledby="page-title">
 <div class="wrap">
@@ -37,7 +54,7 @@ body = f'''
 <p class="eyebrow">Media &amp; press</p>
 <h1 id="page-title">Media <em>&amp; press.</em></h1>
 <img class="portrait-m" src="images/lucindha.jpg" alt="Lucindha Lawson smiling, wearing a navy blazer" width="800" height="1000">
-<p class="lead">Everything journalists, producers and event organisers need: short and full biographies, key facts, the topics I speak about and a photo to download.</p>
+<p class="lead">Media appearances, short and full biographies, key facts, the topics I speak about and a photo to download.</p>
 <div style="display: flex; flex-wrap: wrap; gap: 14px; margin-top: 6px">
 <a href="mailto:hello@lucindhalawson.co.uk?subject=Media%20enquiry" class="pill">Media enquiries</a>
 <a href="#photos-title" class="pill ghost">Download a photo</a>
@@ -46,6 +63,18 @@ body = f'''
 <div class="hero-logo">
 <img class="portrait" src="images/lucindha.jpg" alt="Lucindha Lawson smiling, wearing a navy blazer" width="800" height="1000">
 </div>
+</div>
+</section>
+
+<section aria-labelledby="appear-title">
+<div class="wrap">
+<div class="head">
+<p class="eyebrow">As featured on</p>
+<h2 id="appear-title">Media appearances</h2>
+<p class="featured-on">{" · ".join(e(x) for x in FEATURED_ON)}</p>
+</div>
+<ul class="grid">{"".join(appearance(*a) for a in APPEARANCES)}</ul>
+<p class="muted" style="margin-top: 28px">For articles and match reports, see the <a href="news.html">News page</a>.</p>
 </div>
 </section>
 
