@@ -385,3 +385,6 @@ section{padding:60px 0}
 .credit{font-size:1rem;color:var(--gold-text)}
 .press-photo{margin:0;flex:1 1 260px;max-width:340px;display:flex;flex-direction:column;gap:10px}
 .press-photo img{width:100%;height:auto;border-radius:22px;border:1px solid var(--line);display:block}
+.head:has(.featured-on){max-width:none}
+.featured-on{font-size:1.15rem;text-wrap:balance}
+.featured-on span{white-space:nowrap}

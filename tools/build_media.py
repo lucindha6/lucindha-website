@@ -77,7 +77,7 @@ body = f'''
 <div class="head">
 <p class="eyebrow">As featured on</p>
 <h2 id="appear-title">Media appearances</h2>
-<p class="featured-on">{" · ".join(e(x) for x in FEATURED_ON)}</p>
+<p class="featured-on">{" · ".join(f'<span>{e(x)}</span>' for x in FEATURED_ON)}</p>
 </div>
 <ul class="grid appear-grid">{"".join(appearance(*a) for a in APPEARANCES)}</ul>
 <p class="muted" style="margin-top: 28px">For articles and match reports, see the <a href="news.html">News page</a>.</p>
