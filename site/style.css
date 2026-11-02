@@ -60,7 +60,7 @@ section{padding:96px 0}
 .stack{display:flex;flex-direction:column;gap:18px}
 .head{display:flex;flex-direction:column;gap:14px;max-width:46em;margin-bottom:40px}
 .rule{width:72px;height:1.5px;border:0;margin:0;background:var(--gold)}
-.grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px}
+.grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:22px}
 .card{background:var(--navy-2);border:1px solid var(--line);border-radius:22px;padding:30px;display:flex;flex-direction:column;gap:12px;transition:transform .25s ease,border-color .25s ease}
 .band .card{background:var(--navy)}
 .card:hover{transform:translateY(-3px);border-color:var(--gold)}
@@ -388,3 +388,4 @@ section{padding:60px 0}
 .head:has(.featured-on){max-width:none}
 .featured-on{font-size:1.15rem;text-wrap:balance}
 .featured-on span{white-space:nowrap}
+@media (max-width:360px){.brand-sub{letter-spacing:.02em}}
