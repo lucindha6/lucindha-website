@@ -124,11 +124,11 @@ body = f'''
 
 <section class="band" aria-labelledby="photos-title">
 <div class="wrap split">
-<img class="photo" src="images/lucindha-press-web.jpg" alt="Lucindha Lawson in a white high-neck top, arms folded, against a cream textured wall" width="800" height="1000" style="flex: 1 1 260px; max-width: 360px; width: 100%; height: auto; border-radius: 22px; border: 1px solid var(--line); display: block">
+<figure class="press-photo"><img class="photo" src="images/lucindha-press-web.jpg" alt="Lucindha Lawson in a white high-neck top, arms folded, against a cream textured wall" width="800" height="1000">
+<figcaption class="credit">Photo: India Bharadwaj (<a href="https://www.instagram.com/indiabharadwaj/" target="_blank" rel="noopener">@indiabharadwaj<span class="sr"> on Instagram (opens in a new tab)</span></a>)</figcaption></figure>
 <div class="stack" style="flex: 999 1 420px">
 <h2 id="photos-title">Photos</h2>
-<p class="credit">Photo: India Bharadwaj (<a href="https://www.instagram.com/indiabharadwaj/" target="_blank" rel="noopener">@indiabharadwaj<span class="sr"> on Instagram (opens in a new tab)</span></a>)</p>
-<p class="muted">You're welcome to use this photo alongside coverage of Lucindha and her work. Please credit <strong>India Bharadwaj</strong>, don't crop it in a way that changes its meaning, and don't use it to suggest an endorsement. For other photos, just ask.</p>
+<p class="muted">Free to use with coverage of Lucindha and her work. Please credit <strong>India Bharadwaj</strong> and don't crop or alter the photo.</p>
 <a href="images/lucindha-press.jpg" download="Lucindha-Lawson.jpg" class="pill" style="align-self: flex-start">Download photo</a>
 </div>
 </div>
