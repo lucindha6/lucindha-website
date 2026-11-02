@@ -24,11 +24,31 @@ QUALS = [
     ("MAAT", "Association of Accounting Technicians", "Full member of the Association of Accounting Technicians, demonstrating recognised professional competence and a commitment to high ethical standards."),
     ("CIPFA Student", "Chartered Public Finance Accountant", "Currently studying towards the internationally recognised Chartered Public Finance Accountant qualification through CIPFA."),
 ]
+FROM_PRICES = [
+    ("Personal tax: simple Self Assessment", "from £180"),
+    ("Self Assessment: sole trader or landlord", "from £250"),
+    ("Year-end accounts + Corporation Tax (small limited company)", "from £850 a year"),
+    ("VAT returns", "from £75 a quarter"),
+    ("Bookkeeping", "from £30 an hour"),
+    ("Management accounts", "from £150 a month"),
+    ("Start-up support", "from £150"),
+    ("Financial health check", "from £200"),
+    ("Advice session (60 minutes)", "£60, taken off your first bill"),
+    ("Introductory chat (20 minutes)", "Free"),
+]
+PACKAGES = [  # name, who it's for, what's included, price
+    ("Personal Tax", "Employed people with extra income", "Self Assessment return, deadline reminders and support by email, text or video.", "£20 a month"),
+    ("Landlord", "One or two rental properties", "Self Assessment, rental income and expenses, and deadline reminders.", "from £35 a month"),
+    ("Sole Trader Essentials", "Sole traders", "Year-end accounts, Self Assessment, software set-up and deadline reminders.", "£35 a month"),
+    ("Sole Trader Plus", "Making Tax Digital", "Everything in Essentials, plus quarterly updates to HMRC and a bookkeeping check.", "£65 a month"),
+    ("Limited Company Essentials", "Small limited companies", "Year-end accounts, Corporation Tax return, Confirmation Statement and one director's Self Assessment.", "£85 a month"),
+    ("Limited Company Plus", "All done for you", "Everything in Essentials, plus monthly bookkeeping and quarterly VAT returns.", "from £175 a month"),
+]
 FAQ = [
     ("When can I become a client?", "Straight away. I'm taking on new clients now – send an enquiry and I'll get back to you within 2 working days."),
     ("Do you work with Deaf clients?", "Yes. My practice welcomes Deaf, Deafblind, hard-of-hearing, visually impaired and hearing clients. Let me know in your enquiry how you'd like to communicate."),
     ("Do you offer a free consultation?", "Yes. Enquiries and a 20-minute introductory chat are free. Longer, in-depth advice sessions are charged, and the fee is taken off your first bill if you become a client."),
-    ("How much do you charge?", "Every client is different, so I don't publish set prices. Once I've reviewed what you need, I'll send you a personalised quote, so you know the cost before any work starts."),
+    ("How much do you charge?", "You'll find starting prices and monthly packages in the Pricing section above. Once I've reviewed what you need, I'll send you a personalised quote, so you know the exact cost before any work starts."),
     ("What do I need to send you to get started?", "I'll send you a simple checklist. Usually it's photo ID and proof of address, your Unique Taxpayer Reference (UTR), and your recent records, such as bank statements, receipts and invoices."),
     ("Why do you need to check my identity?", "Anti-money laundering law requires every accountant to check the identity of new clients before starting work. It's quick, and your documents are kept securely."),
     ("Do you work with clients outside London?", "Yes. I'm based in London and work with clients across the UK, by email, text message and video call."),
@@ -86,16 +106,28 @@ body = f'''
 </div>
 </section>
 
-<section class="band" aria-labelledby="pricing-title">
-<div class="wrap split">
-<div class="stack" style="flex: 999 1 520px">
+<section class="band" aria-labelledby="pricing-title" id="pricing">
+<div class="wrap">
+<div class="head">
 <h2 id="pricing-title">Pricing</h2>
-<p class="muted">Every client's needs are different, so I give each one a personalised quote rather than a fixed price list.</p>
-<p class="muted">Sending an enquiry is always free, and so is a 20-minute introductory chat – by video call, BSL, text or face to face. Longer, in-depth advice sessions are charged, and the fee is taken off your first bill if you become a client.</p>
+<p class="muted">Clear starting prices, with a personalised quote before any work begins. Pay monthly by Direct Debit, so there are no big bills at year end.</p>
 </div>
-<div style="flex: 1 1 260px; display: flex; justify-content: flex-start">
-<a href="contact.html" class="pill">Request a free quote</a>
+<div class="pricing-grid">
+<div class="card price-card">
+<h3>Starting prices</h3>
+<ul class="price-list">{"".join(f'<li><span>{e(n)}</span><strong>{e(v)}</strong></li>' for n, v in FROM_PRICES)}</ul>
 </div>
+<div class="stack" style="gap: 18px">
+<h3>Monthly packages</h3>
+<ul class="grid packages">{"".join(f'<li class="card"><p class="sub">{e(w)}</p><h4>{e(n)}</h4><p class="price">{e(pr)}</p><p>{e(inc)}</p></li>' for n, w, inc, pr in PACKAGES)}</ul>
+</div>
+</div>
+<div class="price-notes">
+<p>Every quote is personalised. Prices are a guide and depend on your records and how complex things are. There is no VAT to add.</p>
+<p><strong>Access never costs extra.</strong> BSL interpreters and other communication support are included in the price.</p>
+<p>Enquiries and a 20-minute introductory chat are always free. Catching up on late years and HMRC enquiries are quoted separately.</p>
+</div>
+<a href="contact.html" class="pill" style="margin-top: 28px">Request a free quote</a>
 </div>
 </section>
 

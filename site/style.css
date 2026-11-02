@@ -349,3 +349,21 @@ section{padding:60px 0}
 .social a{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:999px;border:1px solid var(--line);color:var(--gold-text);transition:background .2s ease,color .2s ease}
 .social a:hover{background:rgba(203,171,116,.14);color:#DCC499}
 .handle{color:var(--cream)}
+
+/* Accounting pricing */
+.pricing-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:28px;align-items:start}
+.price-card h3,.pricing-grid > .stack > h3{color:var(--gold-text)}
+.price-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.price-list li{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:12px 0;border-bottom:1px solid var(--line)}
+.price-list li:last-child{border-bottom:0}
+.price-list span{color:var(--mist)}
+.price-list strong{color:var(--cream);white-space:nowrap;text-align:right}
+.packages{grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:16px}
+.packages .card{padding:24px;gap:8px}
+.packages h4{margin:0;font-family:var(--serif);font-variation-settings:"SOFT" 100;font-weight:500;font-size:1.25rem;color:var(--cream)}
+.packages .price{font-family:var(--serif);font-size:1.35rem;color:var(--gold-text)}
+.packages .sub{font-size:.95rem}
+.price-notes{margin-top:28px;display:flex;flex-direction:column;gap:8px;color:var(--mist);max-width:52em}
+.price-notes strong{color:var(--cream)}
+@media (max-width:940px){.pricing-grid{grid-template-columns:1fr}}
+@media (max-width:560px){.price-list li{flex-direction:column;gap:2px}.price-list strong{text-align:left;white-space:normal}}
