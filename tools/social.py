@@ -15,6 +15,7 @@ BUSINESS = [
     ("Instagram", "https://www.instagram.com/lucindhalawson/"),
 ]
 PERSONAL = [
+    ("LinkedIn", "https://www.linkedin.com/in/lucindha6/"),
     ("Instagram", "https://www.instagram.com/lucindha6/"),
     ("TikTok", "https://www.tiktok.com/@lucindha6"),
     ("Facebook", "https://www.facebook.com/lucindha6"),
