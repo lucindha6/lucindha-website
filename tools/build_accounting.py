@@ -27,7 +27,7 @@ QUALS = [
 FROM_PRICES = [
     ("Personal tax: simple Self Assessment", "from £180"),
     ("Self Assessment: sole trader or landlord", "from £250"),
-    ("Year-end accounts + Corporation Tax (small limited company)", "from £850 a year"),
+    ("Year-end accounts + Corporation Tax only (small limited company)", "from £850 a year"),
     ("VAT returns", "from £75 a quarter"),
     ("Bookkeeping", "from £30 an hour"),
     ("Management accounts", "from £150 a month"),
@@ -41,7 +41,7 @@ PACKAGES = [  # name, who it's for, what's included, price
     ("Landlord", "One or two rental properties", "Self Assessment, rental income and expenses, and deadline reminders.", "from £35 a month"),
     ("Sole Trader Essentials", "Sole traders", "Year-end accounts, Self Assessment, software set-up and deadline reminders.", "£35 a month"),
     ("Sole Trader Plus", "Making Tax Digital", "Everything in Essentials, plus quarterly updates to HMRC and a bookkeeping check.", "£65 a month"),
-    ("Limited Company Essentials", "Small limited companies", "Year-end accounts, Corporation Tax return, Confirmation Statement and one director's Self Assessment.", "£85 a month"),
+    ("Limited Company Essentials", "Small limited companies", "Year-end accounts and Corporation Tax return, plus your Confirmation Statement and one director's Self Assessment, spread into monthly payments.", "£85 a month"),
     ("Limited Company Plus", "All done for you", "Everything in Essentials, plus monthly bookkeeping and quarterly VAT returns.", "from £175 a month"),
 ]
 FAQ = [
