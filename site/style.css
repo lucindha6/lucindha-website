@@ -389,3 +389,7 @@ section{padding:60px 0}
 .featured-on{font-size:1.15rem;text-wrap:balance}
 .featured-on span{white-space:nowrap}
 @media (max-width:360px){.brand-sub{letter-spacing:.02em}}
+
+/* Front-door greeting on the home page */
+.hello{font-family:var(--serif);font-variation-settings:"SOFT" 100,"opsz" 144;font-weight:300;font-size:clamp(2.4rem,5vw,3.6rem);line-height:1;color:#CBA05D;margin:0 0 4px}
+.hello em{font-style:italic}
