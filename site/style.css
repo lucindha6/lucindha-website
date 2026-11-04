@@ -393,3 +393,4 @@ section{padding:60px 0}
 /* Front-door greeting on the home page */
 .hello{font-family:var(--serif);font-variation-settings:"SOFT" 100,"opsz" 144;font-weight:300;font-size:clamp(2.4rem,5vw,3.6rem);line-height:1;color:#CBA05D;margin:0 0 4px}
 .hello em{font-style:italic}
+.areas + .featured-strip{padding:32px 0 0}
