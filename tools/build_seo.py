@@ -20,8 +20,10 @@ def desc_of(file):
     m = re.search(r'<meta name="description" content="([^"]*)">', (ROOT / file).read_text())
     return m.group(1).replace("&amp;", "&").replace("&#x27;", "'").replace("&quot;", '"') if m else ""
 
-tag("index.html", "Lucindha Lawson – Accountant. Athlete. Coach. Speaker.", desc_of("index.html"))
 tag("home.html", "Lucindha Lawson – AAT licensed accountant", desc_of("home.html"))
+# The web address opens straight on the home page: index.html is a copy of home.html with "/" as its address.
+home = (ROOT / "home.html").read_text()
+(ROOT / "index.html").write_text(home.replace('<title>Home – Lucindha Lawson</title>', '<title>Lucindha Lawson – AAT licensed accountant</title>').replace(SITE + "/home\"", SITE + "/\""))
 tag("thanks.html", "Thank you – Lucindha Lawson", desc_of("thanks.html"), noindex=True)
 
 # 404 page – <base href="/"> keeps images and styles working at any broken address
@@ -46,7 +48,7 @@ out = out.replace("<head>", '<head>\n<base href="/">', 1).replace('<link rel="ca
 (ROOT / "404.html").write_text(out)
 
 # sitemap + robots
-SKIP = {"404.html", "thanks.html"}
+SKIP = {"404.html", "thanks.html", "home.html"}
 today = datetime.date.today().isoformat()
 pages = sorted(p.name for p in ROOT.glob("*.html") if p.name not in SKIP)
 urls = "".join(f"<url><loc>{url_for(p)}</loc><lastmod>{today}</lastmod></url>\n" for p in pages)
