@@ -7,6 +7,7 @@
   --sport:#2A3D3B; --speaking:#4A3046; --workshops:#343B40;
   --gold:#A87928;      /* brand gold – logo, large headings, lines */
   --gold-text:#CBAB74; /* lighter tint for small gold text (readable on every background) */
+  --gold-head:#CBA05D; /* monogram gold for headings and gold text: 5.6:1+ on every navy */
   --cream:#F7F3E8; --mist:#C5CFDD;
   --line:rgba(168,121,40,.38);
   --serif:'Fraunces',Georgia,serif; --logo:'Montserrat',Arial,sans-serif; --body:'Atkinson Hyperlegible',Arial,sans-serif;
@@ -25,8 +26,8 @@ img{max-width:100%}
 /* headings */
 h1,h2,h3{font-family:var(--serif);font-variation-settings:"SOFT" 100;font-weight:400;margin:0}
 h1{font-size:clamp(2.6rem,5.2vw,4.2rem);line-height:1.08;letter-spacing:-.01em;font-variation-settings:"SOFT" 100,"opsz" 144}
-h1 em{font-style:italic;font-weight:300;color:var(--gold)}
-h2{font-size:clamp(2.1rem,3.6vw,2.9rem);line-height:1.12;color:var(--gold);font-variation-settings:"SOFT" 100,"opsz" 96}
+h1 em{font-style:italic;font-weight:300;color:var(--gold-head)}
+h2{font-size:clamp(2.1rem,3.6vw,2.9rem);line-height:1.12;color:var(--gold-head);font-variation-settings:"SOFT" 100,"opsz" 96}
 h3{font-size:1.4rem;line-height:1.3;font-weight:500;color:var(--cream)}
 .eyebrow{margin:0;font-family:var(--logo);font-weight:500;font-size:.85rem;letter-spacing:.28em;text-transform:uppercase;color:var(--gold-text)}
 .lead{margin:0;font-size:1.25rem;color:var(--mist);max-width:36em}
@@ -39,7 +40,7 @@ p{margin:0}
 .brand{display:flex;align-items:center;gap:16px;text-decoration:none}
 .brand img{height:52px;width:auto;display:block}
 .brand-text{display:flex;flex-direction:column;line-height:1.25}
-.brand-name{font-family:var(--logo);font-weight:400;font-size:1.05rem;letter-spacing:.32em;color:var(--gold);text-transform:uppercase}
+.brand-name{font-family:var(--logo);font-weight:400;font-size:1.05rem;letter-spacing:.32em;color:var(--gold-head);text-transform:uppercase}
 .brand-sub{font-family:var(--logo);font-weight:400;font-size:.78rem;letter-spacing:.14em;color:var(--mist)}
 .nav{display:flex;flex-wrap:wrap;align-items:center;gap:4px 24px}
 .nav a{color:var(--cream);text-decoration:none;padding:10px 0}
@@ -144,7 +145,7 @@ section:not(.band) .ticks li{background:linear-gradient(160deg,#0F3051 0%,#0B294
 @media (max-width:480px){.ticks.two{grid-template-columns:1fr}}
 
 /* ---------- shared bits used on Accounting ---------- */
-.tagline{font-family:var(--serif);font-variation-settings:"SOFT" 100;font-style:italic;font-weight:400;font-size:clamp(1.6rem,2.8vw,2.1rem);line-height:1.25;color:var(--gold)}
+.tagline{font-family:var(--serif);font-variation-settings:"SOFT" 100;font-style:italic;font-weight:400;font-size:clamp(1.6rem,2.8vw,2.1rem);line-height:1.25;color:var(--gold-head)}
 .chips{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:10px}
 .chips li{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;border:1px solid var(--line);font-size:1rem}
 .good{color:var(--cream)!important;font-size:1rem}
