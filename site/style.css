@@ -570,3 +570,15 @@ html[data-theme="yellow"] .display-btn .ds-icon{color:#111}
 /* desktop: centre the logos in the three smaller cards on the home page */
 .doors .explore-card img{align-self:center;margin-left:0}
 @media (max-width:360px){.display-btn{font-size:.86rem;padding:6px 12px;gap:8px}}
+
+/* ---------- Display settings as a pop-up (bottom-left) ---------- */
+.ds-float{position:fixed;left:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:70;display:flex;flex-direction:column-reverse;align-items:flex-start;gap:10px;font-size:1rem}
+.ds-float .display-btn{margin:0;display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:8px 18px 8px 12px;border-radius:999px;border:1.5px solid var(--gold-text);background:var(--navy-3);color:var(--cream);font:inherit;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.35);cursor:pointer}
+.ds-float .display-btn:hover{background:var(--navy-2)}
+.ds-float .display-panel{width:min(380px,calc(100vw - 32px));max-height:calc(100vh - 110px);overflow:auto;padding:20px 22px 22px;border:1.5px solid var(--gold-text);border-radius:20px;background:var(--navy-3);box-shadow:0 18px 44px rgba(0,0,0,.45)}
+.ds-float .display-title{font-size:1.35rem;margin:0 0 12px}
+.ds-float .display-groups{flex-direction:column;gap:14px}
+.ds-float .display-actions{margin-top:16px}
+html[data-theme="yellow"] .ds-float .display-btn,html[data-theme="yellow"] .ds-float .display-panel{border-color:#111}
+@media (max-width:640px){.ds-float{left:12px}.ds-float .display-btn{font-size:.95rem;padding:8px 16px 8px 12px}}
+.menu-open ~ * .ds-float,body:has(.menu-open) .ds-float{display:none}

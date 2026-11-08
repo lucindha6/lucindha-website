@@ -109,11 +109,11 @@
     ['text', 'Text size', [['normal', 'Normal'], ['large', 'Large'], ['xlarge', 'Extra large']], 'normal'],
     ['motion', 'Animations', [['full', 'On'], ['reduced', 'Off']], reducedOS ? 'reduced' : 'full']
   ];
-  var bar = document.createElement('div'); bar.className = 'display-bar';
-  var html = '<div class="wrap"><button type="button" class="display-btn" aria-expanded="false" aria-controls="display-panel">' +
+  var bar = document.createElement('div'); bar.className = 'ds-float';
+  var html = '<button type="button" class="display-btn" aria-expanded="false" aria-controls="display-panel">' +
     '<svg class="ds-icon" aria-hidden="true" width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>' +
-    '<span>Change colours &amp; text size</span><svg class="ds-chev" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button></div>' +
-    '<div id="display-panel" class="display-panel" hidden><div class="wrap"><h2 class="display-title">Colours &amp; text size</h2><div class="display-groups">';
+    '<span class="ds-label">Colours &amp; text size</span></button>' +
+    '<div id="display-panel" class="display-panel" role="dialog" aria-labelledby="ds-title" hidden><h2 class="display-title" id="ds-title">Colours &amp; text size</h2><div class="display-groups">';
   groups.forEach(function (g) {
     var cur = state[g[0]] || g[3];
     html += '<fieldset class="display-group"><legend>' + g[1] + '</legend><div class="seg">';
@@ -125,13 +125,14 @@
     html += '</div></fieldset>';
   });
   html += '</div><div class="display-actions"><button type="button" class="display-reset">Reset to default</button>' +
-          '<button type="button" class="display-close">Close</button></div></div></div>';
+          '<button type="button" class="display-close">Close</button></div></div>';
   bar.innerHTML = html;
   var skip = document.querySelector('.skip');
   document.body.insertBefore(bar, skip ? skip.nextSibling : document.body.firstChild);
   var btn = bar.querySelector('.display-btn'), panel = bar.querySelector('.display-panel');
   function setOpen(o) { panel.hidden = !o; btn.setAttribute('aria-expanded', o ? 'true' : 'false'); }
   btn.addEventListener('click', function () { setOpen(panel.hidden); if (!panel.hidden) { var c = panel.querySelector('input:checked'); if (c) c.focus(); } });
+  document.addEventListener('click', function (e) { if (!panel.hidden && !bar.contains(e.target)) setOpen(false); });
   bar.querySelector('.display-close').addEventListener('click', function () { setOpen(false); btn.focus(); });
   panel.addEventListener('keydown', function (e) { if (e.key === 'Escape') { setOpen(false); btn.focus(); } });
   function apply(k, v, def) { if (v === def) root.removeAttribute('data-' + k); else root.setAttribute('data-' + k, v); }
