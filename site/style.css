@@ -600,3 +600,6 @@ html[data-theme="yellow"] .ds-float .display-btn,html[data-theme="yellow"] .ds-f
 .door-btns{display:flex;flex-wrap:wrap;gap:12px;margin-top:4px}
 .door-main .pill.ghost{font-style:normal;font-weight:600}
 @media (max-width:640px){.door-btns{flex-direction:column}.door-btns .pill{width:100%;justify-content:center;text-align:center;padding-left:16px;padding-right:16px;white-space:nowrap}}
+
+/* Computers: room under the footer so the corner button never covers the copyright line */
+@media (min-width:901px){.site-footer{padding-bottom:96px}}
