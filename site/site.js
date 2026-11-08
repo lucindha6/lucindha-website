@@ -169,3 +169,27 @@
     var p = document.getElementById('display-panel'); if (p && !p.hidden) { var c = p.querySelector('input:checked'); if (c) c.focus(); }
   });
 })();
+
+
+/* Phone menu: Community Work and Media sub-links fold open one at a time. */
+(function () {
+  var header = document.querySelector('.site-header.has-menu');
+  if (!header) return;
+  var mq = matchMedia('(max-width:900px)');
+  var dds = Array.prototype.slice.call(header.querySelectorAll('.nav .dd'));
+  dds.forEach(function (dd) {
+    var link = dd.querySelector(':scope > a'), menu = dd.querySelector('.dd-menu');
+    var t = document.createElement('button');
+    t.type = 'button'; t.className = 'sub-toggle';
+    t.setAttribute('aria-expanded', 'false'); t.setAttribute('aria-controls', menu.id);
+    t.setAttribute('aria-label', 'Show ' + link.textContent.trim() + ' pages');
+    t.innerHTML = '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+    var row = document.createElement('div'); row.className = 'sub-row';
+    dd.insertBefore(row, link); row.appendChild(link); row.appendChild(t);
+    t.addEventListener('click', function () {
+      var open = !dd.classList.contains('sub-open');
+      dds.forEach(function (o) { o.classList.remove('sub-open'); var b = o.querySelector('.sub-toggle'); if (b) b.setAttribute('aria-expanded', 'false'); });
+      dd.classList.toggle('sub-open', open); t.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  });
+})();

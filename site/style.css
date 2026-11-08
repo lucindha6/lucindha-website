@@ -536,3 +536,18 @@ html[data-theme="yellow"] .dd-menu .sw{border-color:#111}
   .door-main > img{margin:0 auto}
   .doors .explore-card img{align-self:center;margin-left:0}
 }
+
+/* phone menu: folding sub-menus */
+.sub-row{display:contents}
+.sub-toggle{display:none}
+@media (max-width:900px){
+  .has-menu .nav .sub-row{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+  .has-menu .nav .sub-row > a{flex:1 1 auto;border-bottom:0!important}
+  .has-menu .nav .sub-toggle{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;background:none;border:1.5px solid var(--line);border-radius:12px;color:var(--gold-text);cursor:pointer}
+  .has-menu .nav .sub-toggle svg{transition:transform .2s ease}
+  .has-menu .nav .sub-open .sub-toggle svg{transform:rotate(180deg)}
+  .has-menu .nav .sub-toggle:focus-visible{outline:3px solid var(--gold-text);outline-offset:2px}
+  .has-menu .nav .dd .dd-menu{display:none!important}
+  .has-menu .nav .dd.sub-open .dd-menu{display:block!important}
+}
+@media (max-width:900px){.has-menu .nav > a.pill{display:inline-flex;padding:12px 28px;font-size:1.15rem;border-bottom:1.5px solid var(--gold)}}
