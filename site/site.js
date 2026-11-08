@@ -1,6 +1,6 @@
 /* Gentle scroll reveal: elements fade and rise into place once, as they come into view. */
 (function () {
-  if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.getAttribute('data-motion') === 'reduced') return;
   document.documentElement.classList.add('js');
   var sel = '.hero-text > *, .hero-logo, .head, .grid > li, .ticks > li, .areas > li, .split > *, .cta, .area-panel, .news-list > li, .site-footer .cols > *';
   var els = Array.prototype.slice.call(document.querySelectorAll(sel));
@@ -94,4 +94,52 @@
     [['sport.html', 'Sport & Coaching', '#2A3D3B'], ['speaking.html', 'Public Speaking', '#4A3046'], ['workshops.html', 'Workshops', '#343B40'], ['community.html', 'All Community Work', '', true]]);
   dropdown(/(^|\/)media(\.html)?$/, 'dd-media', 'Show Media pages',
     [['news.html', 'In the news'], ['media.html#appear-title', 'TV & video appearances'], ['media.html#bio-title', 'Press kit'], ['media.html', 'All media', '', true]]);
+})();
+
+
+/* Display settings: colour (Navy / Light / Yellow), text size and motion. Saved in this browser only. */
+(function () {
+  var root = document.documentElement, KEY = 'll-display';
+  function load() { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { return {}; } }
+  function save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
+  var state = load();
+  var reducedOS = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var groups = [
+    ['theme', 'Colours', [['navy', 'Navy'], ['light', 'Light'], ['yellow', 'Yellow']], 'navy'],
+    ['text', 'Text size', [['normal', 'Normal'], ['large', 'Large'], ['xlarge', 'Extra large']], 'normal'],
+    ['motion', 'Animations', [['full', 'On'], ['reduced', 'Off']], reducedOS ? 'reduced' : 'full']
+  ];
+  var bar = document.createElement('div'); bar.className = 'display-bar';
+  var html = '<div class="wrap"><button type="button" class="display-btn" aria-expanded="false" aria-controls="display-panel">' +
+    '<span class="aa" aria-hidden="true">Aa</span> Display settings</button></div>' +
+    '<div id="display-panel" class="display-panel" hidden><div class="wrap"><h2 class="display-title">Display settings</h2><div class="display-groups">';
+  groups.forEach(function (g) {
+    var cur = state[g[0]] || g[3];
+    html += '<fieldset class="display-group"><legend>' + g[1] + '</legend><div class="seg">';
+    g[2].forEach(function (o) {
+      var id = 'ds-' + g[0] + '-' + o[0];
+      html += '<input type="radio" id="' + id + '" name="ds-' + g[0] + '" value="' + o[0] + '"' + (cur === o[0] ? ' checked' : '') + '>' +
+              '<label for="' + id + '" class="seg-' + g[0] + '-' + o[0] + '">' + o[1] + '</label>';
+    });
+    html += '</div></fieldset>';
+  });
+  html += '</div><div class="display-actions"><button type="button" class="display-reset">Reset to default</button>' +
+          '<button type="button" class="display-close">Close</button></div></div></div>';
+  bar.innerHTML = html;
+  var skip = document.querySelector('.skip');
+  document.body.insertBefore(bar, skip ? skip.nextSibling : document.body.firstChild);
+  var btn = bar.querySelector('.display-btn'), panel = bar.querySelector('.display-panel');
+  function setOpen(o) { panel.hidden = !o; btn.setAttribute('aria-expanded', o ? 'true' : 'false'); }
+  btn.addEventListener('click', function () { setOpen(panel.hidden); if (!panel.hidden) { var c = panel.querySelector('input:checked'); if (c) c.focus(); } });
+  bar.querySelector('.display-close').addEventListener('click', function () { setOpen(false); btn.focus(); });
+  panel.addEventListener('keydown', function (e) { if (e.key === 'Escape') { setOpen(false); btn.focus(); } });
+  function apply(k, v, def) { if (v === def) root.removeAttribute('data-' + k); else root.setAttribute('data-' + k, v); }
+  panel.addEventListener('change', function (e) {
+    var k = e.target.name.replace('ds-', ''), g = groups.filter(function (x) { return x[0] === k; })[0];
+    state[k] = e.target.value; apply(k, e.target.value, g[3]); save(state);
+  });
+  bar.querySelector('.display-reset').addEventListener('click', function () {
+    state = {}; save(state);
+    groups.forEach(function (g) { root.removeAttribute('data-' + g[0]); var r = panel.querySelector('#ds-' + g[0] + '-' + g[3]); if (r) r.checked = true; });
+  });
 })();

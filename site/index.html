@@ -25,7 +25,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&amp;family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,100;1,9..144,300..700,100&amp;family=Montserrat:wght@400;500&amp;display=swap">
-<link rel="stylesheet" href="style.css?v=42">
+<script>try{var s=JSON.parse(localStorage.getItem('ll-display')||'{}'),d=document.documentElement;['theme','text','motion'].forEach(function(k){if(s[k])d.setAttribute('data-'+k,s[k]);});}catch(e){}</script>
+<link rel="stylesheet" href="style.css?v=45">
 </head>
 <body>
 <a href="#main" class="skip">Skip to main content</a>
@@ -53,13 +54,12 @@
 <section class="hero" aria-labelledby="hero-title">
 <div class="wrap">
 <div class="hero-text">
-<p class="hello"><em>Hello,</em> I'm Lucindha.</p>
-<p class="eyebrow">AAT licensed accountant</p>
-<h1 id="hero-title">Clear, accessible accounting for <em>Deaf and hearing</em> clients.</h1>
-<p class="lead">Bookkeeping, VAT returns, personal tax, year-end accounts and corporation tax – explained plainly, in the way that works best for you.</p>
+<p class="eyebrow">Accountant · Athlete · Coach · Speaker</p>
+<h1 id="hero-title">Hello, I'm <em>Lucindha Lawson.</em></h1>
+<p class="lead">I'm an AAT licensed accountant, England Deaf futsal international and Deaf advocate. Through accessible accounting, coaching, public speaking and workshops, I help people and organisations communicate clearly, with Deaf and hearing people alike.</p>
 <div style="display: flex; flex-wrap: wrap; gap: 14px; margin-top: 6px">
-<a href="contact.html" class="pill">Request a free quote</a>
-<a href="accounting.html" class="pill ghost">See accounting services</a>
+<a href="#help-title" class="pill">How I can help</a>
+<a href="about.html" class="pill ghost">About me</a>
 </div>
 </div>
 <div class="hero-logo">
@@ -68,10 +68,38 @@
 </div>
 </section>
 
-
-<section class="band" aria-labelledby="how-title">
+<section class="band" aria-labelledby="help-title">
 <div class="wrap">
 <div class="head">
+<p class="eyebrow">What I do</p>
+<h2 id="help-title">How I can help</h2>
+<p class="muted">Accounting is my business. Alongside it, I draw on my life as an England Deaf futsal player, Deaflympian and Deaf advocate to coach, speak and run workshops. It all comes from the same place: making things clearer and more accessible for Deaf people and the communities around them.</p>
+</div>
+<div class="door-main">
+<img src="images/logo-accounting.png" alt="" width="360" height="360">
+<div class="stack" style="gap: 14px">
+<p class="eyebrow">My main service</p>
+<h3>Accounting</h3>
+<p>Clear, accessible accounting for <strong>Deaf and hearing</strong> clients: bookkeeping, VAT returns, personal tax, year-end accounts and corporation tax, explained plainly in the way that works best for you.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px">
+<a href="contact.html" class="pill">Request a free quote</a>
+<a href="accounting.html" class="pill ghost">Accounting services &amp; prices</a>
+</div>
+</div>
+</div>
+<ul class="explore doors">
+<li><a class="explore-card" href="sport.html" style="background: #2A3D3B"><img src="images/logo-sport.png" alt="" width="360" height="360"><span class="stack" style="gap: 6px"><span class="ex-title">Sport &amp; Coaching</span><span class="ex-text">Football and futsal coaching, mentoring and Deaf-inclusive sport.</span><span class="ex-more">Find out more <span aria-hidden="true">→</span></span></span></a></li>
+<li><a class="explore-card" href="speaking.html" style="background: #4A3046"><img src="images/logo-speaking.png" alt="" width="360" height="360"><span class="stack" style="gap: 6px"><span class="ex-title">Public Speaking</span><span class="ex-text">Talks on Deaf awareness, inclusion, resilience and elite sport.</span><span class="ex-more">Find out more <span aria-hidden="true">→</span></span></span></a></li>
+<li><a class="explore-card" href="workshops.html" style="background: #343B40"><img src="images/logo-workshops.png" alt="" width="360" height="360"><span class="stack" style="gap: 6px"><span class="ex-title">Workshops</span><span class="ex-text">Interactive workshops on BSL, Deaf awareness and accessibility.</span><span class="ex-more">Find out more <span aria-hidden="true">→</span></span></span></a></li>
+</ul>
+</div>
+</section>
+
+
+<section aria-labelledby="how-title">
+<div class="wrap">
+<div class="head">
+<p class="eyebrow">Accounting</p>
 <h2 id="how-title">How it works</h2>
 <p class="muted">Starting prices and monthly packages are on the <a href="accounting.html#pricing">Accounting page</a>. Tell me what you need and I'll come back with a quote that fits.</p>
 </div>
@@ -83,7 +111,7 @@
 </div>
 </section>
 
-<section aria-labelledby="services-title">
+<section class="band" aria-labelledby="services-title">
 <div class="wrap">
 <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 40px">
 <div class="stack" style="gap: 14px">
@@ -103,7 +131,7 @@
 </div>
 </section>
 
-<section class="band" aria-labelledby="access-title">
+<section aria-labelledby="access-title">
 <div class="wrap split" style="align-items: flex-start">
 <div class="stack">
 <p class="eyebrow">Accessible by design</p>
@@ -120,12 +148,12 @@
 </div>
 </section>
 
-<section id="about" aria-labelledby="about-title">
+<section id="about" class="band" aria-labelledby="about-title">
 <div class="wrap split">
 <img class="photo" src="images/lucindha.jpg" alt="Lucindha Lawson smiling, wearing a navy blazer" width="800" height="1000" style="flex: 1 1 300px; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; object-position: center top; border: 1px solid var(--line); display: block">
 <div class="stack" style="flex: 999 1 460px">
 <p class="eyebrow">About</p>
-<h2 id="about-title">Hello, I'm Lucindha</h2>
+<h2 id="about-title">My story</h2>
 <p class="muted">I'm an AAT Licensed Accountant and MAAT member, currently studying towards the Chartered Public Finance Accountant (CPFA) qualification through CIPFA. Alongside accounting, I also deliver coaching, public speaking and specialist workshops, combining professional expertise with real-world experience.</p>
 <p class="muted">As a profoundly Deaf British Sign Language (BSL) user, I understand first-hand how communication barriers affect access to professional services, and I'm committed to making my services accessible for both Deaf and hearing clients. BSL interpreters can be arranged where required.</p>
 <a href="about.html" class="link">Read more about me</a>
@@ -133,18 +161,8 @@
 </div>
 </section>
 
-<section class="band" aria-labelledby="community-title">
+<section class="featured-section" aria-label="As featured on">
 <div class="wrap">
-<div class="head">
-<p class="eyebrow">Beyond accounting</p>
-<h2 id="community-title">Community Work</h2>
-<p class="muted">Accounting is my business. Alongside it, I draw on my life as an England Deaf futsal player, Deaflympian and Deaf advocate to coach, speak and run workshops. It all comes from the same place: making things clearer and more accessible for Deaf people and the communities around them.</p>
-</div>
-<ul class="areas">
-<li><a href="sport.html" style="background: var(--sport)"><span>Sport &amp; Coaching</span><span aria-hidden="true">→</span></a></li>
-<li><a href="speaking.html" style="background: var(--speaking)"><span>Public Speaking</span><span aria-hidden="true">→</span></a></li>
-<li><a href="workshops.html" style="background: var(--workshops)"><span>Workshops</span><span aria-hidden="true">→</span></a></li>
-</ul>
 <div class="featured-strip" aria-label="As featured on">
 <p><span class="eyebrow">As featured on</span> <span class="outlets">Sky Sports · BBC · ITV · TNT Sports · COPA90 · England Football</span> <a href="media.html" class="link">See media appearances</a></p>
 </div>
@@ -155,10 +173,10 @@
 <div class="wrap">
 <div class="cta">
 <div>
-<h2 id="cta-title">Ready to talk about your accounts?</h2>
-<p class="muted">Enquiries are free. I'll review what you need and send you a personalised quote.</p>
+<h2 id="cta-title">Let's work together</h2>
+<p class="muted">Whether you need an accountant, a coach, a speaker or a workshop, I'd love to hear from you. Enquiries are always free.</p>
 </div>
-<a href="contact.html" class="pill">Request a free quote</a>
+<a href="contact.html" class="pill">Get in touch</a>
 </div>
 </div>
 </section>
@@ -196,6 +214,6 @@
 <p class="legal">© 2026 LUCINDHA LAWSON LTD. Registered in England &amp; Wales. Company no. 17408408. Registered office: 128 City Road, London, EC1V 2NX.</p>
 </div>
 </footer>
-<script src="site.js?v=11"></script>
+<script src="site.js?v=12"></script>
 </body>
 </html>
