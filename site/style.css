@@ -531,3 +531,8 @@ html[data-theme="yellow"] .dd-menu .sw{border-color:#111}
   .has-menu .menu-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   .has-menu .brand-name{letter-spacing:.2em}
 }
+/* Home doors on phones: logos centred above the text */
+@media (max-width:700px){
+  .door-main > img{margin:0 auto}
+  .doors .explore-card img{align-self:center;margin-left:0}
+}
