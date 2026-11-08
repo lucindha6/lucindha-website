@@ -403,7 +403,7 @@ section{padding:60px 0}
 .door-main p{color:#D9DEE4}
 .doors{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
 .doors .explore-card{flex-direction:column;align-items:flex-start;padding:22px 26px 26px;gap:10px}
-.doors .explore-card img{width:110px;height:110px;margin-left:-10px}
+.doors .explore-card img{width:140px;height:140px;margin-left:-10px}
 .featured-section{padding:36px 0}
 .featured-section .featured-strip{padding:0}
 @media (max-width:640px){.door-main{padding:24px}.door-main > img{width:140px}}
