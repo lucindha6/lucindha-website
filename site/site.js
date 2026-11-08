@@ -31,7 +31,7 @@
   function update() {
     var y = window.scrollY, h = header.offsetHeight;
     if (y <= h) header.classList.remove('is-hidden');
-    else if (y > lastY + 6 && !header.contains(document.activeElement)) header.classList.add('is-hidden');
+    else if (y > lastY + 6 && !header.contains(document.activeElement) && !header.classList.contains('menu-open')) header.classList.add('is-hidden');
     else if (y < lastY - 6) header.classList.remove('is-hidden');
     header.classList.toggle('is-raised', y > 10);
     lastY = y; ticking = false;
@@ -141,5 +141,31 @@
   bar.querySelector('.display-reset').addEventListener('click', function () {
     state = {}; save(state);
     groups.forEach(function (g) { root.removeAttribute('data-' + g[0]); var r = panel.querySelector('#ds-' + g[0] + '-' + g[3]); if (r) r.checked = true; });
+  });
+})();
+
+
+/* Phones and tablets: a "Menu" button and a compact "Aa" display-settings button in the header row. */
+(function () {
+  var header = document.querySelector('.site-header'), nav = header && header.querySelector('.nav');
+  if (!header || !nav) return;
+  nav.id = nav.id || 'site-nav';
+  var box = document.createElement('div'); box.className = 'header-actions';
+  box.innerHTML =
+    '<button type="button" class="hdr-btn aa-btn" aria-label="Display settings"><span aria-hidden="true">Aa</span></button>' +
+    '<button type="button" class="hdr-btn menu-btn" aria-expanded="false" aria-controls="' + nav.id + '">' +
+    '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path class="l1" d="M4 7h16"/><path class="l2" d="M4 12h16"/><path class="l3" d="M4 17h16"/></svg>' +
+    '<span class="menu-label">Menu</span></button>';
+  nav.parentNode.insertBefore(box, nav);
+  header.classList.add('has-menu');
+  var mbtn = box.querySelector('.menu-btn'), label = box.querySelector('.menu-label');
+  function setOpen(o) { header.classList.toggle('menu-open', o); mbtn.setAttribute('aria-expanded', o ? 'true' : 'false'); label.textContent = o ? 'Close' : 'Menu'; }
+  mbtn.addEventListener('click', function () { setOpen(!header.classList.contains('menu-open')); });
+  header.addEventListener('keydown', function (e) { if (e.key === 'Escape' && header.classList.contains('menu-open')) { setOpen(false); mbtn.focus(); } });
+  nav.addEventListener('click', function (e) { if (e.target.closest('a')) setOpen(false); });
+  box.querySelector('.aa-btn').addEventListener('click', function () {
+    var b = document.querySelector('.display-btn'); if (!b) return;
+    b.click(); window.scrollTo(0, 0);
+    var p = document.getElementById('display-panel'); if (p && !p.hidden) { var c = p.querySelector('input:checked'); if (c) c.focus(); }
   });
 })();
