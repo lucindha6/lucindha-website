@@ -133,7 +133,7 @@
   function setOpen(o) { panel.hidden = !o; btn.setAttribute('aria-expanded', o ? 'true' : 'false'); }
   btn.addEventListener('click', function () { setOpen(panel.hidden); if (!panel.hidden) { var c = panel.querySelector('input:checked'); if (c) c.focus(); } });
   document.addEventListener('click', function (e) { if (!panel.hidden && !bar.contains(e.target)) setOpen(false); });
-  bar.querySelector('.display-close').addEventListener('click', function () { setOpen(false); btn.focus(); });
+  bar.querySelector('.display-close').addEventListener('click', function () { setOpen(false); var mb = document.querySelector('.menu-btn'); (matchMedia('(max-width:900px)').matches && mb ? mb : btn).focus(); });
   panel.addEventListener('keydown', function (e) { if (e.key === 'Escape') { setOpen(false); btn.focus(); } });
   function apply(k, v, def) { if (v === def) root.removeAttribute('data-' + k); else root.setAttribute('data-' + k, v); }
   panel.addEventListener('change', function (e) {
@@ -188,4 +188,25 @@
       dd.classList.toggle('sub-open', open); t.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
   });
+})();
+
+
+/* Phones: "Colours & text size" is the first item in the Menu (the floating button is hidden on phones). */
+(function () {
+  var nav = document.querySelector('.site-header.has-menu .nav'), panel = document.getElementById('display-panel');
+  var fbtn = document.querySelector('.ds-float .display-btn');
+  if (!nav || !panel || !fbtn) return;
+  var b = document.createElement('button');
+  b.type = 'button'; b.className = 'menu-ds';
+  b.setAttribute('aria-controls', 'display-panel'); b.setAttribute('aria-expanded', 'false');
+  b.innerHTML = '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg><span>Colours &amp; text size</span>';
+  nav.insertBefore(b, nav.firstChild);
+  b.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var mb = document.querySelector('.menu-btn'); if (mb) mb.click();   // close the menu
+    var open = panel.hidden;
+    panel.hidden = !open; fbtn.setAttribute('aria-expanded', open ? 'true' : 'false'); b.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) { var c = panel.querySelector('input:checked'); if (c) c.focus(); }
+  });
+  panel.querySelector('.display-close').addEventListener('click', function () { if (matchMedia('(max-width:900px)').matches) b.setAttribute('aria-expanded', 'false'); });
 })();

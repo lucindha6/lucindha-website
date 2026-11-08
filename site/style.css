@@ -582,3 +582,16 @@ html[data-theme="yellow"] .display-btn .ds-icon{color:#111}
 html[data-theme="yellow"] .ds-float .display-btn,html[data-theme="yellow"] .ds-float .display-panel{border-color:#111}
 @media (max-width:640px){.ds-float{left:12px}.ds-float .display-btn{font-size:.95rem;padding:8px 16px 8px 12px}}
 .menu-open ~ * .ds-float,body:has(.menu-open) .ds-float{display:none}
+
+/* Phones: no floating button; the pop-up opens from the Menu and sits centred near the bottom */
+.menu-ds{display:none}
+@media (max-width:900px){
+  .ds-float .display-btn{display:none}
+  .ds-float{left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));align-items:stretch}
+  .ds-float .display-panel{width:auto;max-height:calc(100vh - 160px)}
+  .has-menu .nav .menu-ds{display:flex;align-items:center;gap:10px;min-height:48px;margin:0 0 6px;padding:8px 14px;border:1.5px solid var(--gold-text);border-radius:14px;background:none;color:var(--cream);font:inherit;font-weight:700;font-size:1.05rem;text-align:left;cursor:pointer}
+  .has-menu .nav .menu-ds svg{color:var(--gold-text);flex:none}
+  .has-menu .nav .menu-ds:focus-visible{outline:3px solid var(--gold-text);outline-offset:2px}
+  html[data-theme="yellow"] .has-menu .nav .menu-ds{border-color:#111}
+  html[data-theme="yellow"] .has-menu .nav .menu-ds svg{color:#111}
+}
