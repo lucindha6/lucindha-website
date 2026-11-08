@@ -111,8 +111,9 @@
   ];
   var bar = document.createElement('div'); bar.className = 'display-bar';
   var html = '<div class="wrap"><button type="button" class="display-btn" aria-expanded="false" aria-controls="display-panel">' +
-    '<span class="aa" aria-hidden="true">Aa</span> Display settings</button></div>' +
-    '<div id="display-panel" class="display-panel" hidden><div class="wrap"><h2 class="display-title">Display settings</h2><div class="display-groups">';
+    '<svg class="ds-icon" aria-hidden="true" width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>' +
+    '<span>Change colours &amp; text size</span><svg class="ds-chev" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button></div>' +
+    '<div id="display-panel" class="display-panel" hidden><div class="wrap"><h2 class="display-title">Colours &amp; text size</h2><div class="display-groups">';
   groups.forEach(function (g) {
     var cur = state[g[0]] || g[3];
     html += '<fieldset class="display-group"><legend>' + g[1] + '</legend><div class="seg">';
@@ -152,8 +153,7 @@
   nav.id = nav.id || 'site-nav';
   var box = document.createElement('div'); box.className = 'header-actions';
   box.innerHTML =
-    '<button type="button" class="hdr-btn aa-btn" aria-label="Display settings"><span aria-hidden="true">Aa</span></button>' +
-    '<button type="button" class="hdr-btn menu-btn" aria-expanded="false" aria-controls="' + nav.id + '">' +
+        '<button type="button" class="hdr-btn menu-btn" aria-expanded="false" aria-controls="' + nav.id + '">' +
     '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path class="l1" d="M4 7h16"/><path class="l2" d="M4 12h16"/><path class="l3" d="M4 17h16"/></svg>' +
     '<span class="menu-label">Menu</span></button>';
   nav.parentNode.insertBefore(box, nav);
@@ -163,11 +163,6 @@
   mbtn.addEventListener('click', function () { setOpen(!header.classList.contains('menu-open')); });
   header.addEventListener('keydown', function (e) { if (e.key === 'Escape' && header.classList.contains('menu-open')) { setOpen(false); mbtn.focus(); } });
   nav.addEventListener('click', function (e) { if (e.target.closest('a')) setOpen(false); });
-  box.querySelector('.aa-btn').addEventListener('click', function () {
-    var b = document.querySelector('.display-btn'); if (!b) return;
-    b.click(); window.scrollTo(0, 0);
-    var p = document.getElementById('display-panel'); if (p && !p.hidden) { var c = p.querySelector('input:checked'); if (c) c.focus(); }
-  });
 })();
 
 

@@ -551,3 +551,22 @@ html[data-theme="yellow"] .dd-menu .sw{border-color:#111}
   .has-menu .nav .dd.sub-open .dd-menu{display:block!important}
 }
 @media (max-width:900px){.has-menu .nav > a.pill{display:inline-flex;padding:12px 28px;font-size:1.15rem;border-bottom:1.5px solid var(--gold)}}
+
+/* Display settings strip, RNIB style: clear wording, centred, on every screen size */
+.display-bar > .wrap{justify-content:center}
+.display-btn{gap:10px;padding:8px 18px;margin:6px 0;border:1.5px solid var(--gold-text);border-radius:999px;font-size:1rem}
+.display-btn:hover{text-decoration:none;background:rgba(203,171,116,.12)}
+.display-btn .ds-icon{color:var(--gold-text);flex:none}
+.display-btn .ds-chev{transition:transform .2s ease}
+.display-btn[aria-expanded="true"] .ds-chev{transform:rotate(180deg)}
+.display-btn:focus-visible{outline:3px solid var(--gold-text);outline-offset:3px}
+@media (max-width:900px){
+  .display-bar > .wrap{display:flex!important}
+  .display-bar{border-bottom:1px solid var(--line)}
+  .display-btn{font-size:.95rem;padding:6px 14px;margin:6px 0}
+}
+html[data-theme="yellow"] .display-btn{border-color:#111}
+html[data-theme="yellow"] .display-btn .ds-icon{color:#111}
+/* desktop: centre the logos in the three smaller cards on the home page */
+.doors .explore-card img{align-self:center;margin-left:0}
+@media (max-width:360px){.display-btn{font-size:.86rem;padding:6px 12px;gap:8px}}
