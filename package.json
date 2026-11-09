@@ -1,0 +1,15 @@
+{
+  "name": "lucindha-website",
+  "private": true,
+  "type": "module",
+  "description": "Static site in /site. The only Node code is the enquiry acknowledgement function in /netlify.",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^10.4.2"
+  }
+}

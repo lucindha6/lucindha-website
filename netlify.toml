@@ -4,6 +4,13 @@
   publish = "site"
   command = ""
 
+# Automatic acknowledgement email for the enquiry form (netlify/functions/submission-created.mjs).
+# It is OFF unless the ACK_MODE environment variable is set to "test" or "live" in Netlify.
+# See docs/enquiry-acknowledgement.md.
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
 # PRE-LAUNCH: tells Google and other search engines not to list any page yet.
 # Delete this whole [[headers]] block on launch day so the site can appear in search results.
 [[headers]]
