@@ -4,6 +4,7 @@ Edit the text below and run:  python3 tools/build_accounting.py"""
 import sys, pathlib, html
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from page_shell import page, ROOT
+from testimonials import section as testimonials_section
 e = lambda s: html.escape(s, quote=False)
 CHECK = ('<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#CBAB74" stroke-width="2.2" '
          'stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>')
@@ -105,6 +106,8 @@ body = f'''
 <p style="margin-top: 24px"><a href="about.html#qualifications" class="link">See all qualifications and memberships</a></p>
 </div>
 </section>
+
+{testimonials_section()}
 
 <section class="band" aria-labelledby="pricing-title" id="pricing">
 <div class="wrap">

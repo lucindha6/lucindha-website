@@ -603,3 +603,11 @@ html[data-theme="yellow"] .ds-float .display-btn,html[data-theme="yellow"] .ds-f
 
 /* Computers: room under the footer so the corner button never covers the copyright line */
 @media (min-width:901px){.site-footer{padding-bottom:72px}}
+
+/* Client testimonials */
+.quotes{grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))}
+.quotes > li{display:flex}
+.quote-card{margin:0;width:100%}
+.quote-card blockquote{margin:0;display:flex;flex-direction:column;gap:12px;border-left:3px solid var(--gold);padding-left:18px}
+.quote-card blockquote p{color:var(--cream);margin:0;font-size:1.05rem;line-height:1.7}
+.quote-card figcaption{margin-top:auto;padding-top:8px;font-weight:600;color:var(--gold-text)}
