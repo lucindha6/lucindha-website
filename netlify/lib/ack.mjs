@@ -10,7 +10,7 @@
 //  - The acknowledgement never repeats what the visitor wrote, including any
 //    access needs (which may be health information).
 //  - Duplicate checking stores a keyed hash of the email address, never the
-//    address itself, and deletes it after ADDR_RETENTION_DAYS.
+//    address itself, and deletes it within about 48 hours.
 
 import { createHmac } from "node:crypto";
 
@@ -161,7 +161,7 @@ export function buildEmail({ first, methods, phoneGiven, accessGiven }) {
   paras.push(`You told me you'd like me to contact you by ${joinNatural(methods)}. I'll do my best to use what you've chosen.`);
   if (wantsPhone && !phoneGiven) {
     paras.push(
-      "You asked for a text message or phone call, but I don't have a mobile number for you. If you'd like me to use one, please reply to this email with your number.",
+      "If you'd like me to text or call you, you're welcome to reply with your mobile number. If you'd rather not share it, that's absolutely fine – I'll contact you another way.",
     );
   }
 
@@ -303,7 +303,9 @@ export function configMissing(env) {
 //   sub/<YYYY-MM-DD>/<submission id>          status of one submission      – kept 30 days
 //   addr/<YYYY-MM-DD>/<hash>/<1..3>           one send slot per address/day – kept until the day after
 //   site/<YYYY-MM-DD>/<1..50>                 one slot per acknowledgement  – kept until the day after
-// Slots are claimed with "only if new" writes, so simultaneous submissions can't exceed the limits.
+//   win/<hash>                                time of the last acknowledgement to that address – kept until the day after
+// Every claim is an atomic conditional write ("only if new" or "only if unchanged"), so
+// simultaneous submissions can't get past the 10-minute window or the limits.
 
 async function claimSlot(store, prefix, max, value) {
   for (let n = 1; n <= max; n++) {
@@ -313,16 +315,21 @@ async function claimSlot(store, prefix, max, value) {
   return 0;
 }
 
-async function recentSendTimes(store, prefixes) {
-  const times = [];
-  for (const prefix of prefixes) {
-    const { blobs = [] } = (await store.list({ prefix: prefix + "/" })) || {};
-    for (const b of blobs) {
-      const v = await store.get(b.key, { type: "json" });
-      if (v && typeof v.at === "number") times.push(v.at);
-    }
+/**
+ * Atomically claim the 10-minute window for one address (compare-and-swap).
+ * Returns true if this submission may send; false if another one already did or is doing.
+ */
+async function claimWindow(store, key, t) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const current = await store.getWithMetadata(key, { type: "json" });
+    if (current && current.data && t - current.data.at < DUPLICATE_WINDOW_MS) return false;
+    const r = current
+      ? await store.setJSON(key, { at: t }, { onlyIfMatch: current.etag })
+      : await store.setJSON(key, { at: t }, { onlyIfNew: true });
+    if (!r || r.modified !== false) return true;
+    // Someone else wrote first: read again and re-check.
   }
-  return times;
+  return false;
 }
 
 async function tidy(store, now) {
@@ -339,6 +346,11 @@ async function tidy(store, now) {
       for (const b of blobs) {
         if (b.key.slice(prefix.length, prefix.length + 10) < cutoff) await store.delete(b.key);
       }
+    }
+    const { blobs: wins = [] } = (await store.list({ prefix: "win/" })) || {};
+    for (const b of wins) {
+      const v = await store.get(b.key, { type: "json" });
+      if (!v || now - v.at > 2 * 86_400_000) await store.delete(b.key);
     }
   } catch {
     // Tidying is best-effort; never block an acknowledgement on it.
@@ -373,7 +385,6 @@ export async function handleSubmission(payload, deps) {
 
     const t = startedAt;
     const today = dayKey(new Date(t));
-    const yesterday = dayKey(new Date(t - 86_400_000));
     const created = new Date(Date.parse(payload.created_at) || t);
     const hash = hashAddress(decision.to, env.ACK_HASH_SECRET);
     const subKey = `sub/${dayKey(created)}/${id === "unknown" ? hashAddress(decision.to + created.toISOString(), env.ACK_HASH_SECRET) : id}`;
@@ -385,9 +396,8 @@ export async function handleSubmission(payload, deps) {
     if (claim && claim.modified === false) return done("skipped", { reason: "duplicate-submission" });
     const mark = (status) => store.setJSON(subKey, { status, at: t });
 
-    // 2. Same address within the last 10 minutes?
-    const times = await recentSendTimes(store, [`addr/${yesterday}/${hash}`, `addr/${today}/${hash}`]);
-    if (times.some((x) => t - x < DUPLICATE_WINDOW_MS)) {
+    // 2. Same address within the last 10 minutes (including at the very same moment)?
+    if (!(await claimWindow(store, `win/${hash}`, t))) {
       await mark("skipped-recent");
       return done("skipped", { reason: "duplicate-address-10min" });
     }

@@ -43,17 +43,30 @@ function payload(over = {}, data = {}) {
   };
 }
 
+// In-memory stand-in for Netlify Blobs, including conditional writes and etags.
+// Each call yields to the event loop first, so simultaneous calls really interleave.
 function memoryStore() {
   const m = new Map();
+  const etags = new Map();
+  let n = 0;
+  const tick = () => new Promise((r) => setImmediate(r));
   return {
     m,
     async get(k) {
+      await tick();
       return m.has(k) ? JSON.parse(m.get(k)) : null;
     },
+    async getWithMetadata(k) {
+      await tick();
+      return m.has(k) ? { data: JSON.parse(m.get(k)), etag: etags.get(k), metadata: {} } : null;
+    },
     async setJSON(k, v, opts = {}) {
+      await tick();
       if (opts.onlyIfNew && m.has(k)) return { modified: false };
+      if (opts.onlyIfMatch && etags.get(k) !== opts.onlyIfMatch) return { modified: false };
       m.set(k, JSON.stringify(v));
-      return { modified: true };
+      etags.set(k, `"${++n}"`);
+      return { modified: true, etag: etags.get(k) };
     },
     async delete(k) {
       m.delete(k);
@@ -351,7 +364,8 @@ test("email confirms contact method and asks for a number if missing", () => {
   const e = buildEmail({ first: "Sam", methods: ["Text message", "Video call"], phoneGiven: false, accessGiven: false });
   assert.match(e.text, /^Hello Sam,/);
   assert.match(e.text, /contact you by text message and video call/);
-  assert.match(e.text, /I don't have a mobile number for you/);
+  assert.match(e.text, /If you'd like me to text or call you, you're welcome to reply with your mobile number/);
+  assert.match(e.text, /If you'd rather not share it, that's absolutely fine/);
   assert.match(e.text, /BSL, an interpreter, large print/);
   const f = buildEmail({ first: "", methods: ["Email"], phoneGiven: true, accessGiven: true });
   assert.match(f.text, /^Hello,/);
@@ -463,4 +477,46 @@ test("store keys are removed once older than yesterday", async () => {
   const keys = [...store.m.keys()];
   assert.ok(!keys.some((k) => /^(addr|site)\/2026-11-20/.test(k)), keys.join(" "));
   assert.ok(keys.some((k) => k.startsWith("sub/2026-11-20"))); // submission markers kept 30 days
+});
+
+test("two different submissions from one address at the same moment send only one email", async () => {
+  const x = deps();
+  const results = await Promise.all([handleSubmission(payload(), x.d), handleSubmission(payload(), x.d)]);
+  assert.deepEqual(results.sort(), ["sent", "skipped"]);
+  assert.equal(x.g.sends().length, 1);
+  assert.ok(x.logs.some((l) => l.reason === "duplicate-address-10min"));
+});
+
+test("a burst of 10 simultaneous submissions from one address sends one email", async () => {
+  const x = deps();
+  const results = await Promise.all(Array.from({ length: 10 }, () => handleSubmission(payload(), x.d)));
+  assert.equal(results.filter((r) => r === "sent").length, 1);
+  assert.equal(x.g.sends().length, 1);
+});
+
+test("the same event delivered 5 times at once sends one email", async () => {
+  const x = deps();
+  const p = payload();
+  const results = await Promise.all(Array.from({ length: 5 }, () => handleSubmission(p, x.d)));
+  assert.equal(results.filter((r) => r === "sent").length, 1);
+});
+
+test("OFF by default: every unset or unexpected ACK_MODE sends nothing and touches no storage", async () => {
+  for (const mode of [undefined, null, "", " ", "off", "on", "true", "1", "enabled", "production"]) {
+    const x = deps({ env: { ACK_MODE: mode } });
+    let touched = false;
+    const spy = new Proxy({}, { get: () => () => { touched = true; } });
+    assert.equal(await handleSubmission(payload(), { ...x.d, store: spy }), "skipped", String(mode));
+    assert.equal(x.g.calls.length, 0);
+    assert.equal(touched, false);
+  }
+});
+
+test("test or live mode with no Microsoft settings sends nothing", async () => {
+  for (const mode of ["test", "live"]) {
+    const x = deps({ env: { ACK_MODE: mode, ACK_TEST_ALLOWLIST: "sam@example.org", M365_TENANT_ID: "", M365_CLIENT_ID: "", M365_CLIENT_SECRET: "", ACK_HASH_SECRET: "" } });
+    assert.equal(await handleSubmission(payload(), x.d), "skipped");
+    assert.equal(x.logs[0].reason, "not-configured");
+    assert.equal(x.g.calls.length, 0);
+  }
 });

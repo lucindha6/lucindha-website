@@ -69,8 +69,9 @@ The PowerShell commands are in the `microsoft365` repository:
 - Logs contain only the Netlify submission id, a result code and an HTTP status.
 - Netlify Blobs (EU region, Frankfurt) holds only: submission ids with a status
   (deleted after 30 days), a keyed hash of the email address with send times
-  (deleted once older than yesterday, so at most about 48 hours) and a daily
-  counter, for duplicate and abuse protection.
+  (deleted within about 48 hours) and a daily counter, for duplicate and abuse
+  protection. Every check uses an atomic conditional write, so submissions that
+  arrive at the same moment can't get past them.
 - Processors: Netlify (hosting and forms) and Microsoft (email), both already in
   the privacy notice.
 
@@ -113,9 +114,12 @@ The PowerShell commands are in the `microsoft365` repository:
    In the message headers, SPF, DKIM and DMARC should say `pass`.
 9. Put a wrong value in `M365_CLIENT_SECRET`, redeploy, send an enquiry → an
    **ack-alert** notification arrives from Netlify. Put the right value back and redeploy.
-10. Check the function log shows no `internal` errors (this confirms the EU
+10. Security check: open `https://www.lucindhalawson.co.uk/.netlify/functions/submission-created`
+    in a browser (and try a POST). It must be refused, and no new line should
+    appear in the function log. This confirms only Netlify's signed event can run it.
+11. Check the function log shows no `internal` errors (this confirms the EU
     storage region and the Blobs package work on Netlify).
-11. Set `ACK_MODE=live`, redeploy, send one final enquiry.
+12. Only after final approval: set `ACK_MODE=live`, redeploy, send one final enquiry.
 
 ## Undo
 
