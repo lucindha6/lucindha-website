@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Internal form</title>
+</head>
+<body>
+<!-- Not linked from the site. Netlify needs this form in the published HTML so it accepts
+     "ack-alert" submissions, which the enquiry acknowledgement function uses to warn
+     hello@ if an acknowledgement could not be sent. It holds no enquiry details. -->
+<form name="ack-alert" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
+<input type="hidden" name="form-name" value="ack-alert">
+<input name="bot-field">
+<textarea name="message"></textarea>
+</form>
+</body>
+</html>

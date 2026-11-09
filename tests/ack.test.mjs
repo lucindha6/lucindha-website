@@ -186,7 +186,7 @@ test("same address twice within 10 minutes gets one acknowledgement", async () =
   assert.equal(await handleSubmission(payload(), x.d), "sent");
 });
 
-test("an address gets at most 3 acknowledgements in 24 hours, then again next day", async () => {
+test("an address gets at most 3 acknowledgements a day, then again next day", async () => {
   const x = deps();
   for (let i = 0; i < 3; i++) {
     assert.equal(await handleSubmission(payload(), x.d), "sent");
@@ -198,15 +198,33 @@ test("an address gets at most 3 acknowledgements in 24 hours, then again next da
   assert.equal(await handleSubmission(payload(), x.d), "sent");
 });
 
-test("limit also counts submissions just before midnight", async () => {
-  const store = memoryStore();
-  const x = deps({ store, clock: Date.parse("2026-11-20T23:50:00Z") });
-  for (let i = 0; i < 3; i++) {
-    await handleSubmission(payload(), x.d);
-    x.tick(11 * 60 * 1000);
+test("10-minute duplicate check works across midnight", async () => {
+  const x = deps({ clock: Date.parse("2026-11-20T23:55:00Z") });
+  assert.equal(await handleSubmission(payload(), x.d), "sent");
+  x.tick(7 * 60 * 1000); // 00:02 next day
+  assert.equal(await handleSubmission(payload(), x.d), "skipped");
+  assert.equal(x.logs[1].reason, "duplicate-address-10min");
+});
+
+test("simultaneous submissions to one address can't beat the daily limit", async () => {
+  const x = deps();
+  const results = await Promise.all(
+    Array.from({ length: 8 }, () => handleSubmission(payload(), x.d)),
+  );
+  assert.ok(results.filter((r) => r === "sent").length <= 3);
+});
+
+test("whole-site daily safety limit stops sending and alerts the owner", async () => {
+  const x = deps();
+  let sent = 0;
+  for (let i = 0; i < 52; i++) {
+    const r = await handleSubmission(payload({}, { email: `person${i}@example.org` }), x.d);
+    if (r === "sent") sent++;
   }
-  assert.equal(await handleSubmission(payload(), x.d), "skipped"); // now after midnight
-  assert.equal(x.logs[3].reason, "address-daily-limit");
+  assert.equal(sent, 50);
+  assert.equal(x.logs.filter((l) => l.reason === "site-daily-limit").length, 2);
+  const alerts = x.g.sends().filter((c) => JSON.parse(c.init.body).message.subject === "Website acknowledgement not sent");
+  assert.equal(alerts.length, 2);
 });
 
 test("store never holds the email address, name or enquiry text", async () => {
@@ -366,4 +384,83 @@ test("checkbox values as comma string are handled", () => {
   const r = assess(payload({}, { "contact-method": "Email, Phone call" }), ENV);
   assert.deepEqual(r.methods, ["Email", "Phone call"]);
   assert.equal(joinNatural(["Email", "Phone call", "Face to face"]), "email, phone call and face to face");
+});
+
+// ------------------------------------------------------------ review fixes
+
+test("contact methods outside the form's own list are ignored (no injected text)", async () => {
+  const x = deps();
+  await handleSubmission(
+    payload({}, { "contact-method": ["Claim your refund at hmrc-refund.co.uk", "Video call", "Email"] }),
+    x.d,
+  );
+  const content = JSON.parse(x.g.sends()[0].init.body).message.body.content;
+  assert.ok(!content.includes("refund"));
+  assert.match(content, /by email and video call/);
+});
+
+test("names containing any web address are refused", () => {
+  for (const name of ["Visit hmrc-refund.co.uk", "Bob bit.ly/x", "Jo //evil"]) {
+    assert.equal(assess(payload({}, { name }), ENV).reason, "suspicious-name", name);
+  }
+  assert.equal(assess(payload({}, { name: "Dr. Jones" }), ENV).send, true);
+});
+
+test("no acknowledgements to the business's own addresses", () => {
+  for (const email of ["media@lucindhalawson.co.uk", "alerts@example.com"]) {
+    assert.equal(assess(payload({}, { email }), { ...ENV, ACK_ALERT_TO: "alerts@example.com" }).reason, "own-address", email);
+  }
+});
+
+test("missing form name is treated as another form", () => {
+  assert.equal(assess(payload({ form_name: undefined }), ENV).reason, "other-form");
+});
+
+test("the hash secret is required", async () => {
+  const x = deps({ env: { ACK_HASH_SECRET: "" } });
+  assert.equal(await handleSubmission(payload(), x.d), "skipped");
+  assert.deepEqual(x.logs[0].missing, ["ACK_HASH_SECRET"]);
+});
+
+test("alerts go through the Netlify form first, so they work when Microsoft is broken", async () => {
+  const fetchFn = async (url) =>
+    url.includes("token") ? { ok: false, status: 401, json: async () => ({}) } : { ok: true, status: 202 };
+  const x = deps();
+  x.d.fetchFn = fetchFn;
+  const alerts = [];
+  x.d.alertViaForm = async (text) => {
+    alerts.push(text);
+    return true;
+  };
+  assert.equal(await handleSubmission(payload({}, { access: "Deafblind" }), x.d), "failed");
+  assert.equal(alerts.length, 1);
+  assert.match(alerts[0], /Problem: token \(401\)/);
+  for (const s of ["sam@example.org", "Sam", "Deafblind"]) assert.ok(!alerts[0].includes(s), s);
+  assert.ok(x.logs.some((l) => l.result === "alert-sent" && l.via === "netlify-form"));
+});
+
+test("a timed-out send is not retried (it may have gone) and is reported", async () => {
+  let sends = 0;
+  const fetchFn = async (url) => {
+    if (url.includes("token")) return { ok: true, status: 200, json: async () => ({ access_token: "t", expires_in: 3600 }) };
+    sends++;
+    if (sends === 1) throw Object.assign(new Error("aborted"), { name: "TimeoutError" });
+    return { ok: true, status: 202 };
+  };
+  const x = deps();
+  x.d.fetchFn = fetchFn;
+  assert.equal(await handleSubmission(payload(), x.d), "failed");
+  assert.equal(sends, 2); // the failed send + the Graph alert (no form route in this test)
+  assert.equal(x.logs.at(-1).status, "timeout-or-network");
+});
+
+test("store keys are removed once older than yesterday", async () => {
+  const store = memoryStore();
+  const x = deps({ store });
+  await handleSubmission(payload(), x.d);
+  x.tick(2 * 86_400_000);
+  await handleSubmission(payload({ created_at: new Date(T0 + 2 * 86_400_000).toISOString() }, { email: "b@example.org" }), x.d);
+  const keys = [...store.m.keys()];
+  assert.ok(!keys.some((k) => /^(addr|site)\/2026-11-20/.test(k)), keys.join(" "));
+  assert.ok(keys.some((k) => k.startsWith("sub/2026-11-20"))); // submission markers kept 30 days
 });

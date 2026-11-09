@@ -40,10 +40,27 @@ export default async (req) => {
     }
   }
 
+  // Failure alerts go through a hidden Netlify form, so Netlify emails them even if
+  // the Microsoft connection is broken (for example an expired client secret).
+  const siteUrl = process.env.URL;
+  const alertViaForm = siteUrl
+    ? async (message) => {
+        const res = await fetch(siteUrl + "/forms/ack-alert.html", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ "form-name": "ack-alert", "bot-field": "", message }),
+          redirect: "manual",
+          signal: AbortSignal.timeout(3000),
+        });
+        return res.status < 400;
+      }
+    : null;
+
   await handleSubmission(payload, {
     env,
     fetchFn: fetch,
     store,
+    alertViaForm,
     log: (o) => console.log(JSON.stringify(o)),
   });
 

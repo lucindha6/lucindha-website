@@ -5,7 +5,7 @@ automatic email from **hello@lucindhalawson.co.uk** confirming it arrived.
 
 Nothing about the form or Netlify's own notification email changes. If the
 acknowledgement ever fails, the enquiry still reaches hello@ as before and an
-alert email is sent to hello@.
+alert is sent (see Monitoring).
 
 ## How it works
 
@@ -13,8 +13,8 @@ alert email is sent to hello@.
 2. For each **verified** (non-spam) enquiry, Netlify runs the function
    `netlify/functions/submission-created.mjs`. Netlify signs this event and
    checks the signature itself, so the function cannot be triggered from outside.
-3. The function checks the enquiry (spam trap, consent, valid email, no links
-   in the name, duplicates, daily limit) and sends the acknowledgement through
+3. The function checks the enquiry (spam trap, consent, valid email, no web
+   addresses in the name, not one of our own addresses, duplicates, limits) and sends the acknowledgement through
    **Microsoft Graph** as hello@. The app can send **only** as hello@
    (Exchange "RBAC for Applications").
 4. A copy is saved in hello@'s **Sent Items**.
@@ -32,7 +32,7 @@ Set in Netlify → Project configuration → Environment variables, then redeplo
 | `ACK_TEST_ALLOWLIST` | `you@example.com,other@example.com` | Only used in test mode. |
 | `ACK_FROM` | `hello@lucindhalawson.co.uk` | The shared mailbox it sends as. |
 | `ACK_ALERT_TO` | (optional) | Where failure alerts go. Defaults to `ACK_FROM`. |
-| `ACK_HASH_SECRET` | a long random string | Scrambles email fingerprints. Mark as secret. |
+| `ACK_HASH_SECRET` | a long random string | Required. Scrambles email fingerprints. Mark as secret. |
 | `M365_TENANT_ID` | Directory (tenant) ID | From Microsoft Entra. |
 | `M365_CLIENT_ID` | Application (client) ID | From Microsoft Entra. |
 | `M365_CLIENT_SECRET` | Client secret **value** | Mark as secret. Never put it in GitHub, email or chat. |
@@ -63,21 +63,39 @@ The PowerShell commands are in the `microsoft365` repository:
 ## Data protection (UK GDPR)
 
 - No AI services are involved.
-- The acknowledgement never repeats the enquiry or any access needs.
+- The acknowledgement never repeats the enquiry or any access needs. The only
+  visitor input it uses is the first name (letters only, no web addresses) and
+  which of the form's five contact options they ticked.
 - Logs contain only the Netlify submission id, a result code and an HTTP status.
-- Netlify Blobs (EU, Frankfurt) holds only: submission ids with a status
-  (deleted after 30 days) and a keyed hash of the email address with send times
-  (deleted after 48 hours) for duplicate and abuse protection.
+- Netlify Blobs (EU region, Frankfurt) holds only: submission ids with a status
+  (deleted after 30 days), a keyed hash of the email address with send times
+  (deleted once older than yesterday, so at most about 48 hours) and a daily
+  counter, for duplicate and abuse protection.
 - Processors: Netlify (hosting and forms) and Microsoft (email), both already in
   the privacy notice.
+
+## Limits
+
+- One acknowledgement per submission, even if Netlify sends the event twice.
+- One per email address within 10 minutes (for double-clicks).
+- At most 3 per email address per day, so nobody can use the form to flood
+  someone else's inbox.
+- At most 50 per day for the whole site. If this is reached, sending pauses until
+  the next day and an alert is sent, because it usually means the form is being abused.
 
 ## Monitoring
 
 - **Netlify → Logs → Functions → submission-created** shows one line per enquiry:
   `sent`, `skipped` (with a reason) or `failed`.
 - **hello@ Sent Items** holds every acknowledgement sent.
-- **"Website acknowledgement not sent"** emails arrive at hello@ if sending fails.
-  The usual cause is an expired client secret.
+- **Alerts:** if an acknowledgement can't be sent, the function submits a short
+  message to a hidden Netlify form called **ack-alert** (`site/forms/ack-alert.html`).
+  Netlify emails it to you like any form, so the alert still arrives when the
+  Microsoft connection is broken (the usual cause is an expired client secret).
+  In Netlify → Forms → Form notifications, make sure an email notification to
+  hello@ covers **ack-alert** (an "Any form" notification does). If that route
+  fails, the alert is sent through Microsoft instead, as "Website acknowledgement
+  not sent". Alerts contain the time and submission id only.
 
 ## Test checklist (before launch)
 
@@ -94,10 +112,13 @@ The PowerShell commands are in the `microsoft365` repository:
 8. Check the email on a phone, with a screen reader, and that it is not in junk.
    In the message headers, SPF, DKIM and DMARC should say `pass`.
 9. Put a wrong value in `M365_CLIENT_SECRET`, redeploy, send an enquiry → an
-   alert email arrives. Put the right value back and redeploy.
-10. Set `ACK_MODE=live`, redeploy, send one final enquiry.
+   **ack-alert** notification arrives from Netlify. Put the right value back and redeploy.
+10. Check the function log shows no `internal` errors (this confirms the EU
+    storage region and the Blobs package work on Netlify).
+11. Set `ACK_MODE=live`, redeploy, send one final enquiry.
 
 ## Undo
 
 Set `ACK_MODE=off` and redeploy, or revert the commit that added
-`netlify/`, `package.json`, `tests/` and the `[functions]` block in `netlify.toml`.
+`netlify/`, `package.json`, `tests/`, `site/forms/ack-alert.html` and the
+`[functions]` block in `netlify.toml`.
