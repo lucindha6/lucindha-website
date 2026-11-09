@@ -175,7 +175,7 @@ export function buildEmail({ first, methods, phoneGiven, accessGiven }) {
 
   paras.push("If you'd like to add anything to your enquiry, simply reply to this email.");
 
-  const signature = ["Best wishes,", "Lucindha Lawson MAAT", "LUCINDHA LAWSON LTD", "www.lucindhalawson.co.uk"];
+  const signature = ["Best wishes,", "Lucindha Lawson MAAT", "www.lucindhalawson.co.uk"];
   const footer = [
     "This is an automatic email to confirm that an enquiry was sent from www.lucindhalawson.co.uk using this email address. If this wasn't you, you can ignore it, or reply to let me know.",
     `How I use your information: ${SITE}/privacy.html`,
@@ -196,7 +196,7 @@ export function buildEmail({ first, methods, phoneGiven, accessGiven }) {
 <div style="max-width:600px">
 ${p(greeting)}
 ${paras.map(p).join("\n")}
-<p style="margin:0 0 24px">${signature.map(escapeHtml).join("<br>")}</p>
+<p style="margin:0 0 24px">${escapeHtml(signature[0])}<br>${escapeHtml(signature[1])}<br><a href="${SITE}" style="color:#0b4f8a">www.lucindhalawson.co.uk</a></p>
 <hr style="border:0;border-top:1px solid #cccccc;margin:24px 0">
 <p style="margin:0 0 12px;font-size:14px;color:#444444">${escapeHtml(footer[0])}</p>
 <p style="margin:0 0 12px;font-size:14px;color:#444444">How I use your information: <a href="${SITE}/privacy.html" style="color:#0b4f8a">privacy notice</a></p>

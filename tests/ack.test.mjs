@@ -520,3 +520,13 @@ test("test or live mode with no Microsoft settings sends nothing", async () => {
     assert.equal(x.g.calls.length, 0);
   }
 });
+
+test("signature has no company name; legal footer keeps full company details", () => {
+  const e = buildEmail({ first: "Sam", methods: ["Email"], phoneGiven: false, accessGiven: false });
+  assert.match(e.text, /Best wishes,\nLucindha Lawson MAAT\nwww\.lucindhalawson\.co\.uk\n/);
+  const signature = e.text.slice(e.text.indexOf("Best wishes,"), e.text.indexOf("—"));
+  assert.ok(!signature.includes("LUCINDHA LAWSON LTD"));
+  assert.match(e.text, /LUCINDHA LAWSON LTD\. Registered in England & Wales\. Company no\. 17408408\. Registered office: 128 City Road, London, EC1V 2NX\./);
+  assert.match(e.html, /<a href="https:\/\/www\.lucindhalawson\.co\.uk"[^>]*>www\.lucindhalawson\.co\.uk<\/a><\/p>/);
+  assert.match(e.html, /LUCINDHA LAWSON LTD\. Registered in England &amp; Wales/);
+});
