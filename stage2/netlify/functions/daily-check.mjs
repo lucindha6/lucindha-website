@@ -2,7 +2,7 @@
 import { getStore } from "@netlify/blobs";
 import { dailyCheck } from "../../lib/daily.mjs";
 import { realGraph } from "../../lib/graph.mjs";
-import { formNotifier } from "../../lib/notify.mjs";
+import { mailboxNotifier } from "../../lib/notify.mjs";
 import { configMissing } from "../../lib/handler.mjs";
 
 export default async () => {
@@ -11,11 +11,12 @@ export default async () => {
   if (mode !== "test" && mode !== "live") return new Response("disabled");
   if (configMissing(env).length) return new Response("not configured");
   try {
+    const graph = realGraph(env);
     await dailyCheck({
       env,
       store: getStore({ name: "stage2", consistency: "strong", region: "eu-central-1" }),
-      graph: realGraph(env),
-      notify: formNotifier(env.URL),
+      graph,
+      notify: mailboxNotifier(graph),
       log: (o) => console.log(JSON.stringify(o)),
     });
   } catch {

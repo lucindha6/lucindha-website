@@ -3,13 +3,7 @@
 <head><meta charset="utf-8"><meta name="robots" content="noindex, nofollow"><title>Internal</title></head>
 <body>
 <p>Internal service. Nothing to see here.</p>
-<!-- Netlify needs this hidden form in the published HTML so it accepts Stage 2 notices,
-     which its form notification emails to hello@. Notices hold a reference and status only. -->
-<form name="stage2-notice" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
-<input type="hidden" name="form-name" value="stage2-notice">
-<input name="bot-field">
-<input name="subject">
-<textarea name="message"></textarea>
-</form>
+<!-- Phase 2: no form here. Stage 2 notices are placed directly in the Outlook mailbox, so there is
+     no public form anyone could post fake notices to, and no notices are stored on Netlify. -->
 </body>
 </html>

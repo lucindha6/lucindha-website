@@ -1,29 +1,34 @@
 {
-  "_status": "PROPOSED - NOT APPROVED. Taken from the live website (tools/build_accounting.py) on 10 November 2026. Lucindha must approve every line before any draft uses it outside automated tests.",
+  "_status": "PROPOSED - NOT APPROVED. Draft wording for Lucindha's review (Phase 2, 10 November 2026). Prices and services are copied from the live website (tools/build_accounting.py); the footer is copied from the live Stage 1 acknowledgement. Nothing here may be used outside automated tests until Lucindha confirms every line and 'approved' is set to true by her decision.",
   "approved": false,
   "approvedBy": null,
   "approvedOn": null,
+  "version": "2026-11-10-proposal-2",
 
   "services": {
-    "Bookkeeping": { "price": "from £30 an hour", "questions": ["Roughly how many transactions do you have each month?", "Which bookkeeping software, if any, do you use at the moment?"] },
-    "VAT returns": { "price": "from £75 a quarter", "questions": ["Are you already VAT-registered, and if so, which VAT scheme do you use?"] },
-    "Personal tax": { "price": "from £180 for a simple Self Assessment return, or from £250 for sole traders and landlords", "questions": ["Which tax year or years do you need help with?", "What are your main sources of income, for example employment, self-employment or property?"] },
-    "Year-end accounts": { "price": "from £850 a year for a small limited company, including the Corporation Tax return", "questions": ["When is your company's year-end?"] },
-    "Corporation tax returns": { "price": "from £850 a year for a small limited company, including year-end accounts", "questions": ["When is your company's year-end?"] },
-    "Management accounts": { "price": "from £150 a month", "questions": ["How often would you like management reports, for example monthly or quarterly?"] },
-    "Start-up support": { "price": "from £150", "questions": ["Are you setting up as a sole trader or a limited company?"] },
-    "Business support": { "price": null, "questions": ["What kind of support would be most useful to you during the year?"] },
-    "Financial health check": { "price": "from £200", "questions": ["Is there a particular area of your finances you'd like me to look at first?"] }
+    "Bookkeeping": { "phrase": "bookkeeping", "price": "from £30 an hour", "questions": ["Roughly how many transactions do you have each month?", "Which bookkeeping software, if any, do you use at the moment?"] },
+    "VAT returns": { "phrase": "VAT returns", "price": "from £75 a quarter", "questions": ["Are you already VAT-registered, and if so, which VAT scheme do you use?"] },
+    "Personal tax": { "phrase": "personal tax", "price": "from £180 for a simple Self Assessment return, or from £250 for sole traders and landlords", "questions": ["Which tax year or years do you need help with?", "What are your main sources of income, for example employment, self-employment or property?"] },
+    "Year-end accounts": { "phrase": "year-end accounts", "price": "from £850 a year for a small limited company, including the Corporation Tax return", "questions": ["When is your company's year-end?"] },
+    "Corporation tax returns": { "phrase": "Corporation Tax", "price": "from £850 a year for a small limited company, including year-end accounts", "questions": ["When is your company's year-end?"] },
+    "Management accounts": { "phrase": "management accounts", "price": "from £150 a month", "questions": ["How often would you like management reports, for example monthly or quarterly?"] },
+    "Start-up support": { "phrase": "start-up support", "price": "from £150", "questions": ["Are you setting up as a sole trader or a limited company?"] },
+    "Business support": { "phrase": "business support", "price": null, "questions": ["What kind of support would be most useful to you during the year?"] },
+    "Financial health check": { "phrase": "a financial health check", "price": "from £200", "questions": ["Is there a particular area of your finances you'd like me to look at first?"] }
   },
 
   "sentences": {
+    "opening": "Thank you for getting in touch about {services}. I've put some information below to help you decide on next steps.",
+    "pricesLead": "My published starting prices are:",
     "packages": "I also offer fixed monthly packages, which are listed on my website.",
     "quote": "Once I understand what you need, I'll send you a personalised quote, so you know the exact cost before any work starts.",
+    "noPrice": "I'll include a price for this in your quote.",
+    "questionsLead": "To help me prepare your quote, could you tell me:",
     "freeChat": "If it would help to talk things through first, I offer a free 20-minute introductory chat.",
-    "meetings": "Meetings are on weekday evenings and Saturdays, by arrangement. Once I've checked my availability, I'll suggest some times.",
+    "meetings": "Meetings are on weekday evenings and Saturdays, by arrangement. If you'd like to meet, please let me know and I'll check my availability.",
     "qualifications": "I'm an AAT Licensed Accountant (licence no. 1010532) and a member of the Association of Accounting Technicians (MAAT).",
-    "pricesLink": "You can see all my services and starting prices at https://www.lucindhalawson.co.uk/accounting.html.",
-    "noPrice": "I'll include a price for this in your quote."
+    "pricesLink": "You can see all my services and starting prices at www.lucindhalawson.co.uk/accounting.html.",
+    "closing": "I look forward to hearing from you."
   },
 
   "accessibility": {
@@ -38,5 +43,9 @@
     "phone": null
   },
 
-  "signature": ["Best wishes,", "Lucindha Lawson MAAT", "www.lucindhalawson.co.uk"]
+  "signature": ["Best wishes,", "Lucindha Lawson MAAT", "www.lucindhalawson.co.uk"],
+  "footer": [
+    "How I use your information: www.lucindhalawson.co.uk/privacy.html",
+    "LUCINDHA LAWSON LTD. Registered in England & Wales. Company no. 17408408. Registered office: 128 City Road, London, EC1V 2NX."
+  ]
 }
