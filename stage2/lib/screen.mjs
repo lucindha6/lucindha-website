@@ -8,6 +8,8 @@ export const ACCOUNTING_SERVICES = [
   "Bookkeeping", "VAT returns", "Personal tax", "Year-end accounts", "Corporation tax returns",
   "Management accounts", "Start-up support", "Business support", "Financial health check",
 ];
+export const COMMUNITY_SERVICES = ["Sport & Coaching", "Public Speaking", "Workshops", "I'm not sure yet"];
+export const ABOUT = { accounting: "Accounting services", community: "Community Work (sport, speaking or workshops)", other: "Something else" };
 export const CLIENT_TYPES = [
   "Sole trader", "Limited company", "Partnership", "Individual or landlord", "School, charity or organisation", "Other",
 ];
@@ -43,6 +45,15 @@ const FINANCIAL_PATTERNS = [
   ["money-amount", /£\s?\d|\b\d[\d,]*\s?(k|grand|pounds)\b/i],
 ];
 
+// Media requests (usually sent as "Something else").
+const MEDIA_CUES = /\b(journalist\w*|reporter\w*|interview\w*|documentar\w*|film(ing)?|podcast\w*|press|magazine|newspaper|article|feature|broadcast\w*|tv|television|radio|bbc|itv|channel 4|sky|producer|media)\b/i;
+// Media requests about her personal history or health always need her own judgement.
+const PERSONAL_STORY = /\b(foster\w*|in care|care leaver|childhood|trauma\w*|suicid\w*|long qt|heart condition|health|family|personal (story|life)|private life)\b/i;
+// Roles that aren't public yet, or anything about them, go to you.
+const NOT_PUBLIC = /\b(bda|british deaf association|trustee\w*)\b/i;
+// Young people: not sensitive, but worth a note (e.g. safeguarding arrangements, DBS).
+const YOUNG_PEOPLE = /\b(child\w*|kids?|young people|youth|pupils?|students?|school\w*|under[- ]?1\d|u1\d|teenager\w*|juniors?)\b/i;
+
 const STOPWORDS = new Set("the a an and or to of in for on with my i i'm is are be have need help me you your it this that we our can would like please about".split(" "));
 
 /**
@@ -63,10 +74,29 @@ export function screen(data, { inputMode = "structured" } = {}) {
   const methods = CONTACT_METHODS.filter((m) => asList(data["contact-method"]).some((v) => v.toLowerCase() === m.toLowerCase()));
   const details = clean(data.details, 5000);
 
-  // 1. Eligibility (structured fields)
-  if (about !== "Accounting services") flag("manual", "not-accounting");
-  if (!services.length) flag("manual", "no-service-ticked");
-  if (services.some((s) => !ACCOUNTING_SERVICES.includes(s))) flag("manual", "non-accounting-service");
+  // 1. What kind of enquiry is it? (structured fields first, then wording for "Something else")
+  const notes = [];
+  let kind = "other";
+  const acc = services.filter((s) => ACCOUNTING_SERVICES.includes(s));
+  const com = services.filter((s) => COMMUNITY_SERVICES.includes(s));
+  const unknown = services.filter((s) => !ACCOUNTING_SERVICES.includes(s) && !COMMUNITY_SERVICES.includes(s));
+  if (unknown.length) flag("manual", "unknown-service");
+  if (acc.length && com.length) flag("manual", "accounting-and-community-mixed");
+  if (about === ABOUT.accounting) {
+    kind = "accounting";
+    if (!acc.length) flag("manual", com.length ? "community-service-under-accounting" : "no-service-ticked");
+  } else if (about === ABOUT.community) {
+    kind = "community";
+    if (!com.length) flag("manual", acc.length ? "accounting-service-under-community" : "no-service-ticked");
+  } else if (about === ABOUT.other && MEDIA_CUES.test(details) && !services.length) {
+    kind = "media";
+  } else {
+    flag("manual", about === ABOUT.other ? "something-else" : "unknown-enquiry-type");
+  }
+  if (kind !== "media" && MEDIA_CUES.test(details) && /\b(interview\w*|documentar\w*|journalist\w*|podcast\w*|film(ing)?)\b/i.test(details)) flag("manual", "possible-media-request");
+  if (kind === "media" && PERSONAL_STORY.test(details)) flag("manual", "media-about-personal-story");
+  if (NOT_PUBLIC.test(details) || NOT_PUBLIC.test(clean(data.access, 2000))) flag("manual", "mentions-role-not-yet-public");
+  if ((kind === "community" || kind === "media") && YOUNG_PEOPLE.test(details)) notes.push("involves-young-people");
   if (clientType && !CLIENT_TYPES.includes(clientType)) flag("manual", "unknown-client-type");
   if (!details) flag("manual", "no-details");
   if (details.length > 1200) flag("manual", "long-message");
@@ -77,17 +107,22 @@ export function screen(data, { inputMode = "structured" } = {}) {
   if (/[^\u0000-ɏ‘-‟–—£€\s]/u.test(details)) flag("manual", "unusual-characters");
 
   // 3. Sensitive topics and financial details (in the free text, read locally only)
-  for (const [code, re] of SENSITIVE) if (re.test(details)) flag("sensitive", code);
+  for (const [code, re] of SENSITIVE) {
+    if (!re.test(details)) continue;
+    if (code === "hmrc-dispute" && kind !== "accounting" && !/\b(hmrc|tax\w*)\b/i.test(details)) continue; // a futsal court or a charity appeal
+    flag("sensitive", code);
+  }
   for (const [code, re] of NEEDS_JUDGEMENT) if (re.test(details)) flag("manual", code);
   // Financial details: in "structured" mode the text never reaches the AI, so they are noted
   // for you (handle securely) without blocking the draft. In "screened-text" mode they block it.
   // Account numbers, tax references, card numbers and dates of birth are confidential financial
   // information: always sensitive. Plain money amounts (e.g. turnover) are only noted in
   // "structured" mode, because the text never reaches the AI; in "screened-text" mode they block it.
-  const notes = [];
   for (const [code, re] of FINANCIAL_PATTERNS) {
     if (!re.test(details)) continue;
-    if (code === "money-amount" && inputMode === "structured") notes.push(`financial-${code}`);
+    if (code === "money-amount" && inputMode === "structured") notes.push(kind === "accounting" ? `financial-${code}` : "mentions-a-budget-or-fee");
+    // For an event or interview, a date is an event date, not a date of birth.
+    else if (code === "date-of-birth" && (kind === "community" || kind === "media")) notes.push("mentions-a-date");
     else flag("sensitive", `financial-${code}`);
   }
 
@@ -102,5 +137,5 @@ export function screen(data, { inputMode = "structured" } = {}) {
   for (const [code, re] of FINANCIAL_PATTERNS) if (code !== "money-amount" && re.test(access)) flag("sensitive", `financial-${code}-in-access-box`);
   if (INSTRUCTIONS.test(access)) flag("manual", "unusual-instructions-in-access-box");
 
-  return { route, reasons: [...new Set(reasons)], notes: [...new Set(notes)], services: services.filter((s) => ACCOUNTING_SERVICES.includes(s)), clientType: CLIENT_TYPES.includes(clientType) ? clientType : "", methods: methods.length ? methods : ["Email"] };
+  return { route, kind, reasons: [...new Set(reasons)], notes: [...new Set(notes)], services: kind === "community" ? com : kind === "accounting" ? acc : [], clientType: CLIENT_TYPES.includes(clientType) ? clientType : "", methods: methods.length ? methods : ["Email"] };
 }

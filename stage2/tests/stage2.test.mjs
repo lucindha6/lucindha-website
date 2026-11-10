@@ -269,6 +269,8 @@ test("every sentence in an ordinary draft comes from the wording file (nothing i
   const allowed = new Set([
     ...Object.values(facts.sentences), ...Object.values(facts.accessibility).filter(Boolean), ...facts.signature, ...facts.footer,
     ...Object.values(facts.services).flatMap((s) => s.questions),
+    ...Object.values(facts.community.sentences).flat(), ...Object.values(facts.community.services).map((s) => s.question), ...facts.community.signature,
+    ...Object.values(facts.media.sentences).flat(), ...facts.media.signature,
   ]);
   const x = setup();
   for (const c of ENQUIRIES.filter((q) => q.expect === "ordinary")) await send(x.deps, submission(c.data));
@@ -276,7 +278,7 @@ test("every sentence in an ordinary draft comes from the wording file (nothing i
     const paras = d.html.match(/<(p|li)[^>]*>(.*?)<\/\1>/g).map((h) => h.replace(/<[^>]+>/g, "").replace(/&#39;/g, "'").replace(/&amp;/g, "&").replace(/&quot;/g, '"'));
     for (const p of paras) {
       const ok = allowed.has(p) || /^Hello( [A-Z][a-z]+)?,$/.test(p) || /^[A-Z][^:]+: /.test(p) /* price line */
-        || p.startsWith("Thank you for getting in touch about ") || p.includes("Lucindha Lawson MAAT");
+        || p.startsWith("Thank you for getting in touch about ") || p.includes("Lucindha Lawson");
       assert.ok(ok, `not from wording file: ${p}`);
     }
   }
@@ -461,7 +463,7 @@ test("daily check: sent draft → answered; separate reply with ref → 'Answere
 test("daily check for notice-only cases: your reply with the reference closes them; otherwise one reminder", async () => {
   const x = setup();
   await send(x.deps, submission(ENQUIRIES[12].data)); // sensitive (complaint)
-  await send(x.deps, submission(ENQUIRIES[22].data)); // manual (community work)
+  await send(x.deps, submission(ENQUIRIES[23].data)); // manual (no service ticked)
   const [a] = recs(x);
   x.deps.graph.youReplySeparately("kim.brown@example.org", "2026-11-17T19:00:00.000Z", `Your enquiry to Lucindha Lawson (ref ${a.ref})`);
   const s = await dailyCheck({ ...x.deps, now: evening("2026-11-19T18:00:00Z") });
@@ -736,4 +738,95 @@ test("real Graph client: follows absolute nextLinks on Graph only, and notices a
   assert.ok(!urls.some((u) => u.init.method === "PATCH"));
   const evil = realGraph({ ...ENV }, async (url) => url.includes("oauth2") ? new Response(JSON.stringify({ access_token: "t" })) : new Response(JSON.stringify({ value: [], "@odata.nextLink": "https://evil.example/steal" })));
   await assert.rejects(evil.sentSince("2026-11-16T00:00:00Z"), /graph-bad-link/);
+});
+
+// ===================================================== community work and media (Phase 2 addition)
+const COMMUNITY = ENQUIRIES.filter((q) => q.data.about.startsWith("Community") && q.expect === "ordinary");
+
+test("community enquiries get a community template: questions about the activity, aims, dates, place, access and fees", async () => {
+  const x = setup();
+  await send(x.deps, submission(ENQUIRIES.find((q) => q.note === "school talk with a date").data));
+  const [d] = [...x.deps.graph.drafts.values()];
+  assert.equal(d.category, CATEGORIES.template);
+  assert.match(d.html, /Thank you for getting in touch about a talk\./);
+  for (const q of [/particular topic or theme/, /Who is it for/, /hoping it will achieve/, /Which date or dates/, /Where would it take place/, /communication and access arrangements/, /paid engagement, a possible collaboration, or a request for voluntary support/]) assert.match(d.html, q);
+  assert.ok(!/AAT|£|licence/i.test(d.html), "no accounting wording or prices in a community draft");
+  assert.match(x.notices[0].message, /Type: community work/);
+  assert.match(x.notices[0].message, /involves-young-people/);
+  assert.match(x.notices[0].message, /mentions-a-date/);
+});
+
+test("community drafts never confirm a booking, availability, a date, a fee or any commitment", async () => {
+  const x = setup();
+  for (const c of COMMUNITY) await send(x.deps, submission(c.data));
+  assert.equal(x.deps.graph.drafts.size, COMMUNITY.length);
+  for (const d of x.deps.graph.drafts.values()) {
+    const text = d.html.replace(/<[^>]+>/g, " ");
+    const withoutSafeguard = text.replace("Nothing is booked until we&#39;ve both agreed the details in writing.", "");
+    assert.ok(!/£\s?\d|\b(I am|I'm|I&#39;m) (available|free) on|(is|are) (booked|confirmed)|I (will|&#39;ll) (be there|attend|do it)|my fee (is|will be) /i.test(withoutSafeguard), text);
+    assert.ok(!/12\/03\/2027|Year 10|£150/.test(text), "the person's own details are never repeated back");
+    assert.match(text, /Nothing is booked until we&#39;ve both agreed the details in writing/);
+  }
+});
+
+test("paid, collaboration and voluntary are asked about, never assumed", async () => {
+  const x = setup();
+  for (const c of COMMUNITY) await send(x.deps, submission(c.data));
+  for (const d of x.deps.graph.drafts.values()) {
+    assert.match(d.html, /paid engagement, a possible collaboration, or a request for voluntary support/);
+    assert.match(d.html, /If there would be a fee/);
+    assert.ok(!/(your|this) (paid|voluntary) (event|request|engagement)|as a volunteer|free of charge|pro bono/i.test(d.html));
+  }
+});
+
+test("each community service adds its own question; several services add several", async () => {
+  const x = setup();
+  await send(x.deps, submission(ENQUIRIES.find((q) => q.note === "possible collaboration, talk + workshop").data));
+  await send(x.deps, submission(ENQUIRIES.find((q) => q.note === "coaching at a futsal court").data));
+  const [both, coach] = [...x.deps.graph.drafts.values()];
+  assert.match(both.html, /about a talk and a workshop\./);
+  assert.match(both.html, /particular topic or theme/);
+  assert.match(both.html, /Which workshop topic/);
+  assert.match(coach.html, /age group and experience level of the players/);
+});
+
+test("community screening: a futsal court, a charity appeal or an event date isn't sensitive; a complaint or disclosure is", () => {
+  const C = "Community Work (sport, speaking or workshops)";
+  const mk = (details, services = ["Sport & Coaching"]) => screen({ about: C, services, details, "contact-method": ["Email"] }).route;
+  assert.equal(mk("We need a coach for sessions on our indoor court."), "ordinary");
+  assert.equal(mk("We'd like a talk at our charity appeal evening on 14/05/2027.", ["Public Speaking"]), "ordinary");
+  assert.equal(mk("I want to complain about the session."), "sensitive");
+  assert.equal(mk("A player disclosed abuse to us."), "sensitive");
+  assert.equal(mk("Please speak about your role with the BDA.", ["Public Speaking"]), "manual");
+  assert.equal(mk("Can you also do our bookkeeping?", ["Workshops", "Bookkeeping"]), "manual");
+  // Accounting is unchanged: a date there is still treated as possibly personal.
+  assert.equal(screen({ about: "Accounting services", services: ["Personal tax"], details: "My date is 12/03/1980.", "contact-method": ["Email"] }).route, "sensitive");
+});
+
+test("media: a plain media request gets a questions-only draft; anything about personal history goes to you", async () => {
+  const x = setup();
+  await send(x.deps, submission(ENQUIRIES.find((q) => q.note === "media interview about futsal").data));
+  const [d] = [...x.deps.graph.drafts.values()];
+  assert.match(d.html, /possible media feature/);
+  assert.match(d.html, /Which publication, programme or channel/);
+  assert.match(d.html, /Is this a paid opportunity\?/);
+  assert.match(d.html, /Nothing is agreed until I&#39;ve confirmed it in writing/);
+  assert.match(x.notices[0].message, /Type: media request/);
+  const y = setup();
+  assert.equal((await send(y.deps, submission(ENQUIRIES.find((q) => q.note === "media about personal history").data))).result, "manual");
+  assert.match(y.notices[0].message, /media-about-personal-story/);
+  assert.equal(y.deps.graph.drafts.size, 0);
+});
+
+test("'Something else' that isn't clearly from the media goes to you", async () => {
+  const x = setup();
+  assert.equal((await send(x.deps, submission(ENQUIRIES.find((q) => q.note === "something else: sponsorship").data))).result, "manual");
+  assert.match(x.notices[0].message, /something-else/);
+});
+
+test("no personaliser is ever used for community or media enquiries", async () => {
+  const p = mockAi();
+  const x = setup({ personaliser: p, env: { DRAFT_PERSONALISER: "ai" } });
+  for (const c of [...COMMUNITY, ENQUIRIES.find((q) => q.note === "media interview about futsal")]) await send(x.deps, submission(c.data));
+  assert.equal(p.calls.length, 0);
 });

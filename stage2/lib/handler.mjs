@@ -199,8 +199,9 @@ export async function handleWebhook(rawBody, signature, deps) {
     }
 
     // 9. Ordinary: the approved template, optionally with a personalised opening.
-    const { opening, note } = await personalisedOpening(deps, s, t);
-    const draft = composeDraft({ ref, first: firstName(d.name), services: s.services, prefs: pref.prefs, facts, opening });
+    // (A personalised opening is only possible for accounting enquiries so far.)
+    const { opening, note } = s.kind === "accounting" ? await personalisedOpening(deps, s, t) : { opening: "" };
+    const draft = composeDraft({ ref, first: firstName(d.name), services: s.services, prefs: pref.prefs, facts, opening, kind: s.kind });
     let draftId;
     try {
       draftId = await graph.createDraft({ to, subject: draft.subject, html: draft.html, category: draft.category, ref });
@@ -209,8 +210,8 @@ export async function handleWebhook(rawBody, signature, deps) {
         noticeText({ ref, status: "failed", services: s.services, extra: "The draft could not be saved in Outlook." }), "failed");
     }
     // Stored record and log: route and ids only, never reasons (which can hint at health or debt).
-    return finish({ status: "draft-ready", route: "ordinary", draftId, refs: [ref], reminded: false },
-      noticeText({ ref, status: "draft-ready", services: s.services, notes: [...s.notes, ...(note ? [note] : [])], prefsSummary }), "draft-ready");
+    return finish({ status: "draft-ready", route: "ordinary", kind: s.kind, draftId, refs: [ref], reminded: false },
+      noticeText({ ref, status: "draft-ready", kind: s.kind, services: s.services, notes: [...s.notes, ...(note ? [note] : [])], prefsSummary }), "draft-ready");
   } catch {
     // Never lose an enquiry silently: tell you, and release the claim so a retry can try again.
     if (claimed && key) {

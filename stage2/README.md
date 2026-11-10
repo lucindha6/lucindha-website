@@ -11,6 +11,9 @@ For each genuine submission of the website's `enquiry` form (and no other form):
 | Enquiry | What appears in Outlook |
 |---|---|
 | Ordinary accounting enquiry | **One template draft** in Drafts (category *Template draft – review*) + one notice |
+| Community work (sport and coaching, talks, workshops, "not sure yet") | **One template draft that only asks questions** (activity, aims, dates, place, access, and whether it's paid, a collaboration or voluntary). It never states a fee, a date, availability or a booking |
+| "Something else" clearly from the media | **One questions-only media draft**. Anything about personal history or health goes to you |
+| Other "Something else", accounting and community mixed, mentions of roles not yet public | **Notice only – no draft** |
 | Sensitive (complaint, privacy request, AML, HMRC dispute, debt, health, bank or tax numbers…) | **Notice only – no draft.** You reply personally from the Netlify notification |
 | Unsure (community work, no service, odd instructions, not English, long, urgent…) | **Notice only – no draft** |
 | A different enquiry from the same person within 24 h | Its own reference + a *follow-up* notice. Any unsent earlier draft is re-labelled *Follow-up received – check first*, or *Sensitive follow-up – do not send* if the new message is sensitive or unsure |
@@ -71,7 +74,7 @@ check first*, *Sensitive follow-up – do not send*, *Answered – delete draft*
 ## Tests
 
 ```
-cd stage2 && npm test      # 86 tests; fictional data; stand-in Microsoft mailbox
+cd stage2 && npm test      # 106 tests; fictional data; stand-in Microsoft mailbox
 node tools/demo.mjs        # data for the Outlook demonstration and reply previews
 ```
 

@@ -1,4 +1,4 @@
-// Builds the template draft reply for an ORDINARY enquiry. Every sentence comes from
+// Builds the template draft reply for an ORDINARY enquiry (accounting, community work or media). Every sentence comes from
 // config/approved-facts.json; the only things filled in are the person's first name, the
 // service names (from the form's fixed list) and which accessibility sentences apply.
 //
@@ -64,11 +64,42 @@ export function templateParagraphs({ services, prefs, facts, opening }) {
   ].filter(Boolean);
 }
 
-export function composeDraft({ ref, first, services, prefs, facts, opening = "" }) {
+/** Community work (sport and coaching, talks, workshops): questions only, no fees, dates or bookings. */
+export function communityParagraphs({ services, prefs, facts }) {
+  const c = facts.community;
+  const f = c.sentences;
+  const phrase = joinNatural(services.map((s) => c.services[s]?.phrase || s));
+  const specific = services.map((s) => c.services[s]?.question).filter(Boolean);
+  return [
+    f.opening.replace("{services}", phrase),
+    { lead: f.questionsLead, list: [...new Set([...specific, ...f.commonQuestions])] },
+    ...accessibilitySentences(prefs, facts),
+    f.fees,
+    f.noCommitment,
+    f.closing,
+  ].filter(Boolean);
+}
+
+/** Media requests: questions only, nothing agreed. */
+export function mediaParagraphs({ prefs, facts }) {
+  const f = facts.media.sentences;
+  return [
+    f.opening,
+    { lead: f.questionsLead, list: f.questions },
+    ...accessibilitySentences(prefs, facts),
+    f.pressPage,
+    f.noCommitment,
+    f.closing,
+  ].filter(Boolean);
+}
+
+export function composeDraft({ ref, first, services, prefs, facts, opening = "", kind = "accounting" }) {
   const greeting = first ? `Hello ${first},` : "Hello,";
-  const sig = facts.signature;
+  const sig = kind === "accounting" ? facts.signature : facts[kind].signature;
   const footer = facts.footer || [];
-  const paras = templateParagraphs({ services, prefs, facts, opening });
+  const paras = kind === "community" ? communityParagraphs({ services, prefs, facts })
+    : kind === "media" ? mediaParagraphs({ prefs, facts })
+    : templateParagraphs({ services, prefs, facts, opening });
 
   const text = [
     greeting, "",

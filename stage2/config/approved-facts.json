@@ -1,22 +1,76 @@
 {
-  "_status": "PROPOSED - NOT APPROVED. Draft wording for Lucindha's review (Phase 2, 10 November 2026). Prices and services are copied from the live website (tools/build_accounting.py); the footer is copied from the live Stage 1 acknowledgement. Nothing here may be used outside automated tests until Lucindha confirms every line and 'approved' is set to true by her decision.",
+  "_status": "PROPOSED - NOT APPROVED. Draft wording for Lucindha's review (Phase 2, 10 November 2026; community and media wording added the same day). Prices and services are copied from the live website (tools/build_accounting.py); the footer is copied from the live Stage 1 acknowledgement. Nothing here may be used outside automated tests until Lucindha confirms every line and 'approved' is set to true by her decision.",
   "approved": false,
   "approvedBy": null,
   "approvedOn": null,
-  "version": "2026-11-10-proposal-2",
-
+  "version": "2026-11-10-proposal-3",
   "services": {
-    "Bookkeeping": { "phrase": "bookkeeping", "price": "from £30 an hour", "questions": ["Roughly how many transactions do you have each month?", "Which bookkeeping software, if any, do you use at the moment?"] },
-    "VAT returns": { "phrase": "VAT returns", "price": "from £75 a quarter", "questions": ["Are you already VAT-registered, and if so, which VAT scheme do you use?"] },
-    "Personal tax": { "phrase": "personal tax", "price": "from £180 for a simple Self Assessment return, or from £250 for sole traders and landlords", "questions": ["Which tax year or years do you need help with?", "What are your main sources of income, for example employment, self-employment or property?"] },
-    "Year-end accounts": { "phrase": "year-end accounts", "price": "from £850 a year for a small limited company, including the Corporation Tax return", "questions": ["When is your company's year-end?"] },
-    "Corporation tax returns": { "phrase": "Corporation Tax", "price": "from £850 a year for a small limited company, including year-end accounts", "questions": ["When is your company's year-end?"] },
-    "Management accounts": { "phrase": "management accounts", "price": "from £150 a month", "questions": ["How often would you like management reports, for example monthly or quarterly?"] },
-    "Start-up support": { "phrase": "start-up support", "price": "from £150", "questions": ["Are you setting up as a sole trader or a limited company?"] },
-    "Business support": { "phrase": "business support", "price": null, "questions": ["What kind of support would be most useful to you during the year?"] },
-    "Financial health check": { "phrase": "a financial health check", "price": "from £200", "questions": ["Is there a particular area of your finances you'd like me to look at first?"] }
+    "Bookkeeping": {
+      "phrase": "bookkeeping",
+      "price": "from £30 an hour",
+      "questions": [
+        "Roughly how many transactions do you have each month?",
+        "Which bookkeeping software, if any, do you use at the moment?"
+      ]
+    },
+    "VAT returns": {
+      "phrase": "VAT returns",
+      "price": "from £75 a quarter",
+      "questions": [
+        "Are you already VAT-registered, and if so, which VAT scheme do you use?"
+      ]
+    },
+    "Personal tax": {
+      "phrase": "personal tax",
+      "price": "from £180 for a simple Self Assessment return, or from £250 for sole traders and landlords",
+      "questions": [
+        "Which tax year or years do you need help with?",
+        "What are your main sources of income, for example employment, self-employment or property?"
+      ]
+    },
+    "Year-end accounts": {
+      "phrase": "year-end accounts",
+      "price": "from £850 a year for a small limited company, including the Corporation Tax return",
+      "questions": [
+        "When is your company's year-end?"
+      ]
+    },
+    "Corporation tax returns": {
+      "phrase": "Corporation Tax",
+      "price": "from £850 a year for a small limited company, including year-end accounts",
+      "questions": [
+        "When is your company's year-end?"
+      ]
+    },
+    "Management accounts": {
+      "phrase": "management accounts",
+      "price": "from £150 a month",
+      "questions": [
+        "How often would you like management reports, for example monthly or quarterly?"
+      ]
+    },
+    "Start-up support": {
+      "phrase": "start-up support",
+      "price": "from £150",
+      "questions": [
+        "Are you setting up as a sole trader or a limited company?"
+      ]
+    },
+    "Business support": {
+      "phrase": "business support",
+      "price": null,
+      "questions": [
+        "What kind of support would be most useful to you during the year?"
+      ]
+    },
+    "Financial health check": {
+      "phrase": "a financial health check",
+      "price": "from £200",
+      "questions": [
+        "Is there a particular area of your finances you'd like me to look at first?"
+      ]
+    }
   },
-
   "sentences": {
     "opening": "Thank you for getting in touch about {services}. I've put some information below to help you decide on next steps.",
     "pricesLead": "My published starting prices are:",
@@ -30,7 +84,6 @@
     "pricesLink": "You can see all my services and starting prices at www.lucindhalawson.co.uk/accounting.html.",
     "closing": "I look forward to hearing from you."
   },
-
   "accessibility": {
     "general": "Please let me know how you'd like to communicate, and I'll do my best to make that work for you.",
     "bsl": "I'm a BSL user myself, so we can communicate in BSL if you'd like.",
@@ -42,10 +95,76 @@
     "faceToFace": "If you'd prefer to meet in person, please let me know and we can talk about whether that's possible.",
     "phone": null
   },
-
-  "signature": ["Best wishes,", "Lucindha Lawson MAAT", "www.lucindhalawson.co.uk"],
+  "signature": [
+    "Best wishes,",
+    "Lucindha Lawson MAAT",
+    "www.lucindhalawson.co.uk"
+  ],
   "footer": [
     "How I use your information: www.lucindhalawson.co.uk/privacy.html",
     "LUCINDHA LAWSON LTD. Registered in England & Wales. Company no. 17408408. Registered office: 128 City Road, London, EC1V 2NX."
-  ]
+  ],
+  "community": {
+    "_note": "No fees are published for community work, so drafts never state a fee, a date, availability or a booking. They only ask questions.",
+    "services": {
+      "Sport & Coaching": {
+        "phrase": "sport and coaching",
+        "question": "What kind of coaching or sports involvement do you have in mind, and what is the age group and experience level of the players?"
+      },
+      "Public Speaking": {
+        "phrase": "a talk",
+        "question": "Is there a particular topic or theme you'd like me to speak about?"
+      },
+      "Workshops": {
+        "phrase": "a workshop",
+        "question": "Which workshop topic are you interested in, for example Deaf awareness or an introduction to BSL?"
+      },
+      "I'm not sure yet": {
+        "phrase": "working together",
+        "question": "What kind of activity did you have in mind? It doesn't need to be decided yet."
+      }
+    },
+    "sentences": {
+      "opening": "Thank you for getting in touch about {services}. I'd like to understand a bit more about what you have in mind.",
+      "questionsLead": "Could you tell me:",
+      "commonQuestions": [
+        "Who is it for, roughly how many people, and what age group?",
+        "What are you hoping it will achieve?",
+        "Which date or dates are you considering, and how long would it be?",
+        "Where would it take place, or would it be online?",
+        "What communication and access arrangements are planned or available, for example BSL interpreters, live captions, a hearing loop or step-free access?",
+        "Is this a paid engagement, a possible collaboration, or a request for voluntary support? If there's a budget, it would help to know it."
+      ],
+      "fees": "If there would be a fee, I'll confirm it in writing once I know more about what's involved, including any preparation and travel.",
+      "noCommitment": "Once I have these details, I'll check whether I'm able to help and let you know. Nothing is booked until we've both agreed the details in writing.",
+      "closing": "I look forward to hearing from you."
+    },
+    "signature": [
+      "Best wishes,",
+      "Lucindha Lawson",
+      "www.lucindhalawson.co.uk"
+    ]
+  },
+  "media": {
+    "_note": "Only for 'Something else' enquiries that clearly come from the media and don't touch on personal history or health (those go to you).",
+    "sentences": {
+      "opening": "Thank you for getting in touch about a possible media feature.",
+      "questionsLead": "So I can consider your request, could you tell me:",
+      "questions": [
+        "Which publication, programme or channel is it for, and in what format (for example print, online, TV, radio or podcast)?",
+        "What is the topic or angle, and what would you like me to talk about?",
+        "When and where would it take place, and what is your deadline?",
+        "What communication arrangements will be in place, for example a BSL interpreter or questions in writing?",
+        "Is this a paid opportunity?"
+      ],
+      "pressPage": "Background information and short biographies are on my media page at www.lucindhalawson.co.uk/media.html.",
+      "noCommitment": "Once I have these details, I'll let you know whether I'm able to take part. Nothing is agreed until I've confirmed it in writing.",
+      "closing": "Thank you again for thinking of me."
+    },
+    "signature": [
+      "Best wishes,",
+      "Lucindha Lawson",
+      "www.lucindhalawson.co.uk"
+    ]
+  }
 }

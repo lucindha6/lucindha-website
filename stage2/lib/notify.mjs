@@ -24,7 +24,7 @@ const TITLES = {
   maintenance: "Stage 2 maintenance needed",
 };
 
-export function noticeText({ ref, status, services = [], reasons = [], notes = [], prefsSummary = "", extra = "" }) {
+export function noticeText({ ref, status, kind = "", services = [], reasons = [], notes = [], prefsSummary = "", extra = "" }) {
   const subjectLine = (r) => `Your enquiry to Lucindha Lawson (ref ${r})`;
   const next = {
     "draft-ready": `Next: open Drafts and look for "(ref ${ref})". Check it, edit if needed, then send it yourself.`,
@@ -36,6 +36,7 @@ export function noticeText({ ref, status, services = [], reasons = [], notes = [
   const lines = [
     `${TITLES[status] || status} · ${ref}`,
     "",
+    kind && kind !== "accounting" ? `Type: ${{ community: "community work", media: "media request" }[kind] || kind}` : null,
     services.length ? `Services: ${services.join(", ")}` : null,
     prefsSummary || null,
     reasons.length ? `Why: ${reasons.join(", ")}` : null,

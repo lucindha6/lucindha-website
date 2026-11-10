@@ -73,6 +73,10 @@ const previewCases = [
   ["Deafblind, email only", pick("Deafblind, email only")],
   ["Management accounts, large print", pick("large print")],
   ["Business support (no published price)", pick("business support")],
+  ["Community: school talk", pick("school talk with a date")],
+  ["Community: charity workshop", pick("charity workshop with a small budget")],
+  ["Community: possible collaboration", pick("possible collaboration")],
+  ["Media: interview request", pick("media interview about futsal")],
 ];
 const previews = [];
 for (const [label, data] of previewCases) {
