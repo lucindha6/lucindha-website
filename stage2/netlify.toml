@@ -1,0 +1,14 @@
+# Stage 2 is a SEPARATE Netlify site (base directory: stage2/).
+# It must never be linked to the main website's Netlify site, so the two never share secrets.
+[build]
+  publish = "public"
+  command = ""
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"

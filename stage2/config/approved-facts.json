@@ -1,0 +1,42 @@
+{
+  "_status": "PROPOSED - NOT APPROVED. Taken from the live website (tools/build_accounting.py) on 10 November 2026. Lucindha must approve every line before any draft uses it outside automated tests.",
+  "approved": false,
+  "approvedBy": null,
+  "approvedOn": null,
+
+  "services": {
+    "Bookkeeping": { "price": "from £30 an hour", "questions": ["Roughly how many transactions do you have each month?", "Which bookkeeping software, if any, do you use at the moment?"] },
+    "VAT returns": { "price": "from £75 a quarter", "questions": ["Are you already VAT-registered, and if so, which VAT scheme do you use?"] },
+    "Personal tax": { "price": "from £180 for a simple Self Assessment return, or from £250 for sole traders and landlords", "questions": ["Which tax year or years do you need help with?", "What are your main sources of income, for example employment, self-employment or property?"] },
+    "Year-end accounts": { "price": "from £850 a year for a small limited company, including the Corporation Tax return", "questions": ["When is your company's year-end?"] },
+    "Corporation tax returns": { "price": "from £850 a year for a small limited company, including year-end accounts", "questions": ["When is your company's year-end?"] },
+    "Management accounts": { "price": "from £150 a month", "questions": ["How often would you like management reports, for example monthly or quarterly?"] },
+    "Start-up support": { "price": "from £150", "questions": ["Are you setting up as a sole trader or a limited company?"] },
+    "Business support": { "price": null, "questions": ["What kind of support would be most useful to you during the year?"] },
+    "Financial health check": { "price": "from £200", "questions": ["Is there a particular area of your finances you'd like me to look at first?"] }
+  },
+
+  "sentences": {
+    "packages": "I also offer fixed monthly packages, which are listed on my website.",
+    "quote": "Once I understand what you need, I'll send you a personalised quote, so you know the exact cost before any work starts.",
+    "freeChat": "If it would help to talk things through first, I offer a free 20-minute introductory chat.",
+    "meetings": "Meetings are on weekday evenings and Saturdays, by arrangement. Once I've checked my availability, I'll suggest some times.",
+    "qualifications": "I'm an AAT Licensed Accountant (licence no. 1010532) and a member of the Association of Accounting Technicians (MAAT).",
+    "pricesLink": "You can see all my services and starting prices at https://www.lucindhalawson.co.uk/accounting.html.",
+    "noPrice": "I'll include a price for this in your quote."
+  },
+
+  "accessibility": {
+    "general": "Please let me know how you'd like to communicate, and I'll do my best to make that work for you.",
+    "bsl": "I'm a BSL user myself, so we can communicate in BSL if you'd like.",
+    "deafblind": "Please tell me how you prefer to communicate and what support you use, and I'll let you know what I can arrange.",
+    "emailOnly": "I'll keep our communication to email, as you asked.",
+    "textOnly": "I'm happy to keep in touch by text message, as you asked.",
+    "documents": "Please let me know which format works best for documents, such as large print, and I'll let you know what I can provide.",
+    "videoSupport": "If you'd like a video call, please tell me what communication support would help, and I'll let you know what I can arrange.",
+    "faceToFace": "If you'd prefer to meet in person, please let me know and we can talk about whether that's possible.",
+    "phone": null
+  },
+
+  "signature": ["Best wishes,", "Lucindha Lawson MAAT", "www.lucindhalawson.co.uk"]
+}

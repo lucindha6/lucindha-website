@@ -1,0 +1,9 @@
+{
+  "name": "lucindha-stage2-enquiry-drafts",
+  "private": true,
+  "type": "module",
+  "description": "Stage 2: AI-assisted enquiry drafts. Separate Netlify site. Never sends email.",
+  "scripts": { "test": "node --test tests/*.test.mjs", "demo": "node tools/demo.mjs" },
+  "engines": { "node": ">=20" },
+  "dependencies": { "@netlify/blobs": "^10.4.2" }
+}
