@@ -8,12 +8,15 @@ import { screen } from "./screen.mjs";
 import { detectPreferences, describePreferences } from "./access.mjs";
 import { buildAiInput, checkAiAnswer } from "./ai.mjs";
 import { validateIntro } from "./validate.mjs";
-import { composeDraft } from "./compose.mjs";
+import { composeDraft, CATEGORIES } from "./compose.mjs";
 import { noticeText } from "./notify.mjs";
 
 export const ENQUIRY_FORM = "enquiry";
 export const MAX_AI_PER_DAY = 20;
 export const DUPLICATE_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const STALE_CLAIM_MS = 2 * 60 * 1000;
+export const MAX_EVENT_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const AI_TIMEOUT_MS = 4000;
 const RETAIN_DAYS = 30;
 
 const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O, 1/I/L
@@ -38,6 +41,7 @@ export async function handleWebhook(rawBody, signature, deps) {
   const { env, store, graph, ai, notify, facts, log } = deps;
   const now = deps.now || (() => Date.now());
   let ref = "-";
+  let claimed = false;
   const done = (status, result, extra = {}) => {
     log({ fn: "stage2", ref, result, ...extra });
     return { status, result };
@@ -84,27 +88,52 @@ export async function handleWebhook(rawBody, signature, deps) {
     const t = now();
     const today = new Date(t).toISOString().slice(0, 10);
 
-    // 4. One record per submission, claimed atomically (retries and simultaneous copies do nothing).
-    const claim = await store.setJSON(`rec/${ref}`, { ref, status: "processing", at: t }, { onlyIfNew: true });
-    if (claim && claim.modified === false) return done(200, "ignored", { reason: "duplicate-event" });
-    const save = (rec) => store.setJSON(`rec/${ref}`, { ref, at: t, createdIso: new Date(t).toISOString(), ...rec });
+    // Replay protection: an old submission re-sent later (after its record was tidied) is ignored.
+    const createdAt = Date.parse(payload.created_at);
+    if (!Number.isFinite(createdAt) || t - createdAt > MAX_EVENT_AGE_MS) return done(200, "ignored", { reason: "too-old" });
 
-    // 5. Same address again within 24 hours: no second draft, just a note.
+    // 4. One record per submission, claimed atomically (retries and simultaneous copies do nothing).
+    //    A claim left "processing" for over 2 minutes (the function was stopped part-way) is taken over,
+    //    so an enquiry can't be lost.
+    const recKey = `rec/${ref}`;
+    const claim = await store.setJSON(recKey, { ref, status: "processing", at: t }, { onlyIfNew: true });
+    if (claim?.modified !== true) {
+      const existing = await store.get(recKey, { type: "json" });
+      if (!(existing && existing.status === "processing" && t - existing.at > STALE_CLAIM_MS)) return done(200, "ignored", { reason: "duplicate-event" });
+      await store.setJSON(recKey, { ref, status: "processing", at: t });
+    }
+    claimed = true;
+    const save = (rec) => store.setJSON(recKey, { ref, at: t, createdIso: new Date(createdAt).toISOString(), mailbox: env.DRAFTS_MAILBOX, ...rec });
+
+    // 5. Screen (locally) and read preferences (locally) – BEFORE the duplicate check, so a
+    //    sensitive follow-up can never be hidden behind an earlier ordinary draft.
+    const inputMode = env.DRAFT_INPUT_MODE === "screened-text" ? "screened-text" : "structured";
+    const s = screen(d, { inputMode });
+
+    // 6. Same address again within 24 hours: no second draft. If the new message is sensitive or
+    //    unsure, the earlier draft is re-labelled so you don't send the AI draft by mistake.
     const addrKey = `addr/${keyedHash(to, env.STAGE2_HASH_SECRET)}`;
     const firstClaim = await store.setJSON(addrKey, { ref, at: t }, { onlyIfNew: true });
-    if (firstClaim && firstClaim.modified === false) {
+    if (firstClaim?.modified !== true) {
       const prev = await store.get(addrKey, { type: "json" });
       if (prev && t - prev.at < DUPLICATE_WINDOW_MS) {
-        await save({ status: "duplicate", of: prev.ref });
-        await safeNotify(notify, noticeText({ ref, status: "duplicate", extra: `Same address as ${prev.ref}. Reply to that one.` }), log, ref);
-        return done(200, "duplicate", { of: prev.ref });
+        let extra = `Same address as ${prev.ref}. Reply to that one.`;
+        if (s.route !== "ordinary") {
+          const prevRec = await store.get(`rec/${prev.ref}`, { type: "json" });
+          try {
+            if (prevRec?.draftId) await graph.setCategory(prevRec.draftId, s.route === "sensitive" ? CATEGORIES.sensitive : CATEGORIES.manual);
+            if (prevRec && prevRec.status === "draft-ready") await store.setJSON(`rec/${prev.ref}`, { ...prevRec, status: s.route });
+            extra = `Same address as ${prev.ref}. The follow-up needs your judgement, so the earlier AI draft has been re-labelled. Read both messages before replying.`;
+          } catch {
+            extra = `Same address as ${prev.ref}. The follow-up needs your judgement. Don't send the earlier AI draft without reading both messages.`;
+          }
+        }
+        await save({ status: "duplicate", of: prev.ref, route: s.route });
+        await safeNotify(notify, noticeText({ ref, status: s.route === "ordinary" ? "duplicate" : "duplicate-needs-review", reasons: s.route === "ordinary" ? [] : s.reasons, extra }), log, ref);
+        return done(200, "duplicate", { of: prev.ref, route: s.route });
       }
       await store.setJSON(addrKey, { ref, at: t }); // older than 24h: this becomes the latest
     }
-
-    // 6. Screen (locally) and read preferences (locally).
-    const inputMode = env.DRAFT_INPUT_MODE === "screened-text" ? "screened-text" : "structured";
-    const s = screen(d, { inputMode });
     const pref = detectPreferences(d.access, d.details, s.methods);
     const prefsSummary = describePreferences(pref, s.methods);
     let route = s.route;
@@ -129,14 +158,14 @@ export async function handleWebhook(rawBody, signature, deps) {
       let slot = 0;
       for (let i = 1; i <= MAX_AI_PER_DAY && !slot; i++) {
         const r = await store.setJSON(`count/${today}/${i}`, { at: t }, { onlyIfNew: true });
-        if (!r || r.modified !== false) slot = i;
+        if (r?.modified === true) slot = i;
       }
       if (!slot) {
         route = "manual";
         reasons.push("daily-ai-limit");
       } else {
         try {
-          const ans = checkAiAnswer(await withTimeout(ai.draftIntro(buildAiInput(s)), 5000));
+          const ans = checkAiAnswer(await withTimeout(ai.draftIntro(buildAiInput(s)), AI_TIMEOUT_MS));
           if (!ans.ok) {
             route = "manual";
             reasons.push(ans.reason);
@@ -160,17 +189,23 @@ export async function handleWebhook(rawBody, signature, deps) {
     try {
       draftId = await graph.createDraft({ to, subject: draft.subject, html: draft.html, category: draft.category, ref });
     } catch {
-      await save({ status: "failed", route, reasons: [...reasons, "draft-not-saved"] });
+      await save({ status: "failed", route });
       await safeNotify(notify, noticeText({ ref, status: "failed", services: s.services, reasons: [...reasons, "draft-not-saved"] }), log, ref);
       return done(200, "failed", { stage: "graph" });
     }
 
     const status = route === "ordinary" ? "draft-ready" : route; // draft-ready | sensitive | manual
-    await save({ status, route, draftId, reasons, reminded: false });
+    // The stored record and the log keep the route only, never the reasons (which can hint at
+    // health, debt or similar). The reasons appear only in the notice to you.
+    await save({ status, route, draftId, reminded: false });
     await safeNotify(notify, noticeText({ ref, status, services: s.services, reasons, notes: s.notes, prefsSummary }), log, ref);
-    await tidy(store, t);
-    return done(200, status, { reasons });
+    return done(200, status);
   } catch {
+    // Never lose an enquiry silently: tell you, and release the claim so a retry can try again.
+    if (claimed && ref !== "-") {
+      try { await store.delete(`rec/${ref}`); } catch { /* ignore */ }
+      await safeNotify(notify, noticeText({ ref, status: "failed", extra: "Stage 2 stopped part-way. Please reply from the original Netlify notification." }), log, ref);
+    }
     return done(200, "error", { stage: "internal" });
   }
 }

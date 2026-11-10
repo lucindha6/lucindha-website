@@ -33,7 +33,7 @@ export function verifyNetlifySignature(rawBody, token, secret) {
   const given = b64urlDecode(s);
   if (given.length !== expected.length || !timingSafeEqual(given, expected)) return { ok: false, reason: "bad-signature" };
 
-  if (payload.iss !== undefined && payload.iss !== "netlify") return { ok: false, reason: "bad-issuer" };
+  if (payload.iss !== "netlify") return { ok: false, reason: "bad-issuer" };
   if (typeof payload.sha256 !== "string") return { ok: false, reason: "no-body-hash" };
   const bodyHash = sha256Hex(typeof rawBody === "string" ? Buffer.from(rawBody, "utf8") : rawBody);
   const a = Buffer.from(payload.sha256, "utf8"), b = Buffer.from(bodyHash, "utf8");

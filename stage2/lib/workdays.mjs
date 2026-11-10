@@ -17,13 +17,18 @@ export function isWorkingDay(d) {
 
 /** Number of whole working days that have ended since `fromIso` (the arrival day itself doesn't count). */
 export function workingDaysSince(fromIso, now) {
-  const start = new Date(fromIso);
+  // Count from the UK calendar date of arrival (not the UTC date), so summer time can't shift it.
+  const [y, m, d] = ukDate(new Date(fromIso)).split("-").map(Number);
+  const day = new Date(Date.UTC(y, m - 1, d + 1, 12)); // midday UTC on the next UK day
+  const endDay = ukDate(new Date(now));
   let count = 0;
-  const day = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate() + 1, 12));
-  const end = new Date(now);
-  while (ukDate(day) < ukDate(end)) {
+  while (ukDate(day) < endDay) {
     if (isWorkingDay(day)) count++;
     day.setUTCDate(day.getUTCDate() + 1);
   }
   return count;
+}
+
+export function holidaysOutOfDate(now) {
+  return ukDate(new Date(now)) > HOLIDAYS_VALID_UNTIL;
 }

@@ -9,9 +9,15 @@ import facts from "../../config/approved-facts.json" with { type: "json" };
 
 export default async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-  const raw = await req.text();
+  let raw, store;
+  try {
+    raw = Buffer.from(await req.arrayBuffer()); // exact bytes, so the signed hash matches
+    store = getStore({ name: "stage2", consistency: "strong", region: "eu-central-1" });
+  } catch {
+    console.log(JSON.stringify({ fn: "stage2", result: "error", stage: "startup" }));
+    return new Response("error", { status: 500 }); // Netlify may retry; nothing was processed
+  }
   const env = process.env;
-  const store = getStore({ name: "stage2", consistency: "strong", region: "eu-central-1" });
   const result = await handleWebhook(raw, req.headers.get("x-webhook-signature"), {
     env,
     store,

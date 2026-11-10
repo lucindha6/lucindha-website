@@ -7,7 +7,9 @@ Stage 1 (the live acknowledgement in `netlify/functions/submission-created.mjs`)
 
 For each genuine enquiry from the website's `enquiry` form, it creates **one draft** in a single
 mailbox, plus **one short notice** to hello@. It **never sends email**: the Microsoft app it would use
-gets Mail.ReadWrite on one mailbox only, never Mail.Send, and the code contains no send function.
+would get Application Mail.ReadWrite (never Mail.Send), limited to one mailbox by an Exchange RBAC for
+Applications scope (first drafts-test@, later hello@); the code contains no send function. Without that
+scope Mail.ReadWrite would cover every mailbox in the tenant, so the scope is essential.
 
 - Ordinary accounting enquiries: an AI-written opening paragraph, plus approved prices, questions,
   accessibility and meeting sentences (`config/approved-facts.json`).
@@ -46,3 +48,16 @@ node tools/demo.mjs        # data for the Outlook workflow demonstration
 A real AI provider; the Microsoft app and test mailbox; the separate Netlify site; the webhook on the
 main site's `enquiry` form; approval of every line in `config/approved-facts.json`; the DPIA and
 privacy notice.
+
+## Known limits and checks still to do (Phase 3)
+
+- **Notices are personal data.** Each notice is stored as a form submission on the Stage 2 Netlify
+  site (reference, services, flag reasons, communication preferences). They need the same retention
+  as enquiries; delete them from Netlify Forms on the same schedule.
+- **Notices are not authenticated.** Anyone could post a fake notice to the hidden form. They never
+  contain links, and the draft in Outlook is the only thing to act on.
+- **Replies sent from lucindha@** (not hello@) are not seen by the "already answered" check.
+- **To verify with a real `netlify build`/deploy in Phase 3:** that Netlify's webhook signature includes
+  `iss: "netlify"`; the Blobs region option; the JSON import of approved facts; the ~10 second limit
+  on synchronous functions.
+- **Bank holidays** (lib/workdays.mjs) must be updated every year; the daily check warns once out of date.

@@ -11,6 +11,7 @@ const REF_PROP = "String {5e1f3f6e-7a41-4d1e-9c4b-0c2b1d7f0a11} Name LLEnquiryRe
 
 export function realGraph(env, fetchFn = fetch) {
   let token = null;
+  let deletedFolderId = null;
   const mailbox = encodeURIComponent(env.DRAFTS_MAILBOX);
   async function getToken() {
     if (token && token.exp - 60_000 > Date.now()) return token.value;
@@ -48,20 +49,37 @@ export function realGraph(env, fetchFn = fetch) {
       if (!res.ok) throw new Error(`graph-create-${res.status}`);
       return (await res.json()).id;
     },
+    /** Returns null ONLY when Microsoft says the item doesn't exist; any other problem throws. */
     async getMessage(id) {
       const res = await call(`/messages/${encodeURIComponent(id)}?$select=id,isDraft,toRecipients,parentFolderId`);
-      if (res.status === 404) return null;
+      if (res.status === 404) {
+        const err = await res.json().catch(() => ({}));
+        if (err?.error?.code === "ErrorItemNotFound") return null;
+        throw new Error("graph-get-404-other"); // e.g. wrong mailbox: never treat as "deleted"
+      }
       if (!res.ok) throw new Error(`graph-get-${res.status}`);
       const m = await res.json();
-      return { id: m.id, isDraft: m.isDraft, to: m.toRecipients?.[0]?.emailAddress?.address || "" };
+      if (!deletedFolderId) {
+        const f = await call(`/mailFolders/deleteditems?$select=id`);
+        if (!f.ok) throw new Error(`graph-folder-${f.status}`);
+        deletedFolderId = (await f.json()).id;
+      }
+      return { id: m.id, isDraft: m.isDraft, to: m.toRecipients?.[0]?.emailAddress?.address || "", deleted: m.parentFolderId === deletedFolderId };
     },
+    /** Looks through hello@ Sent Items (newest first, all pages) for a message to this address. */
     async hasReplySince(address, sinceIso) {
-      const filter = encodeURIComponent(`sentDateTime ge ${sinceIso}`);
-      const res = await call(`/mailFolders/sentitems/messages?$filter=${filter}&$select=toRecipients,sentDateTime&$top=50`);
-      if (!res.ok) throw new Error(`graph-search-${res.status}`);
-      const { value = [] } = await res.json();
       const a = address.toLowerCase();
-      return value.some((m) => (m.toRecipients || []).some((r) => r.emailAddress?.address?.toLowerCase() === a));
+      const filter = encodeURIComponent(`sentDateTime ge ${sinceIso}`);
+      let path = `/mailFolders/sentitems/messages?$filter=${filter}&$orderby=sentDateTime desc&$select=toRecipients,ccRecipients,sentDateTime&$top=100`;
+      for (let page = 0; page < 10 && path; page++) {
+        const res = await call(path);
+        if (!res.ok) throw new Error(`graph-search-${res.status}`);
+        const j = await res.json();
+        if ((j.value || []).some((m) => [...(m.toRecipients || []), ...(m.ccRecipients || [])].some((r) => r.emailAddress?.address?.toLowerCase() === a))) return true;
+        const next = j["@odata.nextLink"];
+        path = next ? next.slice(next.indexOf(`/users/`)).replace(/^\/users\/[^/]+/, "") : null;
+      }
+      return false;
     },
     async setCategory(id, category) {
       const res = await call(`/messages/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ categories: [category] }) });
@@ -86,7 +104,7 @@ export function mockGraph({ failCreate = false } = {}) {
     },
     async getMessage(id) {
       const m = drafts.get(id);
-      return m ? { id, isDraft: m.isDraft, to: m.to } : null;
+      return m ? { id, isDraft: m.isDraft, to: m.to, deleted: !!m.deleted } : null;
     },
     async hasReplySince(address, sinceIso) {
       return sent.some((s) => s.to.toLowerCase() === address.toLowerCase() && s.at >= sinceIso);
@@ -105,6 +123,10 @@ export function mockGraph({ failCreate = false } = {}) {
       sent.push({ to, at: atIso });
     },
     youDeleteDraft(id) {
+      // In Outlook a deleted draft moves to Deleted Items, keeping its immutable id.
+      drafts.get(id).deleted = true;
+    },
+    youEmptyDeletedItems(id) {
       drafts.delete(id);
     },
   };

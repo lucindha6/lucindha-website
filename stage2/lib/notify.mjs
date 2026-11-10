@@ -1,7 +1,9 @@
 // Notifications to hello@. Stage 2 cannot send email, so it posts a short message to a hidden
 // form on ITS OWN Netlify site ("stage2-notice"); that site's form notification emails hello@.
-// Notices hold only the reference, a status, the services ticked and reason codes – no names,
-// no email addresses, no enquiry text and no access-needs wording.
+// Notices hold the reference, a status, the services ticked, the reason codes for any flag and a
+// short summary of contact/communication preferences (e.g. "video call · BSL"). They never hold
+// names, email addresses, enquiry text or the access-needs wording, and never contain links.
+// They are stored as form submissions on the Stage 2 site, so they are personal data: see README.
 
 export const NOTICE_FORM = "stage2-notice";
 
@@ -11,6 +13,7 @@ export function noticeText({ ref, status, services = [], reasons = [], notes = [
     sensitive: "Sensitive – please reply personally",
     manual: "Manual review needed",
     duplicate: "Duplicate submission – no new draft",
+    "duplicate-needs-review": "Follow-up needs your judgement – earlier draft re-labelled",
     reminder: "No reply yet after 2 working days",
     "already-answered": "Already answered – no draft made",
     failed: "Stage 2 problem – please reply from the original enquiry",

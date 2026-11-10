@@ -39,6 +39,7 @@ const FINANCIAL_PATTERNS = [
   ["vat-number", /\bGB\s?\d{9}\b/i],
   ["date-of-birth", /\b\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}\b/],
   ["long-number", /\d{6,}/],
+  ["spaced-number", /\b\d(?:\s?\d){9}\b|\b\d{4}\s\d{4}\b/],
   ["money-amount", /£\s?\d|\b\d[\d,]*\s?(k|grand|pounds)\b/i],
 ];
 
@@ -91,7 +92,15 @@ export function screen(data, { inputMode = "structured" } = {}) {
   }
 
   // 4. Anything that looks like an attempt to instruct an AI is treated as unusual.
-  if (/\b(ignore (all|any|previous)|system prompt|you are (an|a) ai|as an ai|disregard|instructions?)\b/i.test(details)) flag("manual", "unusual-instructions");
+  const INSTRUCTIONS = /\b(ignore (all|any|previous)|system prompt|you are (an|a) ai|as an ai|disregard|instructions?)\b/i;
+  if (INSTRUCTIONS.test(details)) flag("manual", "unusual-instructions");
+
+  // 5. The access-needs box is screened too (but Deaf, BSL and disability wording is expected there
+  //    and is NOT flagged; it is handled by the accessibility rules instead).
+  const access = clean(data.access, 2000);
+  for (const [code, re] of SENSITIVE) if (code !== "health" && re.test(access)) flag("sensitive", `${code}-in-access-box`);
+  for (const [code, re] of FINANCIAL_PATTERNS) if (code !== "money-amount" && re.test(access)) flag("sensitive", `financial-${code}-in-access-box`);
+  if (INSTRUCTIONS.test(access)) flag("manual", "unusual-instructions-in-access-box");
 
   return { route, reasons: [...new Set(reasons)], notes: [...new Set(notes)], services: services.filter((s) => ACCOUNTING_SERVICES.includes(s)), clientType: CLIENT_TYPES.includes(clientType) ? clientType : "", methods: methods.length ? methods : ["Email"] };
 }
