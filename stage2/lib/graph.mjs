@@ -11,7 +11,7 @@
 const GRAPH = "https://graph.microsoft.com/v1.0";
 const REF_PROP = "String {5e1f3f6e-7a41-4d1e-9c4b-0c2b1d7f0a11} Name LLEnquiryRef"; // hidden property holding the reference
 const NOTICE_PROP = "String {5e1f3f6e-7a41-4d1e-9c4b-0c2b1d7f0a11} Name LLStage2Notice"; // marks genuine notices
-const MESSAGE_FLAGS = "Integer 0x0E07"; // PidTagMessageFlags: 1 = read, not a draft
+const MESSAGE_FLAGS = "Integer 0x0E07"; // PidTagMessageFlags: 0 = unread and NOT a draft (no unsent flag)
 const DELIVERY_TIME = "SystemTime 0x0E06"; // PidTagMessageDeliveryTime, so it sorts as received now
 
 /** True only if a sent message's subject carries one of these references (not just the address). */
@@ -38,7 +38,10 @@ export function realGraph(env, fetchFn = fetch) {
     return token.value;
   }
   async function call(path, init = {}) {
-    const res = await fetchFn(`${GRAPH}/users/${mailbox}${path}`, {
+    // Absolute Graph links (e.g. @odata.nextLink) are used as given, but only on Graph itself.
+    const url = path.startsWith("https://") ? path : `${GRAPH}/users/${mailbox}${path}`;
+    if (!url.startsWith(`${GRAPH}/`)) throw new Error("graph-bad-link");
+    const res = await fetchFn(url, {
       ...init,
       headers: { Authorization: `Bearer ${await getToken()}`, "Content-Type": "application/json", Prefer: 'IdType="ImmutableId"', ...(init.headers || {}) },
       signal: AbortSignal.timeout(4000),
@@ -75,18 +78,18 @@ export function realGraph(env, fetchFn = fetch) {
           toRecipients: [{ emailAddress: { address: env.DRAFTS_MAILBOX } }],
           categories: ["Stage 2 notice"],
           singleValueExtendedProperties: [
-            { id: MESSAGE_FLAGS, value: "1" },
+            { id: MESSAGE_FLAGS, value: "0" },
             { id: DELIVERY_TIME, value: new Date().toISOString() },
             { id: NOTICE_PROP, value: "1" },
           ],
         }),
       });
       if (!res.ok) throw new Error(`graph-notice-${res.status}`);
-      const id = (await res.json()).id;
-      // Mark unread so it stands out (isRead may still be changed on non-draft messages).
-      const u = await call(`/messages/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ isRead: false }) });
-      if (!u.ok) throw new Error(`graph-notice-unread-${u.status}`);
-      return id;
+      // Created unread and not a draft, in one step: nothing is changed afterwards, so Microsoft's
+      // restriction on editing non-draft messages (from 31 Dec 2026) doesn't affect notices.
+      // VERIFY in integration testing that this still works; if it doesn't, the call fails,
+      // the record is marked and the daily check tells you.
+      return (await res.json()).id;
     },
     /** Returns null ONLY when Microsoft says the item doesn't exist; any other problem throws. */
     async getMessage(id) {
@@ -106,13 +109,11 @@ export function realGraph(env, fetchFn = fetch) {
       return { id: m.id, isDraft: m.isDraft, to: m.toRecipients?.[0]?.emailAddress?.address || "", deleted: m.parentFolderId === deletedFolderId };
     },
     /**
-     * Looks through Sent Items (newest first, up to 1,000 messages) for messages WHOSE SUBJECT
-     * CARRIES ONE OF THE REFERENCES, and returns who they went to. The caller then checks that
-     * one of them is the enquirer. An unrelated email to the same person, or the Stage 1
-     * acknowledgement (which is also in Sent Items), never counts as a reply.
+     * One scan of Sent Items since the oldest open enquiry (newest first, up to 1,000 messages):
+     * subject, recipients and time only. The caller matches references and recipients locally.
      */
-    async sentRecipientsWithRef(refs, sinceIso) {
-      const found = new Set();
+    async sentSince(sinceIso) {
+      const out = [];
       const filter = encodeURIComponent(`sentDateTime ge ${sinceIso}`);
       let path = `/mailFolders/sentitems/messages?$filter=${filter}&$orderby=sentDateTime desc&$select=subject,toRecipients,ccRecipients,sentDateTime&$top=100`;
       for (let page = 0; page < 10 && path; page++) {
@@ -120,13 +121,15 @@ export function realGraph(env, fetchFn = fetch) {
         if (!res.ok) throw new Error(`graph-search-${res.status}`);
         const j = await res.json();
         for (const m of j.value || []) {
-          if (!subjectHasRef(m.subject, refs)) continue;
-          for (const r of [...(m.toRecipients || []), ...(m.ccRecipients || [])]) if (r.emailAddress?.address) found.add(r.emailAddress.address.toLowerCase());
+          out.push({
+            subject: m.subject || "",
+            at: m.sentDateTime || "",
+            recipients: [...(m.toRecipients || []), ...(m.ccRecipients || [])].map((r) => r.emailAddress?.address?.toLowerCase()).filter(Boolean),
+          });
         }
-        const next = j["@odata.nextLink"];
-        path = next ? next.slice(next.indexOf(`/users/`)).replace(/^\/users\/[^/]+/, "") : null;
+        path = j["@odata.nextLink"] || null;
       }
-      return [...found];
+      return out;
     },
     async setCategory(id, category) {
       const res = await call(`/messages/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ categories: [category] }) });
@@ -160,8 +163,10 @@ export function mockGraph({ failCreate = false, failNotice = false } = {}) {
       const m = drafts.get(id);
       return m ? { id, isDraft: m.isDraft, to: m.to, deleted: !!m.deleted } : null;
     },
-    async sentRecipientsWithRef(refs, sinceIso) {
-      return [...new Set(sent.filter((s) => s.at >= sinceIso && subjectHasRef(s.subject, refs)).map((s) => s.to.toLowerCase()))];
+    failSent: false,
+    async sentSince(sinceIso) {
+      if (this.failSent) throw new Error("graph-search-503");
+      return sent.filter((s) => s.at >= sinceIso).map((s) => ({ subject: s.subject, at: s.at, recipients: [s.to.toLowerCase()] }));
     },
     async setCategory(id, category) {
       const m = drafts.get(id);
@@ -170,7 +175,9 @@ export function mockGraph({ failCreate = false, failNotice = false } = {}) {
     // test helpers: what you would do in Outlook
     youSendDraft(id, atIso) {
       const m = drafts.get(id);
-      m.isDraft = false;
+      // In Outlook a sent draft becomes a new item in Sent Items (its id changes), so the
+      // original id no longer finds it. Modelled here so tests can't rely on the id.
+      drafts.delete(id);
       sent.push({ to: m.to, at: atIso, subject: m.subject });
     },
     youReplySeparately(to, atIso, subject = "Re: your enquiry") {

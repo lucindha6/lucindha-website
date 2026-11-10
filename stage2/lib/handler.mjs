@@ -127,60 +127,75 @@ export async function handleWebhook(rawBody, signature, deps) {
     const pref = detectPreferences(d.access, d.details, s.methods);
     const prefsSummary = describePreferences(pref, s.methods);
 
-    // 7. Same person within 24 hours?
+    // Save the record, then deliver the notice. If the notice can't be delivered, the record is
+    // marked so the daily check tells you (the notice may be the only Stage 2 output you get).
+    const finish = async (rec, notice, result) => {
+      await save(rec);
+      if (!(await safeNotify(notify, notice, log, ref))) await save({ ...rec, noticeFailed: true });
+      return done(200, result);
+    };
+
+    // 7. Same person within 24 hours? The per-person pointer always names the FIRST enquiry of the
+    //    current chain (root) and the latest one; repeats never move it.
     const addrKey = `addr/${toHash}`;
     const fp = contentFingerprint(d, env.STAGE2_HASH_SECRET);
-    const latest = { key, ref, at: t, fp };
-    const first = await store.setJSON(addrKey, latest, { onlyIfNew: true });
-    let prev = null;
+    const pointer = { rootKey: key, rootRef: ref, lastKey: key, lastRef: ref, at: t, fps: [fp] };
+    const first = await store.setJSON(addrKey, pointer, { onlyIfNew: true });
+    let chain = null;
     if (first?.modified !== true) {
-      prev = await store.get(addrKey, { type: "json" });
-      if (prev?.key === key) prev = null; // our own stale claim being retried
-      await store.setJSON(addrKey, latest); // this enquiry is now the latest from this person
-      if (prev && t - prev.at >= SAME_PERSON_WINDOW_MS) prev = null;
+      chain = await store.get(addrKey, { type: "json" });
+      if (chain && t - chain.at >= SAME_PERSON_WINDOW_MS) chain = null;
+      // A retry of THIS enquiry after a crash: use the chain as it was before us.
+      if (chain && chain.lastKey === key) chain = chain.before || null;
+      if (chain && chain.rootKey === key) chain = null;
     }
 
-    if (prev) {
-      // 7a. Exact repeat (e.g. the form sent twice): nothing new to read.
-      if (prev.fp === fp) {
-        await save({ status: "repeat", of: prev.key, route: s.route });
-        await safeNotify(notify, noticeText({ ref, status: "repeat", extra: `Exactly the same as ${prev.ref}, sent again. No new draft. Reply to ${prev.ref} as normal.` }), log, ref);
-        return done(200, "repeat");
+    if (chain) {
+      // 7a. Exact repeat of anything already in the chain (e.g. the form sent twice): nothing new.
+      if ((chain.fps || []).includes(fp)) {
+        return finish({ status: "repeat", of: chain.lastKey, route: s.route },
+          noticeText({ ref, status: "repeat", extra: `Exactly the same as an earlier enquiry from this person (${chain.lastRef}). No new draft. Reply to ${chain.rootRef} as normal.` }), "repeat");
       }
-      // 7b. A different enquiry from the same person: never dropped. No second draft (one reply
-      //     covering both is clearer), and an unsent earlier draft is re-labelled so it isn't
-      //     sent without you reading the follow-up first.
-      const prevRec = await store.get(`rec/${prev.key}`, { type: "json" });
+      // 7b. A different enquiry from the same person: never dropped. It joins the chain: one reply
+      //     covering all of them, quoting any of the chain's references, answers them all.
+      const rootRec = await store.get(`rec/${chain.rootKey}`, { type: "json" });
+      const lastRec = chain.lastKey === chain.rootKey ? rootRec : await store.get(`rec/${chain.lastKey}`, { type: "json" });
+      const refs = [...new Set([ref, ...(lastRec?.refs || [chain.lastRef]), ...(rootRec?.refs || [chain.rootRef])])];
+      const draftId = rootRec?.draftId || null;
+      const sensitiveNow = s.route !== "ordinary" || lastRec?.chainSensitive === true;
+      const wanted = sensitiveNow ? CATEGORIES.sensitiveFollowUp : CATEGORIES.followUp;
       let relabel = "";
-      if (prevRec?.draftId) {
+      let relabelPending = null;
+      if (draftId) {
         try {
-          const m = await graph.getMessage(prevRec.draftId);
+          const m = await graph.getMessage(draftId);
           if (m && m.isDraft && !m.deleted) {
-            await graph.setCategory(prevRec.draftId, CATEGORIES.followUp);
-            relabel = ` The unsent draft for ${prev.ref} is now labelled "${CATEGORIES.followUp}".`;
+            await graph.setCategory(draftId, wanted);
+            relabel = ` The unsent draft for ${chain.rootRef} is now labelled "${wanted}".`;
           }
         } catch {
-          relabel = ` Check the draft for ${prev.ref} before sending it.`;
+          relabelPending = wanted; // the daily check will try again
+          relabel = ` Don't send the draft for ${chain.rootRef} without reading this first.`;
         }
       }
-      await save({ status: "follow-up", route: s.route, of: prev.key, refs: [ref, prev.ref], reminded: false });
-      if (prevRec && ["draft-ready", "sensitive", "manual"].includes(prevRec.status)) {
-        await store.setJSON(`rec/${prev.key}`, { ...prevRec, followedUpBy: key });
+      await store.setJSON(addrKey, { ...chain, lastKey: key, lastRef: ref, fps: [...(chain.fps || []), fp], before: { ...chain, before: undefined } });
+      // Earlier records in the chain are now tracked through this one (one reminder, not several).
+      for (const [k2, r2] of [[chain.rootKey, rootRec], [chain.lastKey, lastRec]]) {
+        if (r2 && !["answered", "answered-delete-draft", "closed"].includes(r2.status)) await store.setJSON(`rec/${k2}`, { ...r2, followedUpBy: key });
       }
-      await safeNotify(notify, noticeText({
-        ref, status: "follow-up", services: s.services, prefsSummary,
-        reasons: s.route === "ordinary" ? [] : [`${s.route}: ${s.reasons.join(", ")}`],
-        notes: s.notes,
-        extra: `Same person as ${prev.ref}. Read the new enquiry in its Netlify notification, then send one reply covering both, with "(ref ${prev.ref})" or "(ref ${ref})" in the subject.${relabel}`,
-      }), log, ref);
-      return done(200, "follow-up");
+      return finish({ status: "follow-up", route: s.route, of: chain.lastKey, refs, chainDraftId: draftId, chainSensitive: sensitiveNow, relabelPending, reminded: false },
+        noticeText({
+          ref, status: "follow-up", services: s.services, prefsSummary,
+          reasons: s.route === "ordinary" ? [] : [`${s.route}: ${s.reasons.join(", ")}`],
+          notes: s.notes,
+          extra: `Same person as ${refs.filter((r) => r !== ref).join(", ")}. Read the new enquiry in its Netlify notification, then send one reply covering everything, with "(ref ${chain.rootRef})" in the subject.${relabel}`,
+        }), "follow-up");
     }
 
     // 8. Sensitive or unsure: notice only, no draft.
     if (s.route !== "ordinary") {
-      await save({ status: s.route, route: s.route, refs: [ref], reminded: false });
-      await safeNotify(notify, noticeText({ ref, status: s.route, services: s.services, reasons: s.reasons, notes: s.notes, prefsSummary }), log, ref);
-      return done(200, s.route);
+      return finish({ status: s.route, route: s.route, refs: [ref], reminded: false },
+        noticeText({ ref, status: s.route, services: s.services, reasons: s.reasons, notes: s.notes, prefsSummary }), s.route);
     }
 
     // 9. Ordinary: the approved template, optionally with a personalised opening.
@@ -190,14 +205,12 @@ export async function handleWebhook(rawBody, signature, deps) {
     try {
       draftId = await graph.createDraft({ to, subject: draft.subject, html: draft.html, category: draft.category, ref });
     } catch {
-      await save({ status: "failed", route: "ordinary" });
-      await safeNotify(notify, noticeText({ ref, status: "failed", services: s.services, extra: "The draft could not be saved in Outlook." }), log, ref);
-      return done(200, "failed", { stage: "graph" });
+      return finish({ status: "failed", route: "ordinary", refs: [ref], reminded: false },
+        noticeText({ ref, status: "failed", services: s.services, extra: "The draft could not be saved in Outlook." }), "failed");
     }
     // Stored record and log: route and ids only, never reasons (which can hint at health or debt).
-    await save({ status: "draft-ready", route: "ordinary", draftId, refs: [ref], reminded: false });
-    await safeNotify(notify, noticeText({ ref, status: "draft-ready", services: s.services, notes: [...s.notes, ...(note ? [note] : [])], prefsSummary }), log, ref);
-    return done(200, "draft-ready");
+    return finish({ status: "draft-ready", route: "ordinary", draftId, refs: [ref], reminded: false },
+      noticeText({ ref, status: "draft-ready", services: s.services, notes: [...s.notes, ...(note ? [note] : [])], prefsSummary }), "draft-ready");
   } catch {
     // Never lose an enquiry silently: tell you, and release the claim so a retry can try again.
     if (claimed && key) {
@@ -233,12 +246,16 @@ async function personalisedOpening(deps, s, t) {
   }
 }
 
+/** Tries twice. Returns false if the notice could not be delivered. */
 async function safeNotify(notify, notice, log, ref) {
-  try {
-    await notify(notice);
-  } catch {
-    log({ fn: "stage2", ref, result: "notice-failed" });
+  for (let i = 0; i < 2; i++) {
+    try {
+      await notify(notice);
+      return true;
+    } catch { /* try once more */ }
   }
+  log({ fn: "stage2", ref, result: "notice-failed" });
+  return false;
 }
 
 function withTimeout(promise, ms) {

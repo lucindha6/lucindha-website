@@ -13,7 +13,7 @@ For each genuine submission of the website's `enquiry` form (and no other form):
 | Ordinary accounting enquiry | **One template draft** in Drafts (category *Template draft – review*) + one notice |
 | Sensitive (complaint, privacy request, AML, HMRC dispute, debt, health, bank or tax numbers…) | **Notice only – no draft.** You reply personally from the Netlify notification |
 | Unsure (community work, no service, odd instructions, not English, long, urgent…) | **Notice only – no draft** |
-| A different enquiry from the same person within 24 h | Its own reference + a *follow-up* notice. Any unsent earlier draft is re-labelled *Follow-up received – check first* |
+| A different enquiry from the same person within 24 h | Its own reference + a *follow-up* notice. Any unsent earlier draft is re-labelled *Follow-up received – check first*, or *Sensitive follow-up – do not send* if the new message is sensitive or unsure |
 | An exact repeat within 24 h | A short *repeat – nothing new* notice |
 
 It **never sends email**. The Microsoft app would get Application Mail.ReadWrite (never Mail.Send),
@@ -41,7 +41,11 @@ sender. **An incoming email claiming to be a Stage 2 notice is forged.** Notices
 
 A reply only counts if you sent the draft itself, or a message **to the enquirer** whose **subject
 contains the reference**. The Stage 1 acknowledgement (also in Sent Items) and unrelated emails to the
-same person never count. Records hold only a keyed fingerprint of the address, not the address itself.
+same person never count. Deleting a draft does not close an enquiry; only a reply does. Records hold only a
+keyed fingerprint of the address, not the address itself.
+
+The daily check also reports an enquiry that stopped part-way, a notice that couldn't be delivered, and
+retries a draft label that couldn't be changed.
 
 ## Future AI (off)
 
@@ -62,12 +66,12 @@ failure or unsafe answer falls back to the template.
 | `M365_DRAFTS_TENANT_ID`, `M365_DRAFTS_CLIENT_ID`, `M365_DRAFTS_CLIENT_SECRET` | The separate "Website enquiry drafts" app |
 
 Outlook categories to create by hand in the mailbox: *Template draft – review*, *Follow-up received –
-check first*, *Answered – delete draft*, *Stage 2 notice*.
+check first*, *Sensitive follow-up – do not send*, *Answered – delete draft*, *Stage 2 notice*.
 
 ## Tests
 
 ```
-cd stage2 && npm test      # 76 tests; fictional data; stand-in Microsoft mailbox
+cd stage2 && npm test      # 86 tests; fictional data; stand-in Microsoft mailbox
 node tools/demo.mjs        # data for the Outlook demonstration and reply previews
 ```
 

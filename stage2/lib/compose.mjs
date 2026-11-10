@@ -14,6 +14,7 @@ export const CATEGORIES = {
   template: "Template draft – review",
   personalised: "AI draft – review", // only if a personaliser is approved in a future phase
   followUp: "Follow-up received – check first",
+  sensitiveFollowUp: "Sensitive follow-up – do not send",
   answeredElsewhere: "Answered – delete draft",
 };
 

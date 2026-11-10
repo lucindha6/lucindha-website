@@ -373,13 +373,14 @@ test("a DIFFERENT second enquiry within 24 hours is never dropped: own reference
   assert.equal(x.deps.graph.drafts.size, 1); // one reply covering both
 });
 
-test("a sensitive follow-up is shown as sensitive, and the earlier draft is re-labelled", async () => {
+test("a sensitive follow-up is shown as sensitive, and the earlier draft is labelled 'do not send'", async () => {
   const x = setup();
   await send(x.deps, submission(ENQUIRIES[0].data));
   x.tick(3600e3);
   await send(x.deps, submission({ ...ENQUIRIES[0].data, details: "Also, HMRC have opened an investigation into my returns." }));
   assert.match(x.notices[1].message, /sensitive: .*hmrc-dispute/);
-  assert.equal([...x.deps.graph.drafts.values()][0].category, CATEGORIES.followUp);
+  assert.equal([...x.deps.graph.drafts.values()][0].category, CATEGORIES.sensitiveFollowUp);
+  assert.equal(CATEGORIES.sensitiveFollowUp, "Sensitive follow-up – do not send");
 });
 
 test("follow-up after a draft was already sent: nothing re-labelled, follow-up still reported", async () => {
@@ -389,7 +390,7 @@ test("follow-up after a draft was already sent: nothing re-labelled, follow-up s
   x.deps.graph.youSendDraft(id, "2026-11-16T10:30:00.000Z");
   x.tick(3600e3);
   assert.equal((await send(x.deps, submission({ ...ENQUIRIES[0].data, details: "One more question about VAT." }))).result, "follow-up");
-  assert.equal(x.deps.graph.drafts.get(id).category, CATEGORIES.template);
+  assert.doesNotMatch(x.notices[1].message, /now labelled/);
 });
 
 test("an EXACT repeat (same choices and wording) within 24 hours is reported as nothing new, with no second draft", async () => {
@@ -439,22 +440,22 @@ test("a reply with the reference sent to SOMEONE ELSE doesn't count either", asy
   assert.equal(s.answered, 0);
 });
 
-test("daily check: sent draft → answered; separate reply with ref → 'Answered – delete draft'; deleted → closed; overdue → one reminder", async () => {
+test("daily check: sent draft → answered; separate reply with ref → 'Answered – delete draft'; deleted draft still gets a reminder", async () => {
   const x = setup();
   const g = x.deps.graph;
   for (const i of [0, 1, 2, 3]) await send(x.deps, submission(ENQUIRIES[i].data));
   const ids = [...g.drafts.keys()];
   const refOf = (id) => g.drafts.get(id).subject.match(/ENQ-\w+/)[0];
-  g.youSendDraft(ids[0], "2026-11-16T12:00:00.000Z");
   g.youReplySeparately("tom.okafor@example.org", "2026-11-16T13:00:00.000Z", `Re: Your enquiry to Lucindha Lawson (ref ${refOf(ids[1])})`);
-  g.youDeleteDraft(ids[2]);
+  g.youSendDraft(ids[0], "2026-11-16T12:00:00.000Z"); // its id changes once sent, as in Outlook
+  g.youDeleteDraft(ids[2]); // deleted, but you haven't replied yet
   let s = await dailyCheck({ ...x.deps, now: evening("2026-11-18T18:00:00Z") });
-  assert.deepEqual([s.answered, s.answeredDeleteDraft, s.closed, s.reminders], [1, 1, 1, 0]);
+  assert.deepEqual([s.answered, s.answeredDeleteDraft, s.reminders], [1, 1, 0]);
   assert.equal(g.drafts.get(ids[1]).category, CATEGORIES.answeredElsewhere);
   s = await dailyCheck({ ...x.deps, now: evening("2026-11-19T18:00:00Z") });
-  assert.equal(s.reminders, 1);
+  assert.equal(s.reminders, 2); // Grace (deleted draft, no reply) and Ben (no reply)
   s = await dailyCheck({ ...x.deps, now: evening("2026-11-20T18:00:00Z") });
-  assert.equal(s.reminders, 0);
+  assert.equal(s.reminders, 0); // never twice
 });
 
 test("daily check for notice-only cases: your reply with the reference closes them; otherwise one reminder", async () => {
@@ -479,27 +480,29 @@ test("a follow-up pair gets one reminder, and a reply quoting either reference a
   await send(y.deps, submission(ENQUIRIES[0].data));
   y.tick(3600e3);
   await send(y.deps, submission({ ...ENQUIRIES[0].data, details: "Also VAT please." }));
-  const [first] = recs(y);
-  y.deps.graph.youReplySeparately("priya.shah@example.org", "2026-11-17T19:00:00.000Z", `Re: (ref ${first.ref})`);
+  const [, second] = recs(y);
+  y.deps.graph.youReplySeparately("priya.shah@example.org", "2026-11-17T19:00:00.000Z", `Re: (ref ${second.ref})`);
   s = await dailyCheck({ ...y.deps, now: evening("2026-11-19T18:00:00Z") });
-  assert.equal(s.answered, 1);
   assert.equal(s.reminders, 0);
+  // The unused earlier draft is flagged so it isn't sent as well.
+  assert.equal([...y.deps.graph.drafts.values()][0].category, CATEGORIES.answeredElsewhere);
 });
 
-test("a draft moved to Deleted Items counts as closed; a different mailbox's records are left alone", async () => {
+test("deleting a draft doesn't close the enquiry, but a reply does; a different mailbox's records are left alone", async () => {
   const x = setup();
   await send(x.deps, submission(ENQUIRIES[0].data));
   const [id] = [...x.deps.graph.drafts.keys()];
+  const { ref } = recs(x)[0];
   x.deps.graph.youDeleteDraft(id);
+  x.deps.graph.youReplySeparately("priya.shah@example.org", "2026-11-17T19:00:00.000Z", `My reply (ref ${ref})`);
   let s = await dailyCheck({ ...x.deps, now: evening("2026-11-19T18:00:00Z") });
-  assert.equal(s.closed, 1);
+  assert.deepEqual([s.answered, s.reminders], [1, 0]);
   const y = setup();
   await send(y.deps, submission(ENQUIRIES[1].data));
   s = await dailyCheck({ ...y.deps, env: { ...ENV, DRAFTS_MAILBOX: "hello@lucindhalawson.co.uk" }, now: evening("2026-11-19T18:00:00Z") });
   assert.equal(s.checked, 0);
 });
 
-// ===================================================== notices (refinements 5 and 6)
 test("one short notice per enquiry, placed in the mailbox itself, marked as a genuine Stage 2 notice", async () => {
   const x = setup();
   for (const c of ENQUIRIES) await send(x.deps, submission(c.data));
@@ -581,4 +584,156 @@ test("working days skip weekends and bank holidays, using UK dates", () => {
 
 test("bank holiday list is still current (update it each year)", () => {
   assert.ok(new Date().toISOString().slice(0, 10) <= HOLIDAYS_VALID_UNTIL.replace("12-31", "11-30"));
+});
+
+// ===================================================== fixes from the Phase 2 independent review
+test("repeat then sensitive follow-up: the chain still points at the first enquiry and its draft is labelled 'do not send'", async () => {
+  const x = setup();
+  await send(x.deps, submission(ENQUIRIES[0].data));
+  x.tick(60e3);
+  assert.equal((await send(x.deps, submission(ENQUIRIES[0].data))).result, "repeat");
+  x.tick(3600e3);
+  assert.equal((await send(x.deps, submission({ ...ENQUIRIES[0].data, details: "HMRC have opened an investigation into my returns." }))).result, "follow-up");
+  const [first] = recs(x);
+  assert.match(x.notices[2].message, new RegExp(`\\(ref ${first.ref}\\)`));
+  assert.equal([...x.deps.graph.drafts.values()][0].category, CATEGORIES.sensitiveFollowUp);
+  const s = await dailyCheck({ ...x.deps, now: evening("2026-11-19T18:00:00Z") });
+  assert.equal(s.reminders, 1); // one for the whole chain
+});
+
+test("a chain of three enquiries: one reminder, and any reference in the chain answers all", async () => {
+  for (const which of [0, 1, 2]) {
+    const x = setup();
+    await send(x.deps, submission(ENQUIRIES[0].data));
+    x.tick(3600e3);
+    await send(x.deps, submission({ ...ENQUIRIES[0].data, details: "Second message about VAT." }));
+    x.tick(3600e3);
+    await send(x.deps, submission({ ...ENQUIRIES[0].data, details: "Third message about payroll." }));
+    let s = await dailyCheck({ ...x.deps, now: evening("2026-11-19T18:00:00Z") });
+    assert.equal(s.reminders, 1, "no reply: exactly one reminder");
+    const y = setup();
+    await send(y.deps, submission(ENQUIRIES[0].data));
+    y.tick(3600e3);
+    await send(y.deps, submission({ ...ENQUIRIES[0].data, details: "Second message about VAT." }));
+    y.tick(3600e3);
+    await send(y.deps, submission({ ...ENQUIRIES[0].data, details: "Third message about payroll." }));
+    const refs = recs(y).map((r) => r.ref);
+    y.deps.graph.youReplySeparately("priya.shah@example.org", "2026-11-17T19:00:00.000Z", `Re: (ref ${refs[which]})`);
+    s = await dailyCheck({ ...y.deps, now: evening("2026-11-19T18:00:00Z") });
+    assert.equal(s.reminders, 0, `reply quoting ref #${which + 1}`);
+    assert.equal(s.answered + s.answeredDeleteDraft, 1);
+  }
+});
+
+test("sending the first draft answers a follow-up chain (draft ids change when sent)", async () => {
+  const x = setup();
+  await send(x.deps, submission(ENQUIRIES[0].data));
+  x.tick(3600e3);
+  await send(x.deps, submission({ ...ENQUIRIES[0].data, details: "Second message." }));
+  const [id] = [...x.deps.graph.drafts.keys()];
+  x.deps.graph.youSendDraft(id, "2026-11-16T19:00:00.000Z");
+  const s = await dailyCheck({ ...x.deps, now: evening("2026-11-19T18:00:00Z") });
+  assert.deepEqual([s.answered, s.reminders], [1, 0]);
+});
+
+test("a retry after a crash part-way through a follow-up still links to the earlier enquiry", async () => {
+  const x = setup();
+  await send(x.deps, submission(ENQUIRIES[0].data));
+  x.tick(3600e3);
+  const sub = submission({ ...ENQUIRIES[0].data, details: "Second message." });
+  const real = x.deps.graph.getMessage;
+  x.deps.graph.getMessage = async () => { throw new Error("boom"); }; // relabel fails → retry later
+  x.deps.notify = async () => { throw new Error("down"); };
+  await send(x.deps, sub);
+  // simulate the function being killed after the per-person pointer moved: the record stays 'processing'
+  const k = internalKey(sub.id);
+  await x.deps.store.setJSON(`rec/${k}`, { status: "processing", at: T0 });
+  x.deps.graph.getMessage = real;
+  x.deps.notify = mailboxNotifier(x.deps.graph);
+  x.tick(5 * 60e3);
+  assert.equal((await send(x.deps, sub)).result, "follow-up");
+  assert.equal(x.deps.graph.drafts.size, 1); // no second draft
+});
+
+test("a notice that can't be delivered is retried, then reported by the daily check", async () => {
+  const x = setup();
+  let fails = 2;
+  x.deps.notify = async (n) => { if (fails-- > 0) throw new Error("down"); x.deps.graph.inbox.push(n); };
+  await send(x.deps, submission(ENQUIRIES[12].data)); // sensitive: the notice is the only output
+  assert.equal(x.notices.length, 0);
+  assert.equal(recs(x)[0].noticeFailed, true);
+  const s = await dailyCheck({ ...x.deps, now: evening("2026-11-16T18:00:00Z") });
+  assert.equal(s.recovered, 1);
+  assert.match(x.notices[0].message, /couldn't be delivered/);
+  const y = setup();
+  let once = 1;
+  y.deps.notify = async (n) => { if (once-- > 0) throw new Error("blip"); y.deps.graph.inbox.push(n); };
+  await send(y.deps, submission(ENQUIRIES[12].data));
+  assert.equal(y.notices.length, 1); // a single failure is retried straight away
+});
+
+test("an enquiry stuck part-way (function killed) is reported by the daily check", async () => {
+  const x = setup();
+  await x.deps.store.setJSON(`rec/${internalKey("killed")}`, { status: "processing", at: T0 });
+  const s = await dailyCheck({ ...x.deps, now: evening("2026-11-16T18:00:00Z") });
+  assert.equal(s.recovered, 1);
+  assert.match(x.notices[0].message, /stopped part-way/);
+  await dailyCheck({ ...x.deps, now: evening("2026-11-17T18:00:00Z") });
+  assert.equal(x.notices.length, 1); // reported once
+});
+
+test("a failed re-label is retried by the daily check", async () => {
+  const x = setup();
+  await send(x.deps, submission(ENQUIRIES[0].data));
+  x.tick(3600e3);
+  const real = x.deps.graph.getMessage;
+  x.deps.graph.getMessage = async () => { throw new Error("blip"); };
+  await send(x.deps, submission({ ...ENQUIRIES[0].data, details: "My previous accountant made a mess, I want to complain." }));
+  assert.match(x.notices[1].message, /Don't send the draft/);
+  x.deps.graph.getMessage = real;
+  await dailyCheck({ ...x.deps, now: evening("2026-11-16T18:00:00Z") });
+  assert.equal([...x.deps.graph.drafts.values()][0].category, CATEGORIES.sensitiveFollowUp);
+});
+
+test("if Sent Items can't be read, no reminders are sent (better than false ones)", async () => {
+  const x = setup();
+  await send(x.deps, submission(ENQUIRIES[0].data));
+  x.deps.graph.failSent = true;
+  const s = await dailyCheck({ ...x.deps, now: evening("2026-11-19T18:00:00Z") });
+  assert.equal(s.reminders, 0);
+  assert.ok(s.errors >= 1);
+});
+
+test("the daily check reads Sent Items once, however many enquiries are open", async () => {
+  const x = setup();
+  for (const i of [0, 1, 2, 3, 12, 13]) await send(x.deps, submission(ENQUIRIES[i].data));
+  let calls = 0;
+  const real = x.deps.graph.sentSince.bind(x.deps.graph);
+  x.deps.graph.sentSince = async (iso) => { calls++; return real(iso); };
+  await dailyCheck({ ...x.deps, now: evening("2026-11-19T18:00:00Z") });
+  assert.equal(calls, 1);
+});
+
+test("real Graph client: follows absolute nextLinks on Graph only, and notices are created unread in one step", async () => {
+  const { realGraph } = await import("../lib/graph.mjs");
+  const urls = [];
+  const fetchFn = async (url, init = {}) => {
+    urls.push({ url, init });
+    if (url.includes("oauth2")) return new Response(JSON.stringify({ access_token: "tok", expires_in: 3600 }));
+    if (url.includes("page2")) return new Response(JSON.stringify({ value: [{ subject: "Re (ref ENQ-AAAAAA)", sentDateTime: "2026-11-17T10:00:00Z", toRecipients: [{ emailAddress: { address: "A@x.org" } }] }] }));
+    if (url.includes("sentitems")) return new Response(JSON.stringify({ value: [], "@odata.nextLink": "https://graph.microsoft.com/v1.0/users('drafts-test%40lucindhalawson.co.uk')/mailFolders/sentitems/messages?page2" }));
+    if (url.includes("inbox")) return new Response(JSON.stringify({ id: "n1" }));
+    return new Response("{}", { status: 404 });
+  };
+  const g = realGraph({ ...ENV }, fetchFn);
+  const sent = await g.sentSince("2026-11-16T00:00:00Z");
+  assert.deepEqual(sent, [{ subject: "Re (ref ENQ-AAAAAA)", at: "2026-11-17T10:00:00Z", recipients: ["a@x.org"] }]);
+  await g.createNotice({ subject: "[Stage 2] x", message: "y" });
+  const created = urls.find((u) => u.url.includes("inbox"));
+  const body = JSON.parse(created.init.body);
+  assert.deepEqual(body.categories, ["Stage 2 notice"]);
+  assert.ok(body.singleValueExtendedProperties.some((p) => p.id === "Integer 0x0E07" && p.value === "0"));
+  assert.ok(!urls.some((u) => u.init.method === "PATCH"));
+  const evil = realGraph({ ...ENV }, async (url) => url.includes("oauth2") ? new Response(JSON.stringify({ access_token: "t" })) : new Response(JSON.stringify({ value: [], "@odata.nextLink": "https://evil.example/steal" })));
+  await assert.rejects(evil.sentSince("2026-11-16T00:00:00Z"), /graph-bad-link/);
 });
