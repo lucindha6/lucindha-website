@@ -51,6 +51,11 @@ body = f'''
 <p><a href="https://wa.me/message/55VPGHD4HYG4B1" class="link" target="_blank" rel="noopener">Message me on WhatsApp<span class="sr"> (opens WhatsApp in a new tab)</span></a></p>
 <p>07708 996817</p>
 <p>For written messages: quick questions about my services, and arranging or changing appointments. Please send a written message rather than a voice note or call. I aim to respond within 2 working days.</p>
+<figure class="wa-qr">
+<img src="images/whatsapp-business-qr.png" width="641" height="684" loading="lazy" alt="QR code for the Lucindha Lawson Ltd WhatsApp Business account. Scanning it opens a WhatsApp chat with Lucindha Lawson Ltd.">
+<figcaption>Scan to message us on WhatsApp Business.</figcaption>
+</figure>
+<p class="small">Can't scan the code? Use the <a href="https://wa.me/message/55VPGHD4HYG4B1" target="_blank" rel="noopener">WhatsApp link<span class="sr"> (opens WhatsApp in a new tab)</span></a> instead.</p>
 <p class="wa-note"><strong>Please don't send financial documents, bank details, ID or other confidential information by WhatsApp.</strong> I'll never ask for them there, and identity checks aren't done over WhatsApp. If we work together, I'll give you a secure way to share documents. <a href="privacy.html#whatsapp">How WhatsApp messages are handled</a>.</p>
 </div>
 

@@ -643,3 +643,18 @@ body:has(.menu-open) .wa-float{display:none}
 .social-named a:focus-visible{outline:3px solid var(--gold-text);outline-offset:3px;border-radius:999px}
 html[data-theme="yellow"] .social-named a,html[data-theme="yellow"] .social-named a svg{color:#111;border-color:#111}
 @media (prefers-reduced-motion:reduce){.social-named a{transition:none}}
+
+/* Footer WhatsApp link: icon + label, 44px+ target */
+.footer-wa{display:inline-flex;align-items:center;flex-wrap:wrap;gap:4px 8px;min-height:44px;margin:6px 0;padding:6px 16px 6px 12px;border:1px solid var(--line);border-radius:22px;color:var(--cream);text-decoration:none;line-height:1.3}
+.footer-wa svg{flex:none;color:var(--gold-text)}
+.footer-wa-label{font-weight:700}
+.footer-wa-sub{color:var(--mist);font-size:.9em}
+.footer-wa:hover{background:rgba(203,171,116,.14);color:var(--cream)}
+.footer-wa:hover .footer-wa-label{text-decoration:underline}
+.footer-wa:focus-visible{outline:3px solid var(--gold-text);outline-offset:3px;border-radius:22px}
+html[data-theme="yellow"] .footer-wa,html[data-theme="yellow"] .footer-wa svg,html[data-theme="yellow"] .footer-wa-sub{color:#111;border-color:#111}
+
+/* Contact page WhatsApp QR code: shown whole on its own light background in every display mode */
+.wa-qr{margin:16px 0 12px;max-width:300px}
+.wa-qr img{display:block;width:100%;height:auto;background:#FAFAFA;border-radius:16px;border:1px solid var(--line)}
+.wa-qr figcaption{margin-top:8px;font-weight:600;color:var(--cream)}
