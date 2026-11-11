@@ -82,9 +82,9 @@ export const RIGHT_KEYS = Object.keys(RIGHTS);
 
 // Detection: first person / request-style wording only, so footers and notices don't count.
 const PATTERNS = {
-  access: /\b(subject access|dsar|right of access|copy of (all )?(of )?(my|his|her|their|our|the) (personal )?(data|information|records|details|file)|(what|all the|any) (personal )?(data|information|details|records)[^.?!\n]{0,30}\b(you|your firm)\b[^.?!\n]{0,20}\b(hold|have|keep|store)\b|(information|data|details|records?)\b[^.?!\n]{0,40}\b(hold|have|keep|store|process)\b[^.?!\n]{0,25}\b(about|on|of) me\b|(see|send me|show me|get) (my file|everything you('ve| have)? (got|hold|have) on me)|what (do )?you (have|hold|keep) on (file about )?me)\b/i,
+  access: /\b(subject access|dsar|right of access|(making|make|submit|submitting|this is) an? sar|everything (that )?you (hold|have|keep)( on| about) me|(what|any|all) (personal )?(data|information|details)( (that )?(you|your firm|your company))? (has|have|hold|holds|keep|keeps) (on|about) me|copy of (all )?(of )?(my|his|her|their|our|the) (personal )?(data|information|records|details|file)|(what|all the|any) (personal )?(data|information|details|records)[^.?!\n]{0,30}\b(you|your firm)\b[^.?!\n]{0,20}\b(hold|have|keep|store)\b|(information|data|details|records?)\b[^.?!\n]{0,40}\b(hold|have|keep|store|process)\b[^.?!\n]{0,25}\b(about|on|of) me\b|(see|send me|show me|get) (my file|everything you('ve| have)? (got|hold|have) on me)|what (do )?you (have|hold|keep) on (file about )?me)\b/i,
   rectification: /\b((rectify|correct|update|fix|amend) (my|his|her|their|the) (personal )?(data|details|information|records?|address|name|date of birth)|my (details|information|data|records?) (is|are) (wrong|incorrect|out of date|inaccurate)|you('ve| have) got my [a-z ]{1,20} wrong)\b/i,
-  erasure: /\b((delete|erase|remove|wipe|destroy) (all )?(of )?(my|his|her|their|our) (personal )?(data|information|details|records|file)|right to be forgotten|forget (me|him|her|them)|take (me|him|her|them|us) off your (system|records|database|list))\b/i,
+  erasure: /\b((delete|remove|erase) me from your (records|system|database|list|files)|(erase|delete|remove) everything (you (hold|have) )?(about|on) me|(delete|erase|remove|wipe|destroy) (all )?(of )?(my|his|her|their|our) (personal )?(data|information|details|records|file)|right to be forgotten|forget (me|him|her|them)|take (me|him|her|them|us) off your (system|records|database|list))\b/i,
   restriction: /\b(restrict (the )?(use|processing)( of my)?|restriction of processing|(pause|freeze) (using|use of|processing) my)\b/i,
   portability: /\b(data portability|port my data|(transfer|move) my (personal )?data to)\b/i,
   objection: /\b(object to (you |your )?(the )?(using|use|processing)|stop (using|processing) my (personal )?(data|information|details))\b/i,
@@ -107,7 +107,7 @@ const NEEDS_REVIEW = {
  * text = subject + the person's new words (quoted history and signatures already removed).
  */
 export function classifyRights(text) {
-  const t = clean(text, 20000);
+  const t = String(clean(text, 20000)).normalize("NFKC").replace(/[\u00a0\u2000-\u200b\u202f\u205f\u3000]/g, " ").replace(/[\u2018\u2019\u201b\u2032]/g, "'");
   const rights = RIGHT_KEYS.filter((k) => PATTERNS[k] && PATTERNS[k].test(t));
   const review = Object.entries(NEEDS_REVIEW).filter(([, re]) => re.test(t)).map(([k]) => k);
   if (rights.length > 1) review.push("more-than-one-right");
@@ -126,4 +126,5 @@ export const REVIEW_LABEL = {
   "more-than-one-right": "asks for more than one thing: each right has its own rules",
   "no-right-identified": "no specific right identified: decide what's being asked",
   "recorded-unclear": "you've recorded it as unclear",
+  "new-right-in-follow-up": "raised a new right in a reply to an existing request",
 };

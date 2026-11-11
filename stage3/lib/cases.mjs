@@ -45,7 +45,7 @@ const EVENT_VALUES = {
 };
 const VALUE_REQUIRED = new Set(["duplicate-of", "id-requested", "fee-requested", "refused", "rights-set"]);
 /** A notice counts as sent only when delivery is confirmed. */
-export const confirmed = (r) => r !== null && typeof r === "object" && r.delivered === true;
+export const confirmed = (r) => r !== null && typeof r === "object" && Object.hasOwn(r, "delivered") && r.delivered === true;
 const CLOSED = new Set(["responded", "closed", "duplicate"]);
 const STALE_CLAIM_MS = 2 * 60 * 1000;
 
@@ -73,11 +73,24 @@ export function isAutomatic(msg) {
 }
 
 /** The person's own new words: quoted earlier messages and signatures removed. */
+/** Unicode clean-up so odd spaces and curly quotes don't hide wording. */
+export const normalise = (t) => String(t ?? "").normalize("NFKC").replace(/[  -​  　]/g, " ").replace(/[‘’‛′]/g, "'").replace(/[“”]/g, '"');
+
+// A line on its own that starts a signature (short lines only, so "Many thanks for... please delete my data" is kept).
+const SIGNOFF = /^\s*(kind regards|best regards|warm regards|many thanks|thanks|thank you|regards|best wishes|cheers|sent from my [\w ]+|get outlook for [\w ]+)[,.!]?\s*$/i;
+// Lines that start a disclaimer, notice or quoted history.
+const STARTS_TAIL = /^\s*(-- ?$|-- |_{5,}|-{5,}\s*original message|on .{3,80} wrote:\s*$|disclaimer\s*[:\-]|confidentiality notice|this (e-?mail|message)( and any attachments)? (is|are|may be|contains?) (confidential|intended|private|privileged)|the information (contained )?in this (e-?mail|message)|privacy notice\s*:|how we use your (personal )?(data|information)|to unsubscribe|registered (office|in england))/i;
+const HEADER = /^\s*(from|sent|to|date|subject|cc)\s*:\s*\S/i;
+
+/** The person's own new words: quoted earlier messages, signatures and disclaimers removed. */
 export function newText(body) {
-  const lines = clean(body, 50000).split(/\r?\n/);
+  const lines = normalise(clean(body, 50000)).split(/\r?\n/);
   const out = [];
-  for (const line of lines) {
-    if (/^\s*(-- ?$|-- |_{5,}|-{5,}\s*original message|from:\s.+|on .+ wrote:|sent from my |get outlook for |kind regards|best regards|many thanks|regards,?$|thanks,?$|disclaimer|confidentiality notice|this (e-?mail|message)( and any attachments)? (is|are|may be|contains?) (confidential|intended|private|privileged)|privacy notice:|how we use your (personal )?(data|information)|to unsubscribe|registered (office|in england))/i.test(line)) break; // signature, disclaimer or quoted history starts
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (SIGNOFF.test(line) || STARTS_TAIL.test(line)) break;
+    // A quoted header block ("From: ... / Sent: ... / To: ...") starts earlier history.
+    if (/^\s*from\s*:/i.test(line) && lines.slice(i + 1, i + 4).some((l) => HEADER.test(l))) break;
     if (/^\s*>/.test(line)) continue;
     out.push(line);
   }
@@ -85,13 +98,13 @@ export function newText(body) {
 }
 
 export function looksLikePrivacyRequest(subject = "", body = "") {
-  const t = `${clean(subject, 500)}\n${newText(body)}`;
+  const t = `${normalise(clean(subject, 500))}\n${newText(body)}`;
   return PRIVACY_WORDING.test(t) || PRIVACY_ABOUT_ME.test(t) || classifyRights(t).rights.length > 0;
 }
 
 /** Rights and review flags for a privacy case, from the person's own words only. */
 export function privacyLabels(subject = "", body = "") {
-  const { rights, review } = classifyRights(`${clean(subject, 500)}\n${newText(body)}`);
+  const { rights, review } = classifyRights(`${normalise(clean(subject, 500))}\n${newText(body)}`);
   if (!rights.length) return { rights: ["unclear"], review: [...review, "no-right-identified"] };
   return { rights, review };
 }
@@ -172,10 +185,20 @@ const markNotified = (store, srcKey, source) => store.setJSON(srcKey, { ...sourc
  */
 export async function intake(msg, { store, secret, now = Date.now(), notify }) {
   const mailbox = clean(msg.mailbox, 254).toLowerCase();
-  const type = MAILBOX_TYPES[mailbox];
+  const type = Object.hasOwn(MAILBOX_TYPES, mailbox) ? MAILBOX_TYPES[mailbox] : null;
   if (!type) return { result: "ignored-unknown-mailbox", refs: [], notices: [] };
+  if (typeof notify !== "function") throw new Error("notify-required");
   const from = bareAddress(msg.from);
-  if (from.endsWith("@lucindhalawson.co.uk")) return { result: "ignored-internal", refs: [], notices: [] };
+  if (from.endsWith("@lucindhalawson.co.uk") || /lucindhalawson\.co\.uk/i.test(clean(msg.from, 320))) {
+    // Your own address (e.g. a forward from hello@): never dropped silently. One "check this" notice.
+    const k = `s3int/${sha256Hex(`int:${msg.id || `${mailbox}:${msg.receivedAt}`}`)}`;
+    await store.setJSON(k, { at: now }, { onlyIfNew: true });
+    if ((await store.get(k, { type: "json" }))?.notified) return { result: "internal-needs-check", refs: [], notices: [] };
+    const n = { subject: `[Stage 3] Message from your own address at ${mailbox}`, message: `A message from a lucindhalawson.co.uk address (for example a forward from hello@) arrived at ${mailbox}. No case was opened automatically.\n\nIf it passes on a complaint or a request from someone, log it as a case with the date it first reached you (any mailbox counts).\n\nNothing has been sent.` };
+    if (!confirmed(await notify(n))) throw new Error("notice-not-confirmed");
+    await store.setJSON(k, { at: now, notified: true });
+    return { result: "internal-needs-check", refs: [], notices: [n] };
+  }
   const okSender = /^[^\s<>]+@[^\s@<>]+$/.test(from) || /^"[^"]+"@[^\s@<>]+$/.test(from);
   const okDetails = msg.id && msg.receivedAt && Number.isFinite(Date.parse(msg.receivedAt));
   if (!okSender || !okDetails) {
@@ -234,6 +257,22 @@ export async function intake(msg, { store, secret, now = Date.now(), notify }) {
       await store.setJSON(followKey, { at: now, notified: true });
     }
     refs.push(existing.ref);
+    if (existing.type === "privacy" && privacyWording) {
+      const newRights = labels.rights.filter((r) => r !== "unclear" && !(existing.rights || []).includes(r));
+      if (newRights.length) {
+        const p = await claimCase(store, {
+          type: "privacy", sourceKey: `msg:${msg.id}:newright`,
+          fields: { channel: "email", mailbox, received, fromHash, threads: threadHash ? [threadHash] : [], linkedTo: existing.ref, viaOtherChannel: false, rights: newRights, review: [...new Set([...labels.review, "new-right-in-follow-up"])] },
+        }, now);
+        if (!p.busy) {
+          refs.push(p.case.ref);
+          if (p.fresh || !p.source.notified) {
+            await send(noticeFor("possible-privacy-request", p.case, { extra: `Raised in a reply on ${existing.ref}, so it has its own deadline from ${received}. If it's the same request, record it as a duplicate.` }));
+            await markNotified(store, p.srcKey, p.source);
+          }
+        }
+      }
+    }
   } else if (automaticNoticeOnly) {
     // complaints@ or privacy@: no case for auto-replies and bulk mail, but a "check this" notice
     // (once per message), so a request sent through a service is never silently dropped.
@@ -243,7 +282,7 @@ export async function intake(msg, { store, secret, now = Date.now(), notify }) {
       await send({ subject: `[Stage 3] Automatic-looking message at ${mailbox}`, message: `Received ${received}. It looks machine-generated (for example an auto-reply or a service's no-reply address), so no case was opened.${privacyWording ? "\n\nIt contains wording that might be a privacy request: please check it." : ""}\n\nIf it's actually a complaint or a request (some services send requests on people's behalf), log it as a case.\n\nNothing has been sent.` });
       await store.setJSON(k, { at: now, notified: true });
     }
-    return { result: "automatic-needs-check", refs: [], notices };
+    if (!privacyWording) return { result: "automatic-needs-check", refs: [], notices };
   } else {
     // 2. A NEW case. Never merged automatically: if the same person has an open case of the same
     //    type, the new one is linked and you decide whether it's the same matter.
@@ -289,7 +328,7 @@ export async function intake(msg, { store, secret, now = Date.now(), notify }) {
       }
     }
   }
-  return { result: existing ? "follow-up" : "new-case", refs, notices };
+  return { result: existing ? "follow-up" : automaticNoticeOnly ? "automatic-needs-check" : "new-case", refs, notices };
 }
 
 /**
@@ -324,7 +363,7 @@ export async function recordEvent(ref, event, date, { store, value = null, now =
       const pending = clarificationPairs(c).find((p) => !p.received);
       if (!pending || date < pending.requested) throw new Error("clarification-received-before-requested");
     }
-    if (event === "extension-notified" && !c.events.some((e) => e.event === "extended")) throw new Error("extension-not-recorded");
+    if (event === "extension-notified" && !c.events.some((e) => e.event === "extended" && e.date <= date)) throw new Error("extension-not-recorded");
     if (event === "fee-paid" && !c.events.some((e) => e.event === "fee-requested")) throw new Error("fee-not-requested");
     if (["id-requested", "id-received", "clarification-requested", "clarification-received", "fee-requested", "fee-paid", "extended", "extension-notified", "rights-set", "refused"].includes(event) && c.type !== "privacy") throw new Error("privacy-only-event");
     if (event === "clarification-requested" && value && !(c.rights || []).includes("access")) throw new Error("clarification-pause-is-for-subject-access-only");
@@ -333,7 +372,7 @@ export async function recordEvent(ref, event, date, { store, value = null, now =
     if (event === "closed") c.status = "closed";
     if (event === "duplicate-of") c.status = "duplicate";
     if (event === "id-requested") { c.idNeeded = true; c.idReason = value; }
-    if (event === "rights-set") { c.rights = value.split(","); c.review = c.rights.includes("unclear") ? ["recorded-unclear"] : []; c.reviewDone = false; }
+    if (event === "rights-set") { c.rights = [...new Set(value.split(","))]; c.review = [...new Set([...(c.review || []), ...(c.rights.includes("unclear") ? ["recorded-unclear"] : [])])]; }
     if (event === "review-done") c.reviewDone = true;
     if (event === "refused") c.status = "responded";
   });

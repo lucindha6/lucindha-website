@@ -37,7 +37,8 @@ export const REMIND_WORKING_DAYS_BEFORE = 2;
 export function complaintDeadlines({ received, acknowledged = null }) {
   assertDate(received);
   const ackDue = addWorkingDays(received, COMPLAINT_ACK_WORKING_DAYS);
-  const from = acknowledged ? assertDate(acknowledged) : ackDue;
+  if (acknowledged && assertDate(acknowledged) < received) throw new Error("acknowledged-before-received");
+  const from = acknowledged ? acknowledged : ackDue;
   const responseDue = addDays(from, COMPLAINT_RESPONSE_DAYS);
   const notes = [
     `Acknowledge by ${ackDue}: 5 working days after ${received} (weekends and bank holidays skipped).`,
@@ -139,43 +140,60 @@ export function privacyRequestDeadlines({ received, rights = ["unclear"], idNeed
   let mergedEnd = null;
   let dueSoFar = addCalendarMonths(start, 1);
   for (const [from, to, reason] of spans) {
-    if (from > dueSoFar) { warnings.push(`Clarification asked on ${from}, after the deadline (${dueSoFar}) had passed: it doesn't extend it.`); continue; }
+    if (from > onOrNextWorkingDay(dueSoFar)) { warnings.push(`Clarification asked on ${from}, after the deadline (${onOrNextWorkingDay(dueSoFar)}) had passed: it doesn't extend it.`); continue; }
     const effFrom = mergedEnd && from <= mergedEnd ? addDays(mergedEnd, 1) : from;
     if (effFrom <= to) {
       const days = daysBetween(effFrom, to) + 1; // from the day asked to the day received
       paused += days;
-      adjustments.push({ change: `paused ${days} day(s), ${effFrom} to ${to} (clarification)`, basis: "UK GDPR Art. 12A(5)", reason: CLARIFICATION_REASONS[reason] });
+      adjustments.push({ change: `subject access part paused ${days} day(s), ${effFrom} to ${to} (clarification)`, basis: "UK GDPR Art. 12A(5)", reason: CLARIFICATION_REASONS[reason] });
       mergedEnd = mergedEnd && mergedEnd > to ? mergedEnd : to;
       dueSoFar = addDays(addCalendarMonths(start, 1), paused);
     }
   }
-  if (pending) {
-    if (pending.requested > dueSoFar) warnings.push(`Clarification asked on ${pending.requested}, after the deadline (${dueSoFar}) had passed: the request is overdue.`);
-    else return out({ status: "paused", clockStarts: start, due: null, pausedDays: paused, notes: [...notes, `Paused since ${pending.requested} while you wait for clarification.`] });
-  }
-  if (paused) notes.push(`Paused for ${paused} day(s) while waiting for clarification, so the deadline moves on by ${paused} day(s).`);
+  // Rights other than access are NEVER paused by clarification: they keep their own deadline.
+  const otherRights = rightsList.filter((r) => r !== "access" && r !== "dp-complaint");
+  const pendingLive = pending && pending.requested <= onOrNextWorkingDay(dueSoFar);
+  if (pending && !pendingLive) warnings.push(`Clarification asked on ${pending.requested}, after the deadline (${onOrNextWorkingDay(dueSoFar)}) had passed: the request is overdue.`);
+  if (pendingLive && !otherRights.length) return out({ status: "paused", clockStarts: start, due: null, pausedDays: paused, notes: [...notes, `Paused since ${pending.requested} while you wait for clarification.`] });
+  if (paused && otherRights.length) notes.push(`The subject access part was paused for ${paused} day(s); the other part(s) (${otherRights.join(", ")}) were NOT paused and keep their own deadline.`);
+  else if (paused) notes.push(`Paused for ${paused} day(s) while waiting for clarification, so the deadline moves on by ${paused} day(s).`);
 
   if (onlyComplaint) return out({ status: "complaint-only", clockStarts: start, due: null, pausedDays: 0, notes: [...notes, "Data protection complaint: no one-month deadline, but acknowledge within 30 days and give the outcome without undue delay."] });
 
-  // 3. One calendar month (or three, if VALIDLY extended), plus pauses, rolled to a working day.
-  const oneMonth = addDays(addCalendarMonths(start, 1), paused);
-  const normalDue = onOrNextWorkingDay(oneMonth);
-  if (normalDue !== oneMonth) notes.push(`${oneMonth} isn't a working day, so the deadline is the next working day, ${normalDue}.`);
-  let due = normalDue;
+  // 3. One calendar month (or the extended period, if VALIDLY extended), rolled to a working day.
+  //    Extension: the earlier of "start + 3 months" and "end of first month + 2 months" (cautious reading).
+  const part = (p) => {
+    const oneMonth = addDays(addCalendarMonths(start, 1), p);
+    const normal = onOrNextWorkingDay(oneMonth);
+    const a = addDays(addCalendarMonths(start, 3), p);
+    const b = addCalendarMonths(oneMonth, 2);
+    return { oneMonth, normal, three: onOrNextWorkingDay(a < b ? a : b) };
+  };
+  const access = rightsList.includes("access") ? part(paused) : null;
+  const other = otherRights.length ? part(0) : null;
+  const parts = [access, other].filter(Boolean);
+  const normalDue = parts.map((x) => x.normal).sort()[0]; // extension notice must reach the person by the EARLIEST first-month end
+  for (const x of parts) if (x.normal !== x.oneMonth) notes.push(`${x.oneMonth} isn't a working day, so the deadline is the next working day, ${x.normal}.`);
+  let validExt = false;
   let extensionNoticeRemind = null;
   if (extended) {
-    const threeMonths = onOrNextWorkingDay(addDays(addCalendarMonths(start, 3), paused));
     if (extensionNotified && assertDate(extensionNotified) <= normalDue) {
-      due = threeMonths;
-      adjustments.push({ change: `extended from ${normalDue} to ${due}`, basis: "UK GDPR Art. 12A(3)-(4)", reason: `complex or numerous requests; notified with reasons on ${extensionNotified}` });
-      notes.push(`Extended by two months (complex or numerous request), notified ${extensionNotified}: due ${due}.`);
+      validExt = true;
+      adjustments.push({ change: `extended by two further months`, basis: "UK GDPR Art. 12A(3)-(4)", reason: `complex or numerous requests; notified with reasons on ${extensionNotified}` });
     } else if (extensionNotified) {
       warnings.push(`The extension was notified on ${extensionNotified}, after the first month ended (${normalDue}), so it isn't valid: the deadline stays ${normalDue}.`);
     } else {
-      warnings.push(`Extension not yet valid: you must tell the person, with reasons, by ${normalDue}. Until then the deadline stays ${normalDue} (it becomes ${threeMonths} once notified in time).`);
+      warnings.push(`Extension not yet valid: you must tell the person, with reasons, by ${normalDue}. Until then the normal deadline stands.`);
       extensionNoticeRemind = subtractWorkingDays(normalDue, 5);
     }
   }
+  const perRight = {};
+  if (access) perRight.access = pendingLive ? "paused" : validExt ? access.three : access.normal;
+  for (const r of otherRights) perRight[r] = validExt ? other.three : other.normal;
+  const dated = Object.values(perRight).filter((d) => d !== "paused").sort();
+  const due = dated[0];
+  if (validExt) notes.push(`Extended by two months (complex or numerous request), notified ${extensionNotified}: due ${due}.`);
+  if (Object.keys(perRight).length > 1) notes.push(`Each part has its own deadline: ${Object.entries(perRight).map(([r, d]) => `${r} ${d}`).join("; ")}. The earliest is shown as the deadline.`);
   if (rightsList.some((r) => r === "direct-marketing-objection" || r === "consent-withdrawal")) warnings.push("Act on this straight away (stop the marketing or the consent-based processing); the one month is only for confirming what you've done.");
   if (!holidaysCover(due)) warnings.push(`The bank holiday list doesn't cover ${due} yet: check the date by hand and update the list.`);
   return out({
@@ -183,6 +201,7 @@ export function privacyRequestDeadlines({ received, rights = ["unclear"], idNeed
     clockStarts: start,
     pausedDays: paused,
     due,
+    perRight,
     extensionNoticeBy: normalDue,
     extensionNoticeRemind,
     remind: subtractWorkingDays(due, 5),

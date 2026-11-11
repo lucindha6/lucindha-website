@@ -131,7 +131,7 @@ duplicate.
 
 ## 11 November 2026 update (your decisions and requirements)
 
-All fictional data, still on this branch only. 73 tests pass (50 earlier + 23 new in `tests/requirements-nov11.test.mjs`).
+All fictional data, still on this branch only. 80 tests pass (50 earlier + 30 in `tests/requirements-nov11.test.mjs`, including fixes from a second independent review: per-right deadlines when a request mixes access with other rights, safer signature handling, privacy cases for automatic-looking requests and new rights raised in replies, no silent drops of own-domain mail, and a health report that can't hide undelivered reminders).
 
 - **Rights told apart** (`lib/rights.mjs`): subject access, rectification, erasure, restriction, portability, objection, objection to direct marketing (absolute), automated decisions, consent withdrawal and data protection complaints. Each has its article, time limit and the exemptions to consider. Unusual wording ("take me off your system", "what do you have on file about me") is recognised. Requests made on someone else's behalf, with legal context, asking for more than one thing, or with no clear right go to you for **manual review**, with a reminder until you record `review-done`. You can correct the rights with `rights-set`.
 - **Deadlines follow the Data (Use and Access) Act 2025 changes** (Art. 12A UK GDPR, in force 5 Feb 2026): ID moves the start only with a recorded reason (reasonable doubts, or someone acting for the person); a fee only for manifestly unfounded or excessive requests; the clarification pause applies to **subject access only**, with a recorded reason. Every deadline shows the **original date, each adjustment with its legal basis, and the resulting date**.

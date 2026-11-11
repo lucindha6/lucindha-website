@@ -176,7 +176,9 @@ test("automatic emails, internal emails and unknown mailboxes never create cases
   }
   assert.equal((await intake(message({ from: "no-reply@example.org" }), x)).result, "automatic-needs-check");
   assert.equal((await intake(message({ mailbox: "media@lucindhalawson.co.uk", headers: { Precedence: "bulk" } }), x)).result, "ignored-automatic");
-  assert.equal((await intake(message({ from: "hello@lucindhalawson.co.uk" }), x)).result, "ignored-internal");
+  const internal = await intake(message({ from: "hello@lucindhalawson.co.uk" }), x);
+  assert.equal(internal.result, "internal-needs-check"); // never silently dropped
+  assert.match(internal.notices[0].subject, /from your own address/);
   assert.equal((await intake(message({ mailbox: "hello@lucindhalawson.co.uk" }), x)).result, "ignored-unknown-mailbox");
   assert.equal([...x.store.m.keys()].filter((k) => k.startsWith("case/")).length, 0);
   assert.equal(isAutomatic({ from: "a@b.org", headers: { "Auto-Submitted": "no" } }), false);
@@ -508,7 +510,8 @@ test("review 14: 'Name <address>' senders are handled consistently; internal sen
   const a = await intake(message({ from: "Jo Fictional <jo@example.org>", subject: "Complaint" }), x);
   const b = await intake(message({ from: "jo@example.org", subject: `RE: ${a.refs[0]}`, conversationId: "new-thread" }), x);
   assert.equal(b.result, "follow-up");
-  assert.equal((await intake(message({ from: "Me <hello@lucindhalawson.co.uk>" }), x)).result, "ignored-internal");
+  assert.equal((await intake(message({ from: "Me <hello@lucindhalawson.co.uk>" }), x)).result, "internal-needs-check");
+  assert.equal((await intake(message({ from: "real@example.org <a@lucindhalawson.co.uk" }), x)).result, "internal-needs-check");
 });
 
 test("review 14: tripwires also catch rm(), ['delete'] and dynamic import()", () => {
@@ -559,4 +562,5 @@ test("re-check D: automatic-looking mail at privacy@ always opens a case (legal 
   const c = await intake(message({ from: "no-reply@service.example", bodyText: "FICTIONAL. please send a copy of my data" }), x);
   assert.equal(c.result, "automatic-needs-check");
   assert.match(c.notices[0].message, /might be a privacy request/);
+  assert.match(c.refs[0], /^DSR-/); // and a privacy case is opened, so the deadline is tracked
 });

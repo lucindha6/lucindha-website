@@ -20,7 +20,8 @@ const LEVEL = { ok: "OK", warn: "CHECK", bad: "ACTION" };
  * REQUIRED facts: deploys, functions, tasks, reconciliation, reminders, credentials. If any is
  * missing, the report can't be "OK": it says so as ACTION. It never shows a healthy status by default.
  */
-const tidy = (v, n = 60) => String(v ?? "").replace(/[^\w .:/()-]/g, "_").replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "[address removed]").slice(0, n);
+// Remove addresses FIRST (and anything address-like), then odd characters.
+const tidy = (v, n = 60) => String(v ?? "").replace(/[^\s@]+@[^\s@]+/g, "[address removed]").replace(/[^\w .:/()\[\]-]/g, "_").slice(0, n);
 export function buildHealthReport(facts) {
   const asOf = assertDate(facts.asOf);
   const items = [];
@@ -39,7 +40,8 @@ export function buildHealthReport(facts) {
   // Reminders: only confirmed deliveries count.
   const rm = facts.reminders;
   if (rm && [rm.attempted, rm.confirmed].every(Number.isInteger)) {
-    const undelivered = Number.isInteger(rm.undelivered) ? rm.undelivered : rm.attempted - rm.confirmed;
+    // Never trust a lower "undelivered" figure than the counts show.
+    const undelivered = Math.max(Number.isInteger(rm.undelivered) ? rm.undelivered : 0, rm.attempted - rm.confirmed);
     if (undelivered > 0) add("bad", `Reminders: ${undelivered} of ${rm.attempted} not confirmed as delivered (they'll be retried). Check the reminder route.`);
     else add("ok", `Reminders: ${rm.confirmed} sent, all confirmed delivered.`);
     if (Number.isInteger(rm.caseErrors) && rm.caseErrors > 0) add("bad", `Case check: ${rm.caseErrors} case(s) couldn't be checked. Look at their dates.`);
@@ -58,6 +60,7 @@ export function buildHealthReport(facts) {
     else add("bad", `${tidy(d.site)}: latest deploy is "${tidy(d.state, 20)}" (${tidy(d.date, 10)}). Check Netlify.`);
   }
   for (const f of facts.functions || []) {
+    if (!Number.isInteger(f.calls) || !Number.isInteger(f.errors)) { add("bad", `${tidy(f.site)}/${tidy(f.name)}: call or error count missing, so it can't be confirmed healthy.`); continue; }
     const rate = f.calls ? f.errors / f.calls : 0;
     if (f.errors > 0 && !f.calls) add("bad", `${tidy(f.site)}/${tidy(f.name)}: ${f.errors} error(s) with no successful calls recorded.`);
     else if (f.errors === 0) add("ok", `${tidy(f.site)}/${tidy(f.name)}: ${f.calls} calls, no errors.`);
@@ -66,9 +69,9 @@ export function buildHealthReport(facts) {
   }
   for (const t of facts.tasks || []) {
     const age = t.lastRun ? daysBetween(t.lastRun, asOf) : Infinity;
-    if (!t.lastRun) add("warn", `Scheduled task "${tidy(t.name)}": has never run.`);
+    if (!t.lastRun) add("bad", `Scheduled task "${tidy(t.name)}": has never run.`);
     else if (t.status !== "succeeded") add("bad", `Scheduled task "${tidy(t.name)}": last run ${t.status} on ${t.lastRun}.`);
-    else if (age > (t.expectedEveryDays || 7) + 1) add("warn", `Scheduled task "${tidy(t.name)}": hasn't run since ${t.lastRun}.`);
+    else if (age > (t.expectedEveryDays || 7) + 1) add("bad", `Scheduled task "${tidy(t.name)}": hasn't run since ${t.lastRun}.`);
     else add("ok", `Scheduled task "${tidy(t.name)}": ran ${t.lastRun}.`);
   }
   const expiries = [...(facts.expiries || []), { what: "Bank holiday list in Stage 2 and Stage 3", date: HOLIDAYS_VALID_UNTIL }];

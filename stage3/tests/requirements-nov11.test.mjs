@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { memoryStore, message, SECRET } from "./helpers.mjs";
 import { intake, logCase, recordEvent as rawRecordEvent, dailyCaseCheck, getCase, looksLikePrivacyRequest, privacyLabels, deadlinesFor, confirmed } from "../lib/cases.mjs";
-import { privacyRequestDeadlines } from "../lib/deadlines.mjs";
+import { privacyRequestDeadlines, complaintDeadlines } from "../lib/deadlines.mjs";
 import { classifyRights, RIGHTS } from "../lib/rights.mjs";
 import { monthlyReview, recordManualDeletion, SCHEDULE, OUTSIDE_NETLIFY } from "../lib/retention.mjs";
 import { buildHealthReport } from "../lib/health.mjs";
@@ -81,7 +81,8 @@ test("clarification pauses only subject access requests, and only with a reason"
   const noReason = privacyRequestDeadlines({ received: "2026-11-16", rights: ["access"], clarifications: [{ requested: "2026-11-20", received: "2026-11-30" }] });
   assert.equal(noReason.due, "2026-12-16");
   const mixed = privacyRequestDeadlines({ received: "2026-11-16", rights: ["access", "erasure"], clarifications: [{ requested: "2026-11-20", received: "2026-11-22", reason: "unclear-scope" }] });
-  assert.equal(mixed.due, "2026-12-21"); // 16 Dec + 3 = Sat 19 Dec -> Mon 21
+  assert.deepEqual(mixed.perRight, { access: "2026-12-21", erasure: "2026-12-16" }); // only the access part is paused
+  assert.equal(mixed.due, "2026-12-16");
 });
 
 test("a fee only for manifestly unfounded or excessive requests; the clock starts when it's paid", () => {
@@ -122,7 +123,8 @@ test("intake labels privacy cases; recorded events need legal reasons; clarifica
   await recordEvent(c.ref, "rights-set", "2026-11-17", { ...x, value: "erasure,access" });
   await recordEvent(c.ref, "clarification-requested", "2026-11-17", { ...x, value: "unclear-scope" });
   c = await getCase(x.store, c.ref);
-  assert.equal(deadlinesFor(c).status, "paused");
+  assert.equal(deadlinesFor(c).status, "running"); // erasure keeps running while the access part is paused
+  assert.deepEqual(deadlinesFor(c).perRight, { access: "paused", erasure: "2026-12-16" });
   await assert.rejects(recordEvent(c.ref, "rights-set", "2026-11-17", { ...x, value: "erasure,teleport" }), /bad-value/);
   const cmp = await intake(message(), x);
   await assert.rejects(recordEvent(cmp.refs[0], "fee-requested", "2026-11-17", { ...x, value: "manifestly-excessive" }), /privacy-only/);
@@ -288,6 +290,87 @@ test("health: received vs processed reconciled; failed reminders, case errors an
 });
 
 test("health: reports never carry personal information", () => {
-  const r = buildHealthReport({ ...healthy, tasks: [{ name: "check for jane.doe@example.org", lastRun: "2026-11-16", status: "succeeded", expectedEveryDays: 1 }] });
+  const r = buildHealthReport({ ...healthy, tasks: [{ name: "check for jane.doe@example.org", lastRun: "2026-11-16", status: "succeeded", expectedEveryDays: 1 }], reconciliation: [{ stage: "Stage 1 (j.smith@example.com)", received: 1, processed: 1 }] });
   assert.ok(!/@/.test(r.text));
+  assert.ok(!/jane|doe|smith|example\.(org|com)/i.test(r.text), r.text);
+  assert.match(r.text, /\[address removed\]/);
+});
+
+test("health (review 2): undelivered reminders can't be hidden; missing call counts and overdue tasks need action", () => {
+  let r = buildHealthReport({ ...healthy, reminders: { attempted: 4, confirmed: 2, undelivered: 0, caseErrors: 0 } });
+  assert.equal(r.overall, "bad");
+  assert.match(r.text, /2 of 4 not confirmed/);
+  r = buildHealthReport({ ...healthy, functions: [{ site: "lucindha", name: "f", errors: 0 }] });
+  assert.equal(r.overall, "bad");
+  assert.ok(!/undefined/.test(r.text));
+  r = buildHealthReport({ ...healthy, tasks: [{ name: "daily check", lastRun: "2026-11-01", status: "succeeded", expectedEveryDays: 1 }] });
+  assert.equal(r.overall, "bad");
+});
+
+// ------------------------------------------------------------------ second independent review (11 Nov)
+test("review 2-H2: requests after a sign-off phrase, in unusual words or with odd characters are caught", () => {
+  for (const b of [
+    "FICTIONAL. Many thanks for the interview. Separately, please delete all my personal data you hold.",
+    "FICTIONAL. I'm making a SAR.", "FICTIONAL. Please send me everything you hold about me.",
+    "FICTIONAL. Tell me what personal information your firm has on me.", "FICTIONAL. Please delete me from your records.",
+    "FICTIONAL. Erase everything about me.", "FICTIONAL. A copy of my personal data please.", "FICTIONAL. You’ve got my surname wrong.",
+  ]) assert.equal(looksLikePrivacyRequest("x", b), true, b);
+  assert.equal(looksLikePrivacyRequest("x", "FICTIONAL. Hi.\nThe information contained in this email is confidential. You have a right of access."), false);
+  assert.equal(looksLikePrivacyRequest("x", "FICTIONAL. Ok.\nFrom: Someone\nSent: Monday\nTo: me\nPlease delete all my data"), false);
+});
+
+test("review 2-H3: a clarification pause never delays the non-access parts of a request", () => {
+  const d = privacyRequestDeadlines({ received: "2026-11-02", rights: ["access", "erasure"], clarifications: [{ requested: "2026-11-03", received: "2026-11-23", reason: "unclear-scope" }] });
+  assert.equal(d.due, "2026-12-02");
+  assert.deepEqual(d.perRight, { access: "2026-12-23", erasure: "2026-12-02" });
+  const open = privacyRequestDeadlines({ received: "2026-11-02", rights: ["access", "erasure"], clarifications: [{ requested: "2026-11-03", reason: "unclear-scope" }] });
+  assert.equal(open.status, "running");
+  assert.equal(open.due, "2026-12-02");
+});
+
+test("review 2-H3: extension uses the earlier reading; weekend deadline handled for late clarification", () => {
+  const d = privacyRequestDeadlines({ received: "2026-01-31", rights: ["access"], extended: true, extensionNotified: "2026-02-10" });
+  assert.equal(d.due, "2026-04-28"); // 28 Feb + 2 months (earlier than 30 Apr)
+  // Deadline 13 Dec 2026 is a Sunday -> Mon 14 Dec; a clarification asked on Mon 14 Dec still counts
+  const c = privacyRequestDeadlines({ received: "2026-11-13", rights: ["access"], clarifications: [{ requested: "2026-12-14", received: "2026-12-15", reason: "large-volume" }] });
+  assert.equal(c.adjustments.length, 1);
+});
+
+test("review 2-M4: an automatic-looking privacy request at complaints@ or media@ still gets a privacy case", async () => {
+  const x = deps();
+  for (const mailbox of ["complaints@lucindhalawson.co.uk", "media@lucindhalawson.co.uk"]) {
+    const r = await intake(message({ mailbox, from: "noreply@dsar-service.example", bodyText: "FICTIONAL. On behalf of our user: a copy of all their personal data you hold about me." }), x);
+    assert.ok(r.refs.some((ref) => /^DSR-/.test(ref)), mailbox);
+  }
+});
+
+test("review 2-M5/M6: recording rights keeps the review flag; a new right in a reply gets its own linked case", async () => {
+  const x = deps();
+  const a = await intake(message({ id: "m5", mailbox: P, conversationId: "th-m5", bodyText: "FICTIONAL. On behalf of my father, a copy of all his records please." }), x);
+  await recordEvent(a.refs[0], "rights-set", "2026-11-17", { ...x, value: "access" });
+  let c = await getCase(x.store, a.refs[0]);
+  assert.ok(c.review.includes("on-behalf"));
+  assert.ok((await dailyCaseCheck({ ...x, today: "2026-11-19" })).some((n) => /Read this request yourself/.test(n.subject)));
+  const b = await intake(message({ id: "m6", mailbox: P, conversationId: "th-m5", from: "fictional.person1@example.org", receivedAt: "2026-11-20T10:00:00Z", bodyText: "FICTIONAL. Also delete my data and stop sending me marketing." }), x);
+  assert.equal(b.refs[0], a.refs[0]);
+  const linked = await getCase(x.store, b.refs[1]);
+  assert.deepEqual(linked.rights.sort(), ["direct-marketing-objection", "erasure"]);
+  assert.equal(linked.received, "2026-11-20");
+  assert.equal(linked.linkedTo, a.refs[0]);
+  assert.ok(linked.review.includes("new-right-in-follow-up"));
+});
+
+test("review 2-M7 and low: own-domain mail gets a check notice; prototype tricks and bad orders refused", async () => {
+  const x = deps();
+  assert.equal((await intake(message({ from: "hello@lucindhalawson.co.uk" }), x)).notices.length, 1);
+  assert.equal((await intake(message({ mailbox: "__proto__" }), x)).result, "ignored-unknown-mailbox");
+  assert.equal(confirmed(Object.create({ delivered: true })), false);
+  const c = await logCase({ type: "privacy", channel: "letter", received: "2026-11-16", rights: ["access"] }, x);
+  await recordEvent(c.ref, "extended", "2026-11-20", x);
+  await assert.rejects(recordEvent(c.ref, "extension-notified", "2026-11-18", x), /extension-not-recorded/);
+  assert.throws(() => complaintDeadlines({ received: "2026-11-16", acknowledged: "2026-11-10" }), /acknowledged-before-received/);
+  const r = monthlyReview([{ id: "jane@example.org", category: "enquiry-no-work", clockDate: "2025-01-01", flags: ["constructor"] }], { asOf: "2026-12-01" });
+  assert.ok(!/jane/.test(JSON.stringify(r.audit)) && !/jane/.test(r.text));
+  assert.equal(r.potentially.length, 0);
+  assert.match(r.text, /unrecognised flag/);
 });
