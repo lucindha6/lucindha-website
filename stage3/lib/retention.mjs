@@ -43,7 +43,8 @@ export function dryRun(items, { asOf, schedule = SCHEDULE } = {}) {
     const id = tidy(it.id, 64) || "(no id)";
     const category = tidy(it.category, 40);
     const rule = Object.prototype.hasOwnProperty.call(schedule.rules, it.category) ? schedule.rules[it.category] : null;
-    const rawFlags = Array.isArray(it.flags) ? it.flags.map(String) : [];
+    const badFlagsShape = it.flags !== undefined && !Array.isArray(it.flags);
+    const rawFlags = Array.isArray(it.flags) ? it.flags.map(String) : badFlagsShape ? ["(flags not a list)"] : [];
     const flags = rawFlags.filter((f) => EXCEPTIONS[f]);
     const unknownFlags = rawFlags.filter((f) => !EXCEPTIONS[f]);
     // The clock date must be given explicitly, unless the rule really counts from creation.

@@ -34,7 +34,9 @@ const STALE_CLAIM_MS = 2 * 60 * 1000;
 
 // A privacy request needn't say "subject access": broad on purpose (a false alarm only means a check).
 const PRIVACY_ABOUT_ME = /\b(information|data|details|records?)\b[^.?!\n]{0,40}\b(hold|have|keep|store|process)\b[^.?!\n]{0,25}\b(about|on|of) me\b/i;
-const PRIVACY_WORDING = /\b(subject access|sar|dsar|my (personal )?(data|information|details)|data (you|that you) hold|information (you|that you) hold|copy of (my|all) (data|information|records)|gdpr|data protection|delete (my|all)|erase|erasure|right to be forgotten|rectif\w*|object to (the )?processing|stop (using|processing)|data portability)\b/i;
+// Request-style wording only (first person, or naming the right), so ordinary email footers such as
+// "we process personal data in line with data protection law" don't open privacy cases.
+const PRIVACY_WORDING = /\b(subject access|dsar|my (personal )?(data|information|details|records)|data (you|that you) hold|information (you|that you) hold|copy of (my|all) (data|information|records)|(delete|erase|remove) (my|all my)|right to be forgotten|right of access|(rectify|correct) my|object to (you )?(the )?processing|stop (using|processing) my|data portability)\b/i;
 const AUTOMATIC_SENDER = /^(no-?reply|do-?not-?reply|mailer-daemon|postmaster|bounce\w*|notifications?)@/i;
 
 /** Bare, lower-case address from "Name <addr@x>" or "addr@x". */
@@ -53,8 +55,20 @@ export function isAutomatic(msg) {
   return AUTOMATIC_SENDER.test(bareAddress(msg.from));
 }
 
-export function looksLikePrivacyRequest(...texts) {
-  const t = texts.map((x) => clean(x, 50000)).join("\n");
+/** The person's own new words: quoted earlier messages and signatures removed. */
+export function newText(body) {
+  const lines = clean(body, 50000).split(/\r?\n/);
+  const out = [];
+  for (const line of lines) {
+    if (/^\s*(-- ?|_{5,}|-{5,}\s*original message|from:\s.+|on .+ wrote:|sent from my )/i.test(line)) break; // signature or quoted history starts
+    if (/^\s*>/.test(line)) continue;
+    out.push(line);
+  }
+  return out.join("\n");
+}
+
+export function looksLikePrivacyRequest(subject = "", body = "") {
+  const t = `${clean(subject, 500)}\n${newText(body)}`;
   return PRIVACY_WORDING.test(t) || PRIVACY_ABOUT_ME.test(t);
 }
 
@@ -137,9 +151,16 @@ export async function intake(msg, { store, secret, now = Date.now(), notify = as
   const type = MAILBOX_TYPES[mailbox];
   if (!type) return { result: "ignored-unknown-mailbox", refs: [], notices: [] };
   const from = bareAddress(msg.from);
-  if (!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(from)) return { result: "ignored-no-sender", refs: [], notices: [] };
   if (from.endsWith("@lucindhalawson.co.uk")) return { result: "ignored-internal", refs: [], notices: [] };
-  if (!msg.id || !msg.receivedAt || !Number.isFinite(Date.parse(msg.receivedAt))) return { result: "ignored-incomplete", refs: [], notices: [] };
+  const okSender = /^[^\s<>]+@[^\s@<>]+$/.test(from) || /^"[^"]+"@[^\s@<>]+$/.test(from);
+  const okDetails = msg.id && msg.receivedAt && Number.isFinite(Date.parse(msg.receivedAt));
+  if (!okSender || !okDetails) {
+    // Never silently dropped: a "check this" notice (once per message where it has an id).
+    const k = `s3odd/${sha256Hex(`odd:${msg.id || `${mailbox}:${from}:${msg.receivedAt}`}`)}`;
+    const n = { subject: `[Stage 3] Message at ${mailbox} needs checking`, message: `A message arrived at ${mailbox} that Stage 3 couldn't read properly (${okSender ? "missing date or id" : "unusual sender address"}), so no case was opened.\n\nPlease look at it in the mailbox and log it as a case if it's a complaint or request.\n\nNothing has been sent.` };
+    if ((await store.setJSON(k, { at: now }, { onlyIfNew: true }))?.modified === true) { await notify(n); return { result: "needs-check", refs: [], notices: [n] }; }
+    return { result: "needs-check", refs: [], notices: [] };
+  }
 
   const fromHash = keyedHash(from, secret);
   const threadHash = msg.conversationId ? keyedHash(`thread:${msg.conversationId}`, secret) : null;
@@ -151,8 +172,11 @@ export async function intake(msg, { store, secret, now = Date.now(), notify = as
   const refs = [];
   const send = async (n) => { await notify(n); notices.push(n); };
 
-  // Automatic-looking media mail with nothing suggesting a request: ignored (no legal deadline).
+  // Automatic-looking mail: media@ is ignored unless it has request wording (no legal deadline);
+  // complaints@ gets a "check this" notice; privacy@ ALWAYS opens a case, because a request sent
+  // through a service from a no-reply address still has a legal deadline.
   if (automatic && !privacyWording && type === "media") return { result: "ignored-automatic", refs: [], notices: [] };
+  const automaticNoticeOnly = automatic && type !== "privacy";
 
   const open = (await allCases(store)).filter((c) => !CLOSED.has(c.status));
 
@@ -174,13 +198,13 @@ export async function intake(msg, { store, secret, now = Date.now(), notify = as
       await store.setJSON(followKey, { at: now, notified: true });
     }
     refs.push(existing.ref);
-  } else if (automatic && !privacyWording) {
+  } else if (automaticNoticeOnly) {
     // complaints@ or privacy@: no case for auto-replies and bulk mail, but a "check this" notice
     // (once per message), so a request sent through a service is never silently dropped.
     const k = `s3auto/${sha256Hex(`auto:${msg.id}`)}`;
     await store.setJSON(k, { at: now }, { onlyIfNew: true });
     if (!(await store.get(k, { type: "json" }))?.notified) {
-      await send({ subject: `[Stage 3] Automatic-looking message at ${mailbox}`, message: `Received ${received}. It looks machine-generated (for example an auto-reply or a service's no-reply address), so no case was opened.\n\nIf it's actually a complaint or a request (some services send requests on people's behalf), log it as a case.\n\nNothing has been sent.` });
+      await send({ subject: `[Stage 3] Automatic-looking message at ${mailbox}`, message: `Received ${received}. It looks machine-generated (for example an auto-reply or a service's no-reply address), so no case was opened.${privacyWording ? "\n\nIt contains wording that might be a privacy request: please check it." : ""}\n\nIf it's actually a complaint or a request (some services send requests on people's behalf), log it as a case.\n\nNothing has been sent.` });
       await store.setJSON(k, { at: now, notified: true });
     }
     return { result: "automatic-needs-check", refs: [], notices };
@@ -206,7 +230,17 @@ export async function intake(msg, { store, secret, now = Date.now(), notify = as
 
   // 3. Privacy wording outside a privacy case (another inbox, or inside a complaint or media
   //    thread): open a linked privacy case counted from today. Finishes the job on a retry too.
-  if (privacyWording && type !== "privacy") {
+  const ownPrivacy = await store.get(`s3src/${sha256Hex(`case:privacy:msg:${msg.id}:privacy`)}`, { type: "json" });
+  const threadPrivacy = threadHash && !ownPrivacy?.ref ? open.find((c) => c.type === "privacy" && (c.threads || []).includes(threadHash)) : null;
+  if (privacyWording && type !== "privacy" && threadPrivacy) {
+    const k = `s3fu/${sha256Hex(`fu:${msg.id}:${threadPrivacy.ref}`)}`;
+    await store.setJSON(k, { at: now }, { onlyIfNew: true });
+    if (!(await store.get(k, { type: "json" }))?.notified) {
+      await send(noticeFor("follow-up", threadPrivacy, { extra: "More privacy wording in this thread. No new case opened." }));
+      await store.setJSON(k, { at: now, notified: true });
+    }
+    refs.push(threadPrivacy.ref);
+  } else if (privacyWording && type !== "privacy") {
     const p = await claimCase(store, {
       type: "privacy", sourceKey: `msg:${msg.id}:privacy`,
       fields: { channel: "email", mailbox, received, fromHash, threads: threadHash ? [threadHash] : [], linkedTo: refs[0] || null, viaOtherChannel: true },

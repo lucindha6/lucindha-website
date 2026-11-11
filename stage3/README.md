@@ -52,6 +52,14 @@ So Stage 3 separates the two jobs:
 - **Privacy wording is checked everywhere.** It's checked in **every** message, subject and body, new
   or follow-up. A privacy request inside a complaint thread opens a linked privacy case. Threads only
   match cases of the same type.
+- **Footers don't count.** Privacy wording means request-style wording only ("send me a copy of my
+  data", "what information do you hold about me", "delete my details", "right of access"). It's
+  checked in the person's **new** text only: quoted earlier messages and signatures are skipped, so a
+  footer like "we process personal data in line with data protection law" opens no case. A thread
+  that already has a privacy case gets a follow-up notice, not another case.
+- **Automatic mail at privacy@ still opens a case.** It always opens a case there, because a request
+  sent through a service still has a legal deadline. Messages Stage 3 can't read properly (no date, an
+  unreadable sender) get a "needs checking" notice.
 - **Interrupted runs finish next time.** A run stopped part-way finishes the job on the next try,
   without sending notices twice.
 - **Reminders are confirmed.** A reminder is recorded as sent only after it's delivered.
@@ -114,3 +122,9 @@ privacy notice and is marked **not approved**.
 
 Never: sending email, deleting anything, sending message text to AI, storing names, addresses,
 subjects or message text, or deciding a complaint or privacy request.
+
+## Known limitation
+
+If two **new** messages in the same brand-new email thread are processed at exactly the same moment,
+both can open a case. This errs on the safe side: nothing is lost, and you'd record one as a
+duplicate.

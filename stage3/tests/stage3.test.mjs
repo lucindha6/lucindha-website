@@ -483,7 +483,7 @@ test("review 11: privacy wording in the SUBJECT counts; long messages are fully 
   const x = deps();
   const r = await intake(message({ subject: "Subject Access Request", bodyText: "FICTIONAL. See attached." }), x);
   assert.equal(r.refs.length, 2);
-  assert.ok(looksLikePrivacyRequest("x".repeat(20000) + " what data do you hold about me"));
+  assert.ok(looksLikePrivacyRequest("", "x".repeat(20000) + " what data do you hold about me"));
 });
 
 test("review 12: the health report never says OK when it has no data", () => {
@@ -518,4 +518,44 @@ test("review 14: tripwires also catch rm(), ['delete'] and dynamic import()", ()
       assert.ok(!/\brm\(|\[["']delete["']\]|\bimport\(\s*["'][^"']*(stage2|netlify)/.test(src), f);
     }
   }
+});
+
+// ===================================================== fixes from the re-check of the review fixes
+test("re-check A: ordinary email footers and quoted history don't open privacy cases; one privacy case per thread", async () => {
+  const footer = "\n--\nFictional Ltd. We process personal data in line with data protection law (GDPR). Erasure requests: see our policy.";
+  assert.equal(looksLikePrivacyRequest("Complaint", "FICTIONAL. I'm unhappy with the service." + footer), false);
+  assert.equal(looksLikePrivacyRequest("Re: complaint", "Thanks.\n\nOn Mon, Jo wrote:\n> please send me a copy of my data"), false);
+  const x = deps();
+  const m = message({ bodyText: "FICTIONAL. Please send me a copy of my data." });
+  const a = await intake(m, x);
+  assert.equal(a.refs.length, 2);
+  const b = await intake(message({ from: m.from, conversationId: m.conversationId, bodyText: "FICTIONAL. Following up: I want all the information you hold about me." }), x);
+  assert.deepEqual(b.refs, [a.refs[0], a.refs[1]], "the thread's existing privacy case is followed up, no new one");
+  assert.equal([...x.store.m.keys()].filter((k) => k.startsWith("case/DSR-")).length, 1);
+});
+
+test("re-check B: retention keeps items whose flags aren't a list", () => {
+  const r = dryRun([{ id: "a", category: "enquiry-no-work", clockDate: "2020-01-01", flags: "legal-hold" }, { id: "b", category: "enquiry-no-work", clockDate: "2020-01-01", flags: { "legal-hold": true } }], { asOf: "2026-11-11" });
+  assert.ok(r.rows.every((x) => x.action === "keep"));
+});
+
+test("re-check C: unusual senders or incomplete messages get a check notice, never silently dropped", async () => {
+  const x = deps();
+  assert.equal((await intake(message({ from: "kim@localhost" }), x)).result, "new-case", "unusual but valid: accepted");
+  assert.equal((await intake(message({ from: '"john smith"@example.org' }), x)).result, "new-case");
+  for (const m of [message({ from: "not an address" }), message({ receivedAt: "not a date" }), message({ id: "" })]) {
+    const r = await intake(m, x);
+    assert.equal(r.result, "needs-check");
+    assert.match(r.notices[0].subject, /needs checking/);
+  }
+});
+
+test("re-check D: automatic-looking mail at privacy@ always opens a case (legal deadline); at complaints@ a check notice", async () => {
+  const x = deps();
+  const p = await intake(message({ mailbox: "privacy@lucindhalawson.co.uk", from: "no-reply@service.example", bodyText: "FICTIONAL. See attached." }), x);
+  assert.equal(p.result, "new-case");
+  assert.match(p.refs[0], /^DSR-/);
+  const c = await intake(message({ from: "no-reply@service.example", bodyText: "FICTIONAL. please send a copy of my data" }), x);
+  assert.equal(c.result, "automatic-needs-check");
+  assert.match(c.notices[0].message, /might be a privacy request/);
 });
