@@ -143,7 +143,7 @@ All fictional data, still on this branch only. 80 tests pass (50 earlier + 30 in
 
 ## 11 November 2026, second set (approved for fictional-data development)
 
-91 tests pass (11 new in `tests/safeguards-nov11b.test.mjs`).
+94 tests pass (14 in `tests/safeguards-nov11b.test.mjs`, including fixes from a third independent review: "closed" can't skip open parts or the privacy check, the deadline check counts only after an extension notice, the extension-notice target is the calendar date, weekly reviews must be complete and not future-dated, and the sample size is fixed at 3).
 
 - **Manual privacy check** on every new complaint and media case: the notice asks you to read it for any request about personal data, with a reminder until you record `privacy-check-done` (`none-found` or `privacy-case-logged`). A request you find is logged with its original receipt date.
 - **Weekly manual review checklist** (`lib/reviews.mjs`) covering hello@, WhatsApp Business, social media, post, call notes and other mailboxes. It is a backstop only, never a substitute for checking messages promptly. The health report needs its date, and is ACTION if it's more than 7 days old.

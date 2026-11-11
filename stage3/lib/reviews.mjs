@@ -34,7 +34,7 @@ export function weeklyReview({ weekOf, done = {}, found = 0 }) {
     `Logged as cases this week: ${Number.isInteger(found) && found >= 0 ? found : "not recorded"}.`,
     outstanding.length ? "NOT COMPLETE: some places haven't been checked." : "Complete.",
   ].join("\n");
-  return { weekOf, complete: outstanding.length === 0, outstanding: outstanding.map((o) => o.id), text, audit: { weekOf, checked: rows.filter((r) => r.status !== "not yet checked").map((r) => r.id), found: Number.isInteger(found) ? found : null } };
+  return { weekOf, complete: outstanding.length === 0, outstanding: outstanding.map((o) => o.id), text, audit: { weekOf, complete: outstanding.length === 0, checked: rows.filter((r) => r.status !== "not yet checked").map((r) => r.id), found: Number.isInteger(found) ? found : null } };
 }
 
 /**
@@ -42,22 +42,31 @@ export function weeklyReview({ weekOf, done = {}, found = 0 }) {
  * fixed scramble of the reference (so the choice can't be steered), for you to reread for anything
  * missed. Returns references only.
  */
-export function monthlySample(cases, { month, n = 3 }) {
+export const SAMPLE_SIZE = 3;
+export function monthlySample(cases, { month }) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error("bad-month");
+  const n = SAMPLE_SIZE; // fixed, so the sample can't be steered
   const pool = cases.filter((c) => ["complaint", "media"].includes(c.type) && ["responded", "closed", "duplicate"].includes(c.status) && typeof c.received === "string" && c.received.startsWith(month));
   return pool.map((c) => ({ ref: c.ref, k: sha256Hex(`sample:${month}:${c.ref}`) })).sort((a, b) => (a.k < b.k ? -1 : 1)).slice(0, n).map((x) => x.ref);
 }
 
-/** For the health report: are the manual reviews up to date? */
-export function manualReviewStatus({ asOf, weeklyLastDone = null, monthlySampleLastDone = null }) {
+/**
+ * For the health report: are the manual reviews up to date? `weekly` is the audit record from a
+ * COMPLETE weeklyReview (a bare date isn't enough); dates in the future are refused.
+ */
+export function manualReviewStatus({ asOf, weekly = null, monthlySampleLastDone = null }) {
   assertDate(asOf);
   const out = [];
-  const age = (d) => { try { return daysBetween(assertDate(d), asOf); } catch { return Infinity; } };
-  const w = age(weeklyLastDone);
-  if (w > 7) out.push({ level: "bad", text: weeklyLastDone ? `Weekly manual review last done ${weeklyLastDone} (${w} days ago). Do it now.` : "Weekly manual review: no record of it being done." });
-  else out.push({ level: "ok", text: `Weekly manual review done ${weeklyLastDone}.` });
+  const age = (d) => { try { return daysBetween(assertDate(d), asOf); } catch { return null; } };
+  const w = weekly && typeof weekly === "object" ? age(weekly.weekOf) : null;
+  if (!weekly || typeof weekly !== "object") out.push({ level: "bad", text: "Weekly manual review: no completed checklist recorded." });
+  else if (w === null || w < 0) out.push({ level: "bad", text: "Weekly manual review: date missing or in the future. Check it." });
+  else if (weekly.complete !== true) out.push({ level: "bad", text: `Weekly manual review for ${weekly.weekOf} wasn't completed: some places weren't checked.` });
+  else if (w > 7) out.push({ level: "bad", text: `Weekly manual review last done ${weekly.weekOf} (${w} days ago). Do it now.` });
+  else out.push({ level: "ok", text: `Weekly manual review completed for ${weekly.weekOf}.` });
   const m = age(monthlySampleLastDone);
-  if (m > 35) out.push({ level: "warn", text: monthlySampleLastDone ? `Monthly sample check last done ${monthlySampleLastDone}.` : "Monthly sample check: no record of it being done." });
+  if (m === null || m < 0) out.push({ level: "warn", text: monthlySampleLastDone ? "Monthly sample check: date in the future. Check it." : "Monthly sample check: no record of it being done." });
+  else if (m > 35) out.push({ level: "warn", text: `Monthly sample check last done ${monthlySampleLastDone}.` });
   else out.push({ level: "ok", text: `Monthly sample check done ${monthlySampleLastDone}.` });
   return out;
 }

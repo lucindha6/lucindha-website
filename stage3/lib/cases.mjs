@@ -22,7 +22,7 @@
 //   - One faulty case never stops reminders for the others.
 import { clean, keyedHash, referenceCandidates, REF_PATTERN, sha256Hex } from "./util.mjs";
 import { complaintDeadlines, privacyRequestDeadlines, mediaDeadlines } from "./deadlines.mjs";
-import { ukDateOf, assertDate, addDays, addWorkingDays, subtractWorkingDays } from "./calendar.mjs";
+import { ukDateOf, assertDate, addDays, addWorkingDays, subtractWorkingDays, isWorkingDay } from "./calendar.mjs";
 import { classifyRights, RIGHTS, RIGHT_KEYS, REVIEW_LABEL } from "./rights.mjs";
 import { ID_REASONS, CLARIFICATION_REASONS, FEE_REASONS } from "./deadlines.mjs";
 
@@ -373,7 +373,8 @@ export async function recordEvent(ref, event, date, { store, value = null, now =
     if (event === "part-answered" && !(c.rights || []).includes(value)) throw new Error("right-not-on-this-case");
     if (event === "part-answered" && answeredParts(c).includes(value)) throw new Error("part-already-answered");
     if (event === "privacy-check-done" && !["complaint", "media"].includes(c.type)) throw new Error("privacy-check-is-for-complaint-and-media-cases");
-    if (event === "responded" && c.type === "privacy" && (c.rights || []).length > 1) {
+    if (["responded", "closed"].includes(event) && ["complaint", "media"].includes(c.type) && !c.events.some((e) => e.event === "privacy-check-done")) throw new Error("do-the-privacy-check-first");
+    if (["responded", "closed"].includes(event) && c.type === "privacy" && (c.rights || []).length > 1) {
       const open = c.rights.filter((r) => !answeredParts(c).includes(r));
       if (open.length) throw new Error(`answer-each-part-first:${open.join(",")}`);
     }
@@ -427,7 +428,11 @@ function milestonesFor(c, d) {
     else m.push(["respond", d.responseRemind, d.responseDue]);
   } else if (c.type === "privacy") {
     if (d.status === "running") m.push(["respond", d.remind, d.internalTarget || d.due]);
-    if ((d.uncertain || []).length && !done("deadline-checked")) m.push(["check-deadline", c.received, addWorkingDays(c.received, 2)]);
+    if ((d.uncertain || []).length) {
+      // Only a check recorded AFTER the extension notice counts (that's when the uncertainty arises).
+      const since = lastDate(c, "extension-notified") || c.received;
+      if (!c.events.some((e) => e.event === "deadline-checked" && e.date >= since)) m.push(["check-deadline", since, addWorkingDays(since, 2)]);
+    }
     if (d.status === "waiting-for-id" && firstDate(c, "id-requested")) {
       const chase = addWorkingDays(firstDate(c, "id-requested"), 10);
       m.push(["chase-id", chase, chase, { noOverdue: true }]);
@@ -436,12 +441,13 @@ function milestonesFor(c, d) {
       const asked = clarificationPairs(c).find((p) => !p.received)?.requested;
       if (asked) { const chase = addWorkingDays(asked, 10); m.push(["chase-clarification", chase, chase, { noOverdue: true }]); }
     }
-    if (d.extensionNoticeRemind) m.push(["notify-extension", d.extensionNoticeRemind, d.extensionNoticeBy]);
+    if (d.extensionNoticeRemind) m.push(["notify-extension", d.extensionNoticeRemind, d.extensionNoticeTarget || d.extensionNoticeBy]);
     if (d.dpComplaintAckDue && !done("acknowledged")) m.push(["acknowledge-dp-complaint", d.dpComplaintAckRemind, d.dpComplaintAckDue]);
     if (d.dpComplaintAckDue && done("acknowledged") && !answeredParts(c).includes("dp-complaint")) {
       // 4 weeks from the acknowledgement (or from the last progress update): outcome, or a progress update.
       const base = [lastDate(c, "progress-update-sent"), lastDate(c, "acknowledged")].filter(Boolean).sort().at(-1);
-      const due = addDays(base, 28);
+      const cal = addDays(base, 28);
+      const due = isWorkingDay(cal) ? cal : subtractWorkingDays(cal, 1); // never later than 4 weeks
       m.push(["respond-dp-complaint", subtractWorkingDays(due, 3), due]);
     }
     if ((c.review || []).length && !c.reviewDone) m.push(["manual-review", c.received, addWorkingDays(c.received, 2)]);

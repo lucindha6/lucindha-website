@@ -267,7 +267,7 @@ const healthy = {
   reconciliation: [{ stage: "Stage 1", received: 10, processed: 10, failed: 0 }],
   reminders: { attempted: 3, confirmed: 3, undelivered: 0, caseErrors: 0 },
   credentials: [{ what: "Stage 2 client secret", expires: "2027-05-10" }],
-  manualReviews: { weeklyLastDone: "2026-11-13", monthlySampleLastDone: "2026-11-02" },
+  manualReviews: { weekly: { weekOf: "2026-11-13", complete: true, checked: [] }, monthlySampleLastDone: "2026-11-02" },
   formSubmissions7d: 10,
 };
 

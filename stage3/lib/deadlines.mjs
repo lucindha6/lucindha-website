@@ -178,23 +178,26 @@ export function privacyRequestDeadlines({ answered = [], received, rights = ["un
   const parts = [access, other].filter(Boolean);
   const normalDue = parts.map((x) => x.normal).sort()[0]; // extension notice must reach the person by the EARLIEST first-month end
   for (const x of parts) if (x.normal !== x.oneMonth) notes.push(`${x.oneMonth} isn't a working day, so the deadline is the next working day, ${x.normal}.`);
+  const noticeTarget = parts.map((x) => onOrBefore(x.oneMonth)).sort()[0]; // internal: never later than the calendar date
+  const extUncertain = [];
   let validExt = false;
   let extensionNoticeRemind = null;
   if (extended) {
     if (extensionNotified && assertDate(extensionNotified) <= normalDue) {
       validExt = true;
+      if (extensionNotified > noticeTarget) extUncertain.push(`The extension was notified on ${extensionNotified}, after the calendar month ended but within the next-working-day allowance (${normalDue}). Manual review: confirm it was in time.`);
       adjustments.push({ change: `extended by two further months`, basis: "UK GDPR Art. 12A(3)-(4)", reason: `complex or numerous requests; notified with reasons on ${extensionNotified}` });
     } else if (extensionNotified) {
       warnings.push(`The extension was notified on ${extensionNotified}, after the first month ended (${normalDue}), so it isn't valid: the deadline stays ${normalDue}.`);
     } else {
       warnings.push(`Extension not yet valid: you must tell the person, with reasons, by ${normalDue}. Until then the normal deadline stands.`);
-      extensionNoticeRemind = subtractWorkingDays(normalDue, 5);
+      extensionNoticeRemind = subtractWorkingDays(noticeTarget, 5);
     }
   }
   const done = new Set(answered);
   const perRight = {};
   const internal = {};
-  const uncertain = [];
+  const uncertain = [...extUncertain];
   const target = (x) => {
     if (!validExt) return onOrBefore(x.oneMonth);
     if (x.altThree < x.threeCal) {
@@ -220,6 +223,7 @@ export function privacyRequestDeadlines({ answered = [], received, rights = ["un
     due,
     perRight,
     extensionNoticeBy: normalDue,
+    extensionNoticeTarget: noticeTarget,
     extensionNoticeRemind,
     internalTarget,
     uncertain: [...new Set(uncertain)],

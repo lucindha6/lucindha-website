@@ -39,6 +39,7 @@ test("manual privacy check: recording it stops the reminders; a request found is
   assert.equal(deadlinesFor(p).due, "2026-12-16");
   const s = subjects(await dailyCaseCheck({ ...x, today: "2026-11-25" }));
   assert.ok(!s.some((t) => /Privacy check/.test(t)));
+  assert.ok(s.some((t) => /Acknowledge in writing/.test(t))); // positive control: the check still runs
 });
 
 test("any channel: WhatsApp, social media, post, calls are logged with the date they first arrived", async () => {
@@ -57,7 +58,7 @@ test("weekly manual review covers hello@, WhatsApp, social media and post; it's 
   assert.match(part.text, /not a substitute for checking messages promptly/);
   const all = weeklyReview({ weekOf: "2026-11-16", done: Object.fromEntries(WEEKLY_PLACES.map((p) => [p.id, "checked"])), found: 1 });
   assert.equal(all.complete, true);
-  assert.deepEqual(Object.keys(all.audit).sort(), ["checked", "found", "weekOf"]);
+  assert.deepEqual(Object.keys(all.audit).sort(), ["checked", "complete", "found", "weekOf"]);
 });
 
 test("monthly sample: closed complaint and media cases from that month, chosen by a fixed scramble", () => {
@@ -84,8 +85,8 @@ test("health report needs the manual review dates; an overdue weekly review need
     reminders: { attempted: 0, confirmed: 0 }, credentials: [{ what: "c", expires: "2027-05-10" }], formSubmissions7d: 1,
   };
   assert.equal(buildHealthReport(base).overall, "bad");
-  assert.equal(buildHealthReport({ ...base, manualReviews: { weeklyLastDone: "2026-11-13", monthlySampleLastDone: "2026-11-02" } }).overall, "ok");
-  const r = buildHealthReport({ ...base, manualReviews: { weeklyLastDone: "2026-11-01", monthlySampleLastDone: "2026-11-02" } });
+  assert.equal(buildHealthReport({ ...base, manualReviews: { weekly: { weekOf: "2026-11-13", complete: true, checked: [] }, monthlySampleLastDone: "2026-11-02" } }).overall, "ok");
+  const r = buildHealthReport({ ...base, manualReviews: { weekly: { weekOf: "2026-11-01", complete: true, checked: [] }, monthlySampleLastDone: "2026-11-02" } });
   assert.equal(r.overall, "bad");
   assert.match(r.text, /Weekly manual review last done 2026-11-01/);
 });
@@ -150,8 +151,9 @@ test("data protection complaints follow your 5-working-day acknowledgement and 4
   await ev(r.refs[0], "acknowledged", "2026-11-23", x);
   assert.ok(subjects(await dailyCaseCheck({ ...x, today: "2026-12-21" })).some((s) => /DUE TODAY: Send the outcome of the data protection complaint, or a progress update/.test(s)));
   await ev(r.refs[0], "progress-update-sent", "2026-12-21", x);
-  const after = subjects(await dailyCaseCheck({ ...x, today: "2026-12-24" }));
+  const after = subjects(await dailyCaseCheck({ ...x, today: "2027-01-14" }));
   assert.ok(!after.some((s) => /OVERDUE: Send the outcome/.test(s)));
+  assert.ok(after.some((s) => /Reminder: Send the outcome/.test(s))); // positive control: approaching 18 Jan
   assert.ok(subjects(await dailyCaseCheck({ ...x, today: "2027-01-18" })).some((s) => /DUE TODAY: Send the outcome/.test(s))); // 4 weeks after the update
 });
 
@@ -160,4 +162,47 @@ test("no message content goes to an AI provider from any Stage 3 module", () => 
     const src = readFileSync(new URL(`../lib/${f}`, import.meta.url), "utf8");
     assert.ok(!/anthropic|openai|api\.claude|messages\.create|\bfetch\(/i.test(src.replace(/\/\/.*$/gm, "")), f);
   }
+});
+
+// ------------------------------------------------------------------ third independent review (11 Nov)
+test("review 3-M1/M2: 'closed' can't skip open parts; complaint and media cases can't close before the privacy check", async () => {
+  const x = deps();
+  const c = await logCase({ type: "privacy", channel: "letter", received: "2026-11-16", rights: ["access", "erasure"] }, x);
+  await ev(c.ref, "part-answered", "2026-11-20", x, "erasure");
+  await assert.rejects(ev(c.ref, "closed", "2026-11-21", x), /answer-each-part-first:access/);
+  const m = await intake(message({ mailbox: "media@lucindhalawson.co.uk" }), x);
+  await assert.rejects(ev(m.refs[0], "closed", "2026-11-17", x), /privacy-check-first/);
+  await assert.rejects(ev(m.refs[0], "responded", "2026-11-17", x), /privacy-check-first/);
+  await ev(m.refs[0], "privacy-check-done", "2026-11-17", x, "none-found");
+  await ev(m.refs[0], "closed", "2026-11-17", x);
+});
+
+test("review 3-M3/L1: the deadline check only counts after the extension notice; the notice target is the calendar date", async () => {
+  const x = deps();
+  const c = await logCase({ type: "privacy", channel: "letter", received: "2026-10-31", rights: ["erasure"] }, { ...x, now: Date.parse("2026-11-01T12:00:00Z") });
+  await ev(c.ref, "deadline-checked", "2026-11-01", x);
+  await ev(c.ref, "extended", "2026-11-20", x);
+  await ev(c.ref, "extension-notified", "2026-11-20", x);
+  const k = await getCase(x.store, c.ref);
+  assert.equal(deadlinesFor(k).uncertain.length, 1);
+  const s = subjects(await dailyCaseCheck({ ...x, today: "2026-11-20" }));
+  assert.ok(s.some((t) => /Reminder: Check the deadline calculation/.test(t)), s.join("|")); // dated from the notice, not overdue
+  const d = privacyRequestDeadlines({ received: "2027-01-31", rights: ["access"], extended: true });
+  assert.equal(d.extensionNoticeTarget, "2027-02-26");
+  assert.equal(d.extensionNoticeBy, "2027-03-01");
+  const late = privacyRequestDeadlines({ received: "2027-01-31", rights: ["access"], extended: true, extensionNotified: "2027-03-01" });
+  assert.match(late.uncertain.join(" "), /within the next-working-day allowance/);
+});
+
+test("review 3-M4/L4: future or incomplete weekly reviews aren't healthy; the sample size can't be changed", async () => {
+  const { manualReviewStatus, monthlySample: ms } = await import("../lib/reviews.mjs");
+  const lv = (o) => manualReviewStatus({ asOf: "2026-11-16", monthlySampleLastDone: "2026-11-02", ...o })[0].level;
+  assert.equal(lv({ weekly: { weekOf: "2099-01-01", complete: true } }), "bad");
+  assert.equal(lv({ weekly: { weekOf: "2026-11-13", complete: false } }), "bad");
+  assert.equal(lv({ weekly: { weekOf: "2026-11-13", complete: "yes" } }), "bad");
+  assert.equal(lv({ weekly: { weekOf: "2026-11-13", complete: true } }), "ok");
+  assert.equal(manualReviewStatus({ asOf: "2026-11-16", weekly: { weekOf: "2026-11-13", complete: true }, monthlySampleLastDone: "2099-01-01" })[1].level, "warn");
+  const cases = ["A", "B", "C", "D", "E"].map((l) => ({ ref: `CMP-${l.repeat(6)}`, type: "complaint", status: "closed", received: "2026-11-03" }));
+  assert.equal(ms(cases, { month: "2026-11", n: 0 }).length, 3);
+  assert.equal(ms(cases, { month: "2026-11", n: 5 }).length, 3);
 });
