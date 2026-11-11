@@ -16,15 +16,18 @@ import { clean } from "./util.mjs";
 export const BLANK = "[enter your fee]";
 
 export function buildQuoteDraft({ ref, clientType = "", services = [], requestText = "" }, pricing) {
-  const asked = [...new Set((services || []).map((s) => clean(s, 80)).filter(Boolean))];
+  const canon = (name) => Object.keys(pricing.services).find((k) => k.toLowerCase() === name.toLowerCase()) || name;
+  const asked = [...new Set((services || []).map((x) => canon(clean(x, 80))).filter(Boolean))];
   const flags = [];
-  const unknown = asked.filter((s) => !pricing.services[s]);
+  const unknown = asked.filter((x) => !Object.hasOwn(pricing.services, x));
   if (unknown.length) flags.push(`Not on your licensed list, so left out: ${unknown.join(", ")}. Decide whether to offer it.`);
   const hay = `${asked.join(" ")} ${clean(requestText, 2000)}`;
-  const notOffered = [...new Set((pricing.notOffered?.patterns || []).map((p) => hay.match(new RegExp(`\\b${p}\\b`, "i"))?.[0]?.toLowerCase()).filter(Boolean))];
-  if (notOffered.length) flags.push(`Mentions ${notOffered.join(", ")}: not quoted. Your AAT licence doesn't authorise investment work; refer elsewhere if needed.`);
+  for (const g of pricing.notOffered?.groups || []) {
+    const hits = [...new Set(g.patterns.map((p) => hay.match(new RegExp(`\\b(?:${p})\\b`, "i"))?.[0]?.toLowerCase()).filter(Boolean))];
+    if (hits.length) flags.push(`Mentions ${hits.join(", ")}: not quoted. ${g.reason}; refer elsewhere if needed.`);
+  }
 
-  const known = asked.filter((s) => pricing.services[s]);
+  const known = asked.filter((x) => Object.hasOwn(pricing.services, x));
   const lines = [];
   const bundled = new Set();
   for (const s of known) {
@@ -38,7 +41,7 @@ export function buildQuoteDraft({ ref, clientType = "", services = [], requestTe
     }
   }
   if (!lines.length) flags.push("Nothing quotable was asked for: reply personally.");
-  const packages = (pricing.packages || []).filter((p) => p.for.includes(clean(clientType, 60)));
+  const packages = (pricing.packages || []).filter((p) => p.for.includes(clean(clientType, 60))).map((p) => ({ name: p.name, price: p.price }));
   return { ref, status: "draft", approvedPrices: pricing.approved === true, lines, packageOptions: packages, adviceSession: pricing.adviceSession, flags, vat: null, validUntil: null };
 }
 
@@ -52,6 +55,8 @@ export function enterFee(draft, key, feePence) {
 
 /** Checks a draft before YOU review and send it. Never sends; never sets status beyond "ready-for-review". */
 export function checkQuote(draft, { vatStatusDecided = false, validityDecided = false } = {}) {
+  vatStatusDecided = vatStatusDecided === true;
+  validityDecided = validityDecided === true;
   const problems = [];
   const warnings = [...draft.flags];
   for (const l of draft.lines) {

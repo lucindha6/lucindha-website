@@ -25,7 +25,12 @@
   ],
   "adviceSession": "Advice session (60 minutes): £60, taken off your first bill",
   "notOffered": {
-    "_note": "AAT Client Care 5.1(k): the AAT licence does not authorise investment work. Anything matching these goes to Lucindha and is never quoted.",
-    "patterns": ["invest(?:ment|ments|ing)?", "pensions?", "mortgages?", "insurance", "financial advice", "financial planning", "audit(?:s|ed)?", "legal advice", "immigration"]
+    "_note": "Never quoted; flagged for Lucindha. AAT Client Care 5.1(k): the AAT licence does not authorise investment work. Audit needs registered-auditor status; legal and immigration advice need other authorisation.",
+    "groups": [
+      { "reason": "Your AAT licence doesn't authorise investment work", "patterns": ["invest\\w*", "pension\\w*", "SIPPs?", "ISAs?", "annuit\\w*", "crypto\\w*", "bitcoin", "shares", "stocks?", "wealth management", "retirement planning", "financial (?:advice|adviser|advisor|planning|planner)", "mortgages?", "insurance"] },
+      { "reason": "Statutory audit needs registered-auditor status", "patterns": ["audit\\w*"] },
+      { "reason": "Legal advice is outside your practice", "patterns": ["legal advice", "solicitor"] },
+      { "reason": "Immigration advice needs Immigration Advice Authority registration", "patterns": ["immigration"] }
+    ]
   }
 }

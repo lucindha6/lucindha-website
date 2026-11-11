@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { buildQuoteDraft, enterFee, checkQuote, quoteText, BLANK } from "../lib/quote.mjs";
-import { newLetter, setSection, checkLetter, newLetterNeeded, disengagementChecklist, AAT_ITEMS, PLACEHOLDER } from "../lib/engagement.mjs";
+import { newLetter, setSection, setSchedule, setPracticeFact, approveWording, checkLetter, newLetterNeeded, disengagementChecklist, AAT_ITEMS, PLACEHOLDER } from "../lib/engagement.mjs";
 import { newChecklist, applicableSteps, confirmStep, answerRedFlag, review, recordDecision, RED_FLAGS } from "../lib/onboarding.mjs";
 import { newEntry, move, nudgesDue, markNudged, LIST_COLUMNS } from "../lib/pipeline.mjs";
 import { slotProblem, assessRequest, updateBooking, nextFreeSlots } from "../lib/booking.mjs";
@@ -68,14 +68,20 @@ test("engagement letter: wording only goes in when you approve it, never with pl
   assert.throws(() => setSection(l, "a", "FICTIONAL wording"), /approved-by-lucindha/);
   assert.throws(() => setSection(l, "a", "Scope: [to do]", { approvedByLucindha: true }), /placeholder/);
   for (const i of AAT_ITEMS) l = setSection(l, i.id, `FICTIONAL approved wording for item ${i.id}.`, { approvedByLucindha: true });
-  l = { ...l, schedules: { Bookkeeping: "FICTIONAL scope for bookkeeping." }, practice: { ...l.practice, icoRegistration: "FICTIONAL", piiInsurer: "FICTIONAL", continuityAlternate: "FICTIONAL", vatStatus: "FICTIONAL" } };
+  l = setSchedule(l, "Bookkeeping", "FICTIONAL scope for bookkeeping.", { approvedByLucindha: true });
+  for (const k of ["icoRegistration", "piiInsurer", "continuityAlternate", "vatStatus"]) l = setPracticeFact(l, k, "FICTIONAL", { approvedByLucindha: true });
   let c = checkLetter(l);
   assert.match(c.problems.join(" "), /\(k\) must state/);
   assert.match(c.problems.join(" "), /\(o\) must say/);
   l = setSection(l, "k", "FICTIONAL. My AAT licence does not authorise investment work.", { approvedByLucindha: true });
   l = setSection(l, "o", "FICTIONAL. Unresolved complaints can be referred to AAT.", { approvedByLucindha: true });
   c = checkLetter(l);
+  assert.deepEqual(c.problems, ["Your final read-through approval is still needed."]);
+  assert.throws(() => approveWording(l, { by: "Lucindha" }), /personally/);
+  l = approveWording(l, { by: "Lucindha", confirmedPersonally: true });
+  c = checkLetter(l);
   assert.equal(c.status, "ready-for-review", c.problems.join(" | "));
+  assert.equal(checkLetter(setSection(l, "a", "FICTIONAL changed wording.", { approvedByLucindha: true })).status, "incomplete");
   assert.equal(checkLetter({ ...l, services: [...l.services, "Payroll"], schedules: { ...l.schedules, Payroll: "x" } }).status, "incomplete");
 });
 
@@ -90,8 +96,12 @@ test("engagement letter: a new letter is needed when services are added or terms
 
 // ===================================================== onboarding and AML
 const answerAll = (c, present = false) => RED_FLAGS.reduce((x, f) => answerRedFlag(x, f.id, present && f.id === "pep", ME), c);
-function completeAll(c) {
-  for (const s of applicableSteps(c)) c = confirmStep(c, s.id, { method: s.methods[0], date: "2026-11-20", by: "Lucindha" });
+/** Simulates you confirming every open step (risk = `risk` unless already set). */
+function completeAll(c, { risk = "low", date = "2026-11-20", except = [] } = {}) {
+  for (let open; (open = applicableSteps(c).filter((s) => !c.steps[s.id] && !except.includes(s.id))).length; ) {
+    const s = open[0];
+    c = confirmStep(c, s.id, { method: s.id === "risk-assessment" ? risk : s.methods[0], date, by: "Lucindha" });
+  }
   return c;
 }
 
@@ -128,7 +138,9 @@ test("onboarding: the checklist never decides; acceptance is refused while anyth
 test("onboarding: a red flag stops the process; acceptance needs your review plus enhanced due diligence", () => {
   let c = answerAll(newChecklist({ ref: "ONB-E", clientRef: "CLI-E", clientType: "Individual" }), true); // PEP
   assert.ok(applicableSteps(c).some((s) => s.id === "edd"));
-  c = completeAll(c);
+  assert.ok(applicableSteps(c).some((s) => s.id === "source-of-funds")); // always for a PEP (reg. 35)
+  assert.throws(() => confirmStep(c, "risk-assessment", { method: "low", date: "2026-11-20", by: "Lucindha" }), /cannot-be-low/);
+  c = completeAll(c, { risk: "medium" });
   const r = review(c);
   assert.equal(r.status, "stopped-for-review");
   assert.match(r.stop.join(" "), /Nominated Officer outside this tool; record nothing here/);
@@ -141,7 +153,7 @@ test("onboarding: ANY raised red flag adds enhanced due diligence and blocks acc
   let c = newChecklist({ ref: "ONB-H", clientRef: "CLI-H", clientType: "Sole trader" });
   c = RED_FLAGS.reduce((x, f) => answerRedFlag(x, f.id, f.id === "cash-intensive", ME), c);
   assert.ok(applicableSteps(c).some((s) => s.id === "edd"));
-  for (const s of applicableSteps(c).filter((s) => s.id !== "edd")) c = confirmStep(c, s.id, { method: s.methods[0], date: "2026-11-20", by: "Lucindha" });
+  c = completeAll(c, { except: ["edd"] });
   assert.throws(() => recordDecision(c, { outcome: "accepted", date: "2026-11-21", by: "Lucindha", confirmedPersonally: true, reviewedRedFlags: true }), /steps-open/);
   c = confirmStep(c, "edd", { method: "completed", date: "2026-11-20", by: "Lucindha" });
   assert.throws(() => recordDecision(c, { outcome: "accepted", date: "2026-11-21", by: "Lucindha", confirmedPersonally: true }), /not-reviewed/);
@@ -154,7 +166,7 @@ test("onboarding: high risk adds source-of-funds and EDD steps; engagement lette
   const ids = applicableSteps(c).map((s) => s.id);
   assert.ok(ids.includes("edd") && ids.includes("source-of-funds"));
   c = completeAll(c);
-  c = confirmStep(c, "risk-assessment", { method: "high", date: "2026-11-20", by: "Lucindha" });
+  assert.equal(c.riskLevel, "high");
   c = confirmStep(c, "engagement-letter", { method: "signed copy held", date: "2026-11-25", by: "Lucindha" });
   assert.throws(() => recordDecision(c, { outcome: "accepted", date: "2026-11-21", by: "Lucindha", confirmedPersonally: true }), /engagement-letter-after-decision/);
 });
@@ -167,19 +179,20 @@ test("onboarding: suspicious activity reporting is deliberately NOT part of the 
 
 // ===================================================== pipeline
 test("pipeline: stages move in order; 'engaged' and 'declined' only by your personal decision", () => {
-  let e = newEntry({ ref: "CLI-A", enquiryRef: "ENQ-ABCDEF", date: "2026-11-16" });
+  let e = newEntry({ ref: "CLI-AAAAAA", enquiryRef: "ENQ-ABCDEF", date: "2026-11-16" });
   e = move(e, "chat-requested", "2026-11-16");
   assert.throws(() => move(e, "engaged", "2026-11-17"), /cannot-move/);
   e = move(move(move(move(e, "chat-offered", "2026-11-17"), "chat-confirmed", "2026-11-18"), "chat-held", "2026-11-21"), "quote-drafted", "2026-11-21");
   e = move(move(move(e, "quote-sent", "2026-11-23"), "letter-sent", "2026-11-25"), "onboarding", "2026-11-26");
   assert.throws(() => move(e, "engaged", "2026-11-30"), /personally/);
-  e = move(e, "engaged", "2026-11-30", { by: "Lucindha", confirmedPersonally: true });
+  assert.throws(() => move(e, "engaged", "2026-11-30", { by: "Lucindha", confirmedPersonally: true }), /onboarding-checklist-not-accepted/);
+  e = move(e, "engaged", "2026-11-30", { by: "Lucindha", confirmedPersonally: true, onboardingStatus: "accepted" });
   assert.throws(() => move(e, "declined", "2026-12-01", { by: "Lucindha", confirmedPersonally: true }), /already-closed/);
-  assert.throws(() => move(newEntry({ ref: "x", date: "2026-11-16" }), "chat-requested", "2026-11-10"), /before-current/);
+  assert.throws(() => move(newEntry({ ref: "CLI-XXXXXX", date: "2026-11-16" }), "chat-requested", "2026-11-10"), /before-current/);
 });
 
 test("pipeline: nudges when waiting on the other person, once per stage", () => {
-  let e = move(move(newEntry({ ref: "CLI-B", date: "2026-11-16" }), "quote-drafted", "2026-11-16"), "quote-sent", "2026-11-16");
+  let e = move(move(newEntry({ ref: "CLI-BBBBBB", date: "2026-11-16" }), "quote-drafted", "2026-11-16"), "quote-sent", "2026-11-16");
   assert.equal(nudgesDue([e], "2026-11-20").length, 0);
   const n = nudgesDue([e], "2026-11-23");
   assert.match(n[0].text, /no progress at "quote-sent" since 2026-11-16/);
@@ -189,7 +202,10 @@ test("pipeline: nudges when waiting on the other person, once per stage", () => 
 
 test("pipeline: designed for Microsoft Lists with references and dates only", () => {
   assert.ok(LIST_COLUMNS.every((c) => !/name|email|address|phone|note|amount|fee/i.test(c.name)));
-  const e = newEntry({ ref: "CLI-C", date: "2026-11-16" });
+  const e = newEntry({ ref: "CLI-CCCCCC", date: "2026-11-16" });
+  for (const bad of ["Jane Smith, 07700 900123", "jane@example.com", "CLI-owes £5k"]) assert.throws(() => newEntry({ ref: bad, date: "2026-11-16" }), /reference/);
+  assert.throws(() => newEntry({ ref: "CLI-CCCCCC", enquiryRef: "Jane", date: "2026-11-16" }), /reference/);
+  assert.throws(() => newEntry({ ref: "CLI-CCCCCC", kind: "owes £5k", date: "2026-11-16" }), /bad-kind/);
   assert.deepEqual(Object.keys(e).sort(), ["enquiryRef", "history", "kind", "nudged", "ref", "since", "stage"]);
 });
 
@@ -277,7 +293,9 @@ test("Stage 4 contains no code that sends, books, deletes or calls out, and impo
       if (!f.endsWith(".mjs")) continue;
       const src = readFileSync(new URL(dir + f, import.meta.url), "utf8").replace(/\/\/.*$/gm, "");
       assert.ok(!/\bfetch\(|https?\.request|sendMail|Mail\.Send|\.delete\(|unlink|rmSync|\brm\(|writeFile|calendar\/events|bookingBusinesses/.test(src), `${f}`);
-      for (const m of src.matchAll(/(?:from\s+|import\()\s*["']([^"']+)["']/g)) assert.ok(!/stage[123]|netlify\/|\.\.\/\.\.\//.test(m[1]), `${f} imports ${m[1]}`);
+      assert.ok(!/\brequire\(|globalThis|process\.binding|child_process|\beval\(|new Function/.test(src), `${f} uses a forbidden global`);
+      const allowed = dir === "../lib/" ? /^(\.\/[a-z]+\.mjs|node:crypto)$/ : /^(\.\.\/lib\/[a-z]+\.mjs|node:fs)$/;
+      for (const m of src.matchAll(/(?:from\s+|import\s*\(?)\s*["']([^"']+)["']/g)) assert.ok(allowed.test(m[1]), `${f} imports ${m[1]}`);
     }
   }
 });

@@ -2,6 +2,10 @@
 // addresses, figures or notes. Designed to map onto a Microsoft Lists list later (with approval).
 import { assertDate, addWorkingDays } from "./calendar.mjs";
 
+/** References only: e.g. CLI-7KQ3MX (no names, emails, phone numbers or notes). */
+const REF = /^[A-Z]{3}-[A-HJKMNP-Z2-9]{6}$/;
+const KINDS = ["Accounting", "Community work"];
+
 export const STAGES = ["enquiry", "chat-requested", "chat-offered", "chat-confirmed", "chat-held", "quote-drafted", "quote-sent", "letter-sent", "onboarding", "engaged", "declined", "withdrawn", "no-response"];
 const END = new Set(["engaged", "declined", "withdrawn", "no-response"]);
 const NEXT = {
@@ -35,16 +39,20 @@ export const LIST_COLUMNS = [
 
 export function newEntry({ ref, enquiryRef = null, kind = "Accounting", date }) {
   assertDate(date);
+  if (typeof ref !== "string" || !/^CLI-/.test(ref) || !REF.test(ref)) throw new Error("ref-must-be-a-CLI-reference");
+  if (enquiryRef !== null && (typeof enquiryRef !== "string" || !REF.test(enquiryRef))) throw new Error("enquiry-ref-must-be-a-reference");
+  if (!KINDS.includes(kind)) throw new Error("bad-kind");
   return { ref, enquiryRef, kind, stage: "enquiry", since: date, history: [{ stage: "enquiry", date }], nudged: {} };
 }
 
-export function move(entry, to, date, { by = null, confirmedPersonally = false } = {}) {
+export function move(entry, to, date, { by = null, confirmedPersonally = false, onboardingStatus = null } = {}) {
   assertDate(date);
-  if (!STAGES.includes(to)) throw new Error("bad-stage");
+  if (!STAGES.includes(to) || !STAGES.includes(entry.stage)) throw new Error("bad-stage");
   if (END.has(entry.stage)) throw new Error("already-closed");
-  if (!(NEXT[entry.stage] || []).includes(to)) throw new Error(`cannot-move-${entry.stage}-to-${to}`);
+  if (!(Object.hasOwn(NEXT, entry.stage) && NEXT[entry.stage].includes(to))) throw new Error(`cannot-move-${entry.stage}-to-${to}`);
   if (date < entry.since) throw new Error("date-before-current-stage");
   if (DECISIONS.has(to) && !(by === "Lucindha" && confirmedPersonally === true)) throw new Error("decision-must-be-made-personally-by-lucindha");
+  if (to === "engaged" && onboardingStatus !== "accepted") throw new Error("onboarding-checklist-not-accepted");
   return { ...entry, stage: to, since: date, history: [...entry.history, { stage: to, date }] };
 }
 
@@ -53,13 +61,17 @@ export function nudgesDue(entries, today) {
   assertDate(today);
   const out = [];
   for (const e of entries) {
-    const days = NUDGES[e.stage];
+    const days = Object.hasOwn(NUDGES, e.stage) ? NUDGES[e.stage] : null;
     if (!days) continue;
     const due = addWorkingDays(e.since, days);
     const key = `${e.stage}:${e.since}`;
-    if (today >= due && !e.nudged[key]) out.push({ ref: e.ref, stage: e.stage, since: e.since, key, text: `[Stage 4] ${e.ref}: no progress at "${e.stage}" since ${e.since} (${days} working days). Decide whether to follow up.` });
+    if (today >= due && !Object.hasOwn(e.nudged, key)) out.push({ ref: e.ref, stage: e.stage, since: e.since, key, text: `[Stage 4] ${e.ref}: no progress at "${e.stage}" since ${e.since} (${days} working days). Decide whether to follow up.` });
   }
   return out;
 }
 
-export function markNudged(entry, key, date) { return { ...entry, nudged: { ...entry.nudged, [key]: date } }; }
+export function markNudged(entry, key, date) {
+  assertDate(date);
+  if (key !== `${entry.stage}:${entry.since}`) throw new Error("bad-nudge-key");
+  return { ...entry, nudged: { ...entry.nudged, [key]: date } };
+}

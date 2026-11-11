@@ -55,28 +55,65 @@ export function newLetter({ ref, clientRef, services = [], licensedServices = []
   };
 }
 
-/** You supply approved wording for one section (e.g. from AAT's template). */
-export function setSection(letter, id, text, { approvedByLucindha = false } = {}) {
-  if (!AAT_ITEMS.some((i) => i.id === id)) throw new Error("bad-section");
-  if (!approvedByLucindha) throw new Error("wording-must-be-approved-by-lucindha");
-  const t = clean(text, 4000);
-  if (!t || t.includes("[")) throw new Error("wording-has-placeholder");
-  return { ...letter, sections: { ...letter.sections, [id]: t } };
+/** Anything that looks unfinished: the placeholder, brackets, braces, <<...>>, TBC/TBD/XXX, "to do". */
+export function looksUnfinished(v) {
+  const t = clean(v, 4000);
+  return !t || t.includes(PLACEHOLDER) || /[[\]{}]|<<|>>|\b(TBC|TBD|TBA|XXX|to do|todo|insert here)\b/i.test(t);
 }
+const approved = (o) => o && o.approvedByLucindha === true;
+const SECTION_IDS = new Set(AAT_ITEMS.map((i) => i.id));
+const FACT_KEYS = new Set(PRACTICE_FACTS.map((f) => f.key));
+
+/** You supply approved wording for one section (e.g. from AAT's template). Any change withdraws overall approval. */
+export function setSection(letter, id, text, opts = {}) {
+  if (!SECTION_IDS.has(id)) throw new Error("bad-section");
+  if (!approved(opts)) throw new Error("wording-must-be-approved-by-lucindha");
+  if (looksUnfinished(text)) throw new Error("wording-has-placeholder");
+  return { ...letter, sections: { ...letter.sections, [id]: clean(text, 4000) }, wordingApproved: false };
+}
+
+/** You supply approved scope wording for one service on the letter. */
+export function setSchedule(letter, service, text, opts = {}) {
+  if (!Object.hasOwn(letter.schedules, service)) throw new Error("service-not-on-letter");
+  if (!approved(opts)) throw new Error("wording-must-be-approved-by-lucindha");
+  if (looksUnfinished(text)) throw new Error("wording-has-placeholder");
+  return { ...letter, schedules: { ...letter.schedules, [service]: clean(text, 4000) }, wordingApproved: false };
+}
+
+/** You supply a practice detail (ICO number, insurer, continuity alternate, VAT status). */
+export function setPracticeFact(letter, key, value, opts = {}) {
+  if (!FACT_KEYS.has(key)) throw new Error("bad-practice-fact");
+  if (!approved(opts)) throw new Error("detail-must-be-approved-by-lucindha");
+  if (looksUnfinished(value)) throw new Error("detail-has-placeholder");
+  return { ...letter, practice: { ...letter.practice, [key]: clean(value, 300) }, wordingApproved: false };
+}
+
+/** Your final read-through of the whole letter. Refused while anything is unfinished. */
+export function approveWording(letter, { by, confirmedPersonally } = {}) {
+  if (by !== "Lucindha" || confirmedPersonally !== true) throw new Error("approval-must-be-made-personally-by-lucindha");
+  const c = checkLetter({ ...letter, wordingApproved: true });
+  if (c.status !== "ready-for-review") throw new Error("letter-incomplete");
+  return { ...letter, wordingApproved: true };
+}
+
+const INVESTMENT_WORDS = /\b(invest\w*|pension\w*|ISAs?|SIPPs?|annuit\w*|crypto\w*|shares|stocks?|wealth management|retirement planning|financial (advice|adviser|advisor|planning))\b/i;
+const NEGATED_AUTHORITY = /\b(does not|doesn't|do not|don't|cannot|can't|is not|isn't|not)\b[^.]{0,40}\b(authori[sz]e|authori[sz]ed|cover|permit|allow)\w*[^.]{0,60}\binvestment\b/i;
 
 /** Checks a letter against AAT 5.1 (a)-(p) and your licensed services. Never sends anything. */
 export function checkLetter(letter) {
-  const missing = AAT_ITEMS.filter((i) => !letter.sections[i.id] || letter.sections[i.id] === PLACEHOLDER).map((i) => `(${i.id}) ${i.title}`);
+  const sections = letter.sections || {};
+  const missing = AAT_ITEMS.filter((i) => looksUnfinished(sections[i.id])).map((i) => `(${i.id}) ${i.title}`);
   const problems = [];
   if (missing.length) problems.push(`Required AAT items still placeholders: ${missing.join("; ")}.`);
-  for (const [s, text] of Object.entries(letter.schedules)) if (!text || text === PLACEHOLDER) problems.push(`Scope schedule for "${s}" is a placeholder.`);
-  for (const f of PRACTICE_FACTS) if (!letter.practice[f.key]) problems.push(`Practice detail needed: ${f.key}.`);
-  const unlicensed = letter.services.filter((s) => !letter.licensedServices.includes(s));
+  for (const svc of letter.services) if (looksUnfinished((letter.schedules || {})[svc])) problems.push(`Scope schedule for "${svc}" is a placeholder.`);
+  for (const f of PRACTICE_FACTS) if (looksUnfinished((letter.practice || {})[f.key])) problems.push(`Practice detail needed: ${f.key}.`);
+  const unlicensed = letter.services.filter((x) => !letter.licensedServices.includes(x));
   if (unlicensed.length) problems.push(`Services not on your licensed list: ${unlicensed.join(", ")}.`);
-  const allText = JSON.stringify(letter.sections) + JSON.stringify(letter.schedules);
-  if (/\b(investment advice|we (will|can) (advise on|recommend) (investments|pensions))\b/i.test(allText)) problems.push("Wording suggests investment work, which your AAT licence doesn't authorise.");
-  if (letter.sections.k && letter.sections.k !== PLACEHOLDER && !/investment/i.test(letter.sections.k)) problems.push("Item (k) must state that the AAT licence doesn't authorise investment work.");
-  if (letter.sections.o && letter.sections.o !== PLACEHOLDER && !/\bAAT\b/.test(letter.sections.o)) problems.push("Item (o) must say unresolved complaints can be referred to AAT.");
+  const others = AAT_ITEMS.filter((i) => i.id !== "k").map((i) => sections[i.id] || "").join(" ") + " " + Object.values(letter.schedules || {}).join(" ");
+  if (INVESTMENT_WORDS.test(others)) problems.push("Wording outside item (k) mentions investment, pensions or similar, which your AAT licence doesn't authorise. Check it.");
+  if (!looksUnfinished(sections.k) && !NEGATED_AUTHORITY.test(sections.k)) problems.push("Item (k) must state that the AAT licence does NOT authorise investment work.");
+  if (!looksUnfinished(sections.o) && !/\bAAT\b/.test(sections.o)) problems.push("Item (o) must say unresolved complaints can be referred to AAT.");
+  if (!problems.length && letter.wordingApproved !== true) problems.push("Your final read-through approval is still needed.");
   return { status: problems.length ? "incomplete" : "ready-for-review", problems };
 }
 

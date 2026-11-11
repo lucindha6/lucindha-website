@@ -6,7 +6,7 @@
 // "confirmed" only when YOU record it, after the person has agreed. Nothing is written to a calendar.
 //
 // All times are UK local times ("YYYY-MM-DD" + "HH:MM").
-import { assertDate, addDays, addWorkingDays, isWorkingDay, BANK_HOLIDAYS, ukDateOf } from "./calendar.mjs";
+import { assertDate, addDays, addWorkingDays, BANK_HOLIDAYS, holidaysCover, ukDateOf } from "./calendar.mjs";
 
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const TIME = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -19,6 +19,7 @@ export function slotProblem(slot, { availability, book, today }) {
   const earliest = addWorkingDays(today, availability.minNoticeWorkingDays);
   if (slot.date < earliest) return `too soon (earliest ${earliest})`;
   if (slot.date > addDays(today, availability.maxWeeksAhead * 7)) return "too far ahead";
+  if (!holidaysCover(slot.date)) return "bank holiday list not updated for this date";
   if (availability.skipBankHolidays && BANK_HOLIDAYS.has(slot.date)) return "bank holiday";
   const times = availability.weekly[dayName(slot.date)] || [];
   if (!times.includes(slot.time)) return `outside your published times for ${dayName(slot.date)}`;
@@ -94,14 +95,25 @@ export function assessRequest(request, { availability, book, today }) {
   };
 }
 
-/** Status changes YOU make. Only you can mark "offered" (you sent it) and "confirmed" (they agreed). */
-export function updateBooking(book, ref, to, { by, date }) {
+/**
+ * Status changes YOU make. Only you can mark "offered" (you sent it) and "confirmed" (they agreed).
+ * Refused if the hold has lapsed, if someone else already has that time, or if the chat date has passed.
+ */
+export function updateBooking(book, ref, to, { by, date } = {}) {
   if (by !== "Lucindha") throw new Error("only-lucindha-changes-bookings");
   assertDate(date);
   const allowed = { proposed: ["offered", "released"], offered: ["confirmed", "released"], confirmed: ["held", "cancelled"] };
   const b = book.find((x) => x.ref === ref && !["released", "cancelled", "held"].includes(x.status));
   if (!b) throw new Error("no-such-booking");
   if (!(allowed[b.status] || []).includes(to)) throw new Error(`cannot-${b.status}-to-${to}`);
+  if (to === "offered" && b.holdUntil && b.holdUntil < date) throw new Error("hold-lapsed-check-again");
+  if (["offered", "confirmed"].includes(to)) {
+    if (date > b.date) throw new Error("chat-date-has-passed");
+    const clash = book.some((x) => x !== b && x.date === b.date && x.time === b.time &&
+      (["offered", "confirmed"].includes(x.status) || (x.status === "proposed" && !(x.holdUntil && x.holdUntil < date))));
+    if (clash) throw new Error("time-already-taken");
+  }
+  if (to === "held" && date < b.date) throw new Error("chat-not-happened-yet");
   return book.map((x) => (x === b ? { ...x, status: to, [`${to}On`]: date, holdUntil: null } : x));
 }
 
