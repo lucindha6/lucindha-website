@@ -19,7 +19,7 @@
 //    (AAT Client Care 5.1(k)).
 //  - Year-end accounts + Corporation Tax are one price, shown once.
 //  - A fee below your published starting price is allowed (your decision) but flagged for a second look.
-import { clean } from "./util.mjs";
+import { clean, sha256Hex } from "./util.mjs";
 import { assertDate, addDays } from "./calendar.mjs";
 
 export const BLANK = "[enter your fee]";
@@ -32,7 +32,9 @@ export const QUOTE_SECTIONS = [
   ["paymentTerms", "Payment terms: when and how fees are paid (e.g. Direct Debit monthly)"],
   ["additionalWork", "Additional work: how work outside the scope is agreed and charged"],
 ].map(([key, title]) => ({ key, title }));
-const unfinished = (t) => { const v = clean(t, 4000); return !v || v.includes(NEEDS_WORDING) || /[[\]{}]|<<|>>|\b(TBC|TBD|XXX|to do|todo)\b/i.test(v); };
+const unfinished = (t) => { const v = clean(t, 4000); return !v || v.includes(NEEDS_WORDING) || /[[\]{}]|<<|>>|\b(TBC|TBD|XXX|TODO)\b/.test(v); };
+/** Fingerprint of everything an approval covers: any change after approval shows. */
+const fingerprint = (d) => sha256Hex(JSON.stringify({ ref: d.ref, lines: d.lines.map((l) => [l.key, l.feePence]), sections: QUOTE_SECTIONS.map((q) => (d.sections || {})[q.key] ?? null), validityDays: d.validityDays, issueDate: d.issueDate, validUntil: d.validUntil }));
 
 export function buildQuoteDraft({ ref, clientType = "", services = [], requestText = "" }, pricing) {
   const canon = (name) => Object.keys(pricing.services).find((k) => k.toLowerCase() === name.toLowerCase()) || name;
@@ -40,6 +42,9 @@ export function buildQuoteDraft({ ref, clientType = "", services = [], requestTe
   const flags = [];
   const excluded = pricing.excludedServices || {};
   const isExcluded = (x) => Object.keys(excluded).some((k) => k !== "_note" && k.toLowerCase() === x.toLowerCase());
+  for (const k of Object.keys(excluded).filter((k) => k !== "_note")) {
+    if (!asked.some((x) => x.toLowerCase() === k.toLowerCase()) && new RegExp(`\\b${k}\\b`, "i").test(clean(requestText, 2000))) flags.push(`${excluded[k]} (mentioned in the request).`);
+  }
   for (const x of asked.filter(isExcluded)) flags.push(excluded[Object.keys(excluded).find((k) => k.toLowerCase() === x.toLowerCase())] + " Left out of the quote.");
   const unknown = asked.filter((x) => !Object.hasOwn(pricing.services, x) && !isExcluded(x));
   if (unknown.length) flags.push(`Not on your approved list, so left out: ${unknown.join(", ")}. Decide whether to offer it.`);
@@ -69,7 +74,7 @@ export function buildQuoteDraft({ ref, clientType = "", services = [], requestTe
   return { ref, status: "draft", approvedPrices: pricing.approved === true, lines, packageOptions: packages, adviceSession: pricing.adviceSession, flags, sections, validityDays, issueDate: null, validUntil: null, approvedBy: null };
 }
 
-const withdraw = (d) => ({ ...d, status: "draft", issueDate: null, validUntil: null, approvedBy: null });
+const withdraw = (d) => ({ ...d, status: "draft", issueDate: null, validUntil: null, approvedBy: null, approvalFingerprint: null });
 
 /** You supply approved wording for one quote section. Any change withdraws approval. */
 export function setQuoteSection(draft, key, text, { approvedByLucindha = false } = {}) {
@@ -103,17 +108,21 @@ export function checkQuote(draft) {
 }
 
 /** YOUR approval of the whole quote, with the issue date. Sets the 30-day expiry. Refused if incomplete. */
-export function approveQuote(draft, { by, confirmedPersonally = false, issueDate } = {}) {
+export function approveQuote(draft, { by, confirmedPersonally = false, issueDate, today } = {}) {
   if (by !== "Lucindha" || confirmedPersonally !== true) throw new Error("approval-must-be-made-personally-by-lucindha");
   assertDate(issueDate);
+  assertDate(today);
+  if (issueDate < today) throw new Error("issue-date-in-the-past");
   if (checkQuote(draft).status !== "ready-for-your-approval") throw new Error("quote-incomplete");
-  return { ...draft, status: "approved", issueDate, validUntil: addDays(issueDate, draft.validityDays), approvedBy: "Lucindha" };
+  const approved = { ...draft, status: "approved", issueDate, validUntil: addDays(issueDate, draft.validityDays), approvedBy: "Lucindha" };
+  return { ...approved, approvalFingerprint: fingerprint(approved) };
 }
 
 /** Where a quote stands on a date: draft, approved (valid) or expired. */
 export function quoteStatus(draft, today) {
   assertDate(today);
   if (draft.status !== "approved" || !draft.validUntil) return "draft";
+  if (draft.approvalFingerprint !== fingerprint(draft)) return "changed-since-approval";
   return today > draft.validUntil ? "expired" : "approved";
 }
 

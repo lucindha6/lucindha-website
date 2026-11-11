@@ -109,7 +109,7 @@
       {
         "reason": "Your AAT licence doesn't authorise investment work",
         "patterns": [
-          "invest\\w*",
+          "invest(?:ment|ments|ing|ed|or|ors)?",
           "pension\\w*",
           "SIPPs?",
           "ISAs?",
@@ -142,6 +142,22 @@
         "reason": "Immigration advice needs Immigration Advice Authority registration",
         "patterns": [
           "immigration"
+        ]
+      },
+      {
+        "reason": "Insolvency work needs a licensed insolvency practitioner",
+        "patterns": [
+          "insolvency",
+          "liquidat\\w*",
+          "bankruptcy",
+          "administration order"
+        ]
+      },
+      {
+        "reason": "Probate is a reserved legal activity: refer to a solicitor or authorised probate practitioner",
+        "patterns": [
+          "probate",
+          "grant of representation"
         ]
       }
     ]

@@ -8,7 +8,7 @@
 //
 // Also: a new letter is needed when services are added or terms change (5.3), and a disengagement
 // letter when an engagement ends (5.9).
-import { clean } from "./util.mjs";
+import { clean, sha256Hex } from "./util.mjs";
 
 export const PLACEHOLDER = "[AAT SAMPLE WORDING NOT SUPPLIED OR APPROVED]";
 /** The structure was checked against this document (11 Nov 2026): items (a)-(p) match section 5.1. */
@@ -72,7 +72,7 @@ export function setSection(letter, id, text, opts = {}) {
   if (!SECTION_IDS.has(id)) throw new Error("bad-section");
   if (!approved(opts)) throw new Error("wording-must-be-approved-by-lucindha");
   if (looksUnfinished(text)) throw new Error("wording-has-placeholder");
-  return { ...letter, sections: { ...letter.sections, [id]: clean(text, 4000) }, wordingApproved: false };
+  return { ...letter, sections: { ...letter.sections, [id]: clean(text, 4000) }, wordingApproved: false, approvalFingerprint: null };
 }
 
 /** You supply approved scope wording for one service on the letter. */
@@ -80,7 +80,7 @@ export function setSchedule(letter, service, text, opts = {}) {
   if (!Object.hasOwn(letter.schedules, service)) throw new Error("service-not-on-letter");
   if (!approved(opts)) throw new Error("wording-must-be-approved-by-lucindha");
   if (looksUnfinished(text)) throw new Error("wording-has-placeholder");
-  return { ...letter, schedules: { ...letter.schedules, [service]: clean(text, 4000) }, wordingApproved: false };
+  return { ...letter, schedules: { ...letter.schedules, [service]: clean(text, 4000) }, wordingApproved: false, approvalFingerprint: null };
 }
 
 /** You supply a practice detail (ICO number, insurer, continuity alternate, VAT status). */
@@ -88,18 +88,19 @@ export function setPracticeFact(letter, key, value, opts = {}) {
   if (!FACT_KEYS.has(key)) throw new Error("bad-practice-fact");
   if (!approved(opts)) throw new Error("detail-must-be-approved-by-lucindha");
   if (looksUnfinished(value)) throw new Error("detail-has-placeholder");
-  return { ...letter, practice: { ...letter.practice, [key]: clean(value, 300) }, wordingApproved: false };
+  return { ...letter, practice: { ...letter.practice, [key]: clean(value, 300) }, wordingApproved: false, approvalFingerprint: null };
 }
 
 /** A letter is FINAL only when every check passes and you've given your final approval since the last change. */
-export const isFinal = (letter) => letter.wordingApproved === true && checkLetter(letter).status === "ready-for-review";
+const letterPrint = (l) => sha256Hex(JSON.stringify({ ref: l.ref, clientRef: l.clientRef, services: l.services, sections: l.sections, schedules: l.schedules, practice: l.practice, licensed: l.licensedServices }));
+export const isFinal = (letter) => letter.wordingApproved === true && letter.approvalFingerprint === letterPrint(letter) && checkLetter(letter).status === "ready-for-review";
 
 /** Your final read-through of the whole letter. Refused while anything is unfinished. */
 export function approveWording(letter, { by, confirmedPersonally } = {}) {
   if (by !== "Lucindha" || confirmedPersonally !== true) throw new Error("approval-must-be-made-personally-by-lucindha");
   const c = checkLetter({ ...letter, wordingApproved: true });
   if (c.status !== "ready-for-review") throw new Error("letter-incomplete");
-  return { ...letter, wordingApproved: true };
+  return { ...letter, wordingApproved: true, approvalFingerprint: letterPrint(letter) };
 }
 
 const INVESTMENT_WORDS = /\b(invest\w*|pension\w*|ISAs?|SIPPs?|annuit\w*|crypto\w*|shares|stocks?|wealth management|retirement planning|financial (advice|adviser|advisor|planning))\b/i;
@@ -123,6 +124,7 @@ export function checkLetter(letter) {
   if (!looksUnfinished(sections.m) && !/(information commissioner|\bICO\b)/i.test(sections.m)) problems.push("Item (m) must say whether you're registered with the Information Commissioner.");
   if (!looksUnfinished(sections.p) && !/(alternate|another (accountant|firm)|six or fewer)/i.test(sections.p)) problems.push("Item (p) must name the continuity arrangement (an alternate), or record the six-or-fewer-clients agreement.");
   if (!problems.length && letter.wordingApproved !== true) problems.push("Your final read-through approval is still needed.");
+  if (!problems.length && letter.approvalFingerprint && letter.approvalFingerprint !== letterPrint(letter)) problems.push("The letter has changed since your approval: approve it again.");
   return { status: problems.length ? "incomplete" : "ready-for-review", problems };
 }
 

@@ -19,7 +19,7 @@
 //  - Suspicious activity is NEVER recorded here. As a sole practitioner you are the Nominated
 //    Officer; suspicions and reports stay in your own confidential log, outside any automation
 //    (and beware of tipping off).
-import { assertDate } from "./calendar.mjs";
+import { assertDate, addCalendarMonths } from "./calendar.mjs";
 
 export const CLIENT_TYPES = ["Individual", "Sole trader", "Landlord", "Limited company", "Partnership", "Charity or organisation"];
 const flagged = (c, id) => c.redFlags.some((f) => f.id === id && f.present === true);
@@ -28,7 +28,7 @@ const ENTITY = new Set(["Limited company", "Partnership", "Charity or organisati
 /** Steps; `when` decides whether a step applies. Method names only, never document details. */
 export const STEPS = [
   { id: "identity", title: "Identity verified, manually and risk-based (each individual client, or each director/partner/trustee who instructs you)", methods: ["original documents seen in person", "documents seen on video call, copies kept", "certified copies received", "other (your judgement)"], when: () => true },
-  { id: "address", title: "Address verified", methods: ["document", "electronic check", "other (your judgement)"], when: () => true },
+  { id: "address", title: "Address verified", methods: ["document seen", "certified copy received", "other (your judgement)"], when: () => true },
   { id: "entity", title: "Organisation verified (e.g. Companies House record, charity register)", methods: ["public register checked", "other (your judgement)"], when: (c) => ENTITY.has(c.clientType) },
   { id: "beneficial-owners", title: "Beneficial owners identified and verified (more than 25%, or control)", methods: ["register and documents checked", "other (your judgement)"], when: (c) => ENTITY.has(c.clientType) },
   { id: "register-discrepancy", title: "Companies House register checked against what you found; any material discrepancy reported (reg. 30A)", methods: ["no discrepancy found", "discrepancy reported"], when: (c) => c.clientType === "Limited company" },
@@ -142,6 +142,7 @@ function wellFormed(c) {
   if (!Array.isArray(c.redFlags) || c.redFlags.length !== RED_FLAGS.length) return false;
   if (!RED_FLAGS.every((r) => c.redFlags.filter((f) => f.id === r.id).length === 1)) return false;
   if (!c.steps || typeof c.steps !== "object") return false;
+  if ((c.steps["risk-assessment"]?.method ?? null) !== (c.riskLevel ?? null)) return false; // risk level must match your recorded assessment
   return Object.entries(c.steps).every(([k, v]) => { const st = STEPS.find((s) => s.id === k); return st && v && st.methods.includes(v.method) && typeof v.date === "string"; });
 }
 
@@ -179,10 +180,10 @@ export function monitoringDue(checklists, today) {
   const out = [];
   for (const c of checklists) {
     if (c.status !== "accepted" || !c.steps["monitoring-date"]) continue;
-    const months = MONITORING.months[c.riskLevel];
+    const pepOrHigh = c.riskLevel === "high" || c.redFlags.some((f) => ["pep", "high-risk-country"].includes(f.id) && f.present === true);
+    const months = pepOrHigh ? MONITORING.months.high : Object.hasOwn(MONITORING.months, c.riskLevel) ? MONITORING.months[c.riskLevel] : null; // PEPs: enhanced ongoing monitoring (reg. 35)
     if (!months) { out.push({ ref: c.ref, due: null, text: `${c.ref}: risk level missing; set the next review yourself.` }); continue; }
-    const [y, m, d] = c.decision.date.split("-").map(Number);
-    const due = new Date(Date.UTC(y, m - 1 + months, d)).toISOString().slice(0, 10);
+    const due = addCalendarMonths(c.decision.date, months);
     if (today >= due) out.push({ ref: c.ref, due, text: `${c.ref}: ongoing-monitoring review due ${due} (${c.riskLevel} risk). Refresh due diligence and re-check sanctions and PEP status.` });
   }
   return out;

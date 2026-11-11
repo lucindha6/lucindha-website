@@ -19,6 +19,8 @@ export const dayName = (d) => WEEKDAY[new Date(`${assertDate(d)}T12:00:00Z`).get
 const mins = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 const ms = (now) => { const v = typeof now === "number" ? now : Date.parse(now); if (!Number.isFinite(v)) throw new Error("bad-now"); return v; };
 const ACTIVE = ["proposed", "offered", "confirmed"];
+const slotLength = (a) => (Number.isInteger(a.slotMinutes) && a.slotMinutes > 0 ? a.slotMinutes : 20);
+const holdHoursOf = (a) => { if (!(Number.isFinite(a.holdHours) && a.holdHours > 0 && a.holdHours <= 24 * 14)) throw new Error("hold-hours-not-set"); return a.holdHours; };
 
 /** A tentative hold that has passed its expiry no longer blocks anything. */
 export const holdLapsed = (b, now) => b.status === "proposed" && b.holdUntil != null && Date.parse(b.holdUntil) <= ms(now);
@@ -35,12 +37,19 @@ export function slotProblem(slot, { availability, book, today, now = `${today}T1
   if (availability.skipBankHolidays && BANK_HOLIDAYS.has(slot.date)) return "bank holiday";
   const times = availability.weekly[dayName(slot.date)] || [];
   if (!times.includes(slot.time)) return `outside your published times for ${dayName(slot.date)}`;
-  const len = availability.slotMinutes || 20;
+  const len = slotLength(availability);
   const start = mins(slot.time);
-  const clash = busy.some((x) => x.date === slot.date && TIME.test(x.from) && TIME.test(x.to) && start < mins(x.to) && mins(x.from) < start + len);
-  if (clash) return "clashes with something else in your diary";
+  for (const x of Array.isArray(busy) ? busy : [{}]) {
+    if (!x || typeof x !== "object") return "a diary entry couldn't be read: check by hand";
+    let entryDate;
+    try { entryDate = assertDate(x.date); } catch { return "a diary entry couldn't be read: check by hand"; }
+    if (entryDate !== slot.date) continue;
+    if (x.allDay === true) return "clashes with something else in your diary";
+    if (!TIME.test(x.from || "") || !TIME.test(x.to || "") || mins(x.to) <= mins(x.from)) return "a diary entry on that day couldn't be read: check by hand";
+    if (start < mins(x.to) && mins(x.from) < start + len) return "clashes with something else in your diary";
+  }
   const sameDay = book.filter((b) => b.date === slot.date && blocking(b, now));
-  if (sameDay.some((b) => Math.abs(mins(b.time) - start) < len)) return "already taken";
+  if (sameDay.some((b) => TIME.test(b.time || "") && Math.abs(mins(b.time) - start) < len)) return "already taken";
   if (sameDay.length >= availability.maxChatsPerDay) return "that day is full";
   return null;
 }
@@ -85,7 +94,7 @@ export function assessRequest(request, { availability, book, today, now, busy = 
   if (comm && /BSL/.test(comm)) flags.push("BSL chosen: you'll sign directly; check whether they'd like anything in writing afterwards.");
   if ((request.slots || []).length > 3) flags.push("More than three times were sent; only the first three were checked.");
   if (ok) {
-    const hold = { ref: request.ref, ...ok.slot, status: "proposed", heldAt: new Date(at).toISOString(), holdUntil: new Date(at + availability.holdHours * 3600e3).toISOString(), communication: comm };
+    const hold = { ref: request.ref, ...ok.slot, status: "proposed", heldAt: new Date(at).toISOString(), holdUntil: new Date(at + holdHoursOf(availability) * 3600e3).toISOString(), communication: comm };
     return {
       outcome: "offer-draft", hold, checked, flags,
       draft: [
@@ -123,7 +132,7 @@ export function expireHolds(book, now) {
  * personally confirm (confirmedPersonally: true). Refused if the hold has lapsed, if anyone else
  * holds that time, or if the chat time has already passed.
  */
-export function updateBooking(book, ref, to, { by, now, confirmedPersonally = false } = {}) {
+export function updateBooking(book, ref, to, { by, now, confirmedPersonally = false, slotMinutes = 20 } = {}) {
   if (by !== "Lucindha") throw new Error("only-lucindha-changes-bookings");
   const at = ms(now);
   const allowed = { proposed: ["offered", "released"], offered: ["confirmed", "released"], confirmed: ["held", "cancelled"] };
@@ -135,7 +144,7 @@ export function updateBooking(book, ref, to, { by, now, confirmedPersonally = fa
   const startsAt = Date.parse(`${b.date}T${b.time}:00Z`) - (ukOffsetMinutes(b.date) * 60e3);
   if (["offered", "confirmed"].includes(to)) {
     if (at >= startsAt) throw new Error("chat-time-has-passed");
-    const clash = book.some((x) => x !== b && x.date === b.date && Math.abs(mins(x.time) - mins(b.time)) < 20 && blocking(x, at));
+    const clash = book.some((x) => x !== b && x.date === b.date && Math.abs(mins(x.time) - mins(b.time)) < slotMinutes && blocking(x, at));
     if (clash) throw new Error("time-already-taken");
   }
   if (to === "held" && at < startsAt) throw new Error("chat-not-happened-yet");

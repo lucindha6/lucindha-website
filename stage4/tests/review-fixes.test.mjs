@@ -63,7 +63,7 @@ test("F3/F10: only exactly `true` counts as your confirmation", () => {
   assert.throws(() => setQuoteSection(q, "scope", "FICTIONAL scope.", { approvedByLucindha: "yes" }), /approved/);
   for (const sec of QUOTE_SECTIONS) q = setQuoteSection(q, sec.key, `FICTIONAL ${sec.key}.`, YES);
   assert.equal(checkQuote(q).status, "ready-for-your-approval");
-  assert.throws(() => approveQuote(q, { by: "Lucindha", confirmedPersonally: "yes", issueDate: "2026-11-20" }), /personally/);
+  assert.throws(() => approveQuote(q, { by: "Lucindha", confirmedPersonally: "yes", issueDate: "2026-11-20", today: "2026-11-20" }), /personally/);
 });
 
 test("F4: EDD only after the flags are answered and risk assessed; no confirming steps that don't apply; no future-dated steps", () => {
@@ -132,7 +132,9 @@ test("F8/F16: wider unlicensed-work detection, with the right reason for audit a
 test("F9: item (k) must say the licence does NOT authorise investment work", () => {
   const l = fullLetter();
   assert.equal(checkLetter({ ...l, sections: { ...l.sections, k: "FICTIONAL. Our AAT licence authorises investment work." } }).status, "incomplete");
-  assert.equal(checkLetter({ ...l, sections: { ...l.sections, k: "FICTIONAL. The AAT licence doesn't cover any investment business." } }).status, "ready-for-review");
+  const changed = setSection(l, "k", "FICTIONAL. The AAT licence doesn't cover any investment business.", YES);
+  assert.equal(checkLetter(changed).status, "incomplete"); // changed since approval
+  assert.equal(checkLetter(approveWording(changed, DECIDE)).status, "ready-for-review");
 });
 
 test("F11: hand-made checklists (missing questions, unknown steps) can't be accepted", () => {

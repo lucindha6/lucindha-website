@@ -84,7 +84,7 @@ function readyQuote() {
 
 test("quotes: valid for 30 days from the date you approve it, with the expiry date shown", () => {
   assert.equal(pricing.quoteValidityDays, 30);
-  const q = approveQuote(readyQuote(), { by: "Lucindha", confirmedPersonally: true, issueDate: "2026-11-20" });
+  const q = approveQuote(readyQuote(), { by: "Lucindha", confirmedPersonally: true, issueDate: "2026-11-20", today: "2026-11-20" });
   assert.equal(q.validUntil, "2026-12-20");
   assert.match(quoteText(q), /Issued 2026-11-20\. Valid until 2026-12-20 \(30 days\)/);
   assert.equal(quoteStatus(q, "2026-12-20"), "approved");
@@ -93,9 +93,9 @@ test("quotes: valid for 30 days from the date you approve it, with the expiry da
 });
 
 test("quotes: you approve every fee and quote; any later change withdraws approval", () => {
-  assert.throws(() => approveQuote(buildQuoteDraft({ ref: "QTE-X", clientType: "Individual", services: ["Personal tax"] }, pricing), { by: "Lucindha", confirmedPersonally: true, issueDate: "2026-11-20" }), /incomplete/);
-  assert.throws(() => approveQuote(readyQuote(), { by: "system", confirmedPersonally: true, issueDate: "2026-11-20" }), /personally/);
-  let q = approveQuote(readyQuote(), { by: "Lucindha", confirmedPersonally: true, issueDate: "2026-11-20" });
+  assert.throws(() => approveQuote(buildQuoteDraft({ ref: "QTE-X", clientType: "Individual", services: ["Personal tax"] }, pricing), { by: "Lucindha", confirmedPersonally: true, issueDate: "2026-11-20", today: "2026-11-20" }), /incomplete/);
+  assert.throws(() => approveQuote(readyQuote(), { by: "system", confirmedPersonally: true, issueDate: "2026-11-20", today: "2026-11-20" }), /personally/);
+  let q = approveQuote(readyQuote(), { by: "Lucindha", confirmedPersonally: true, issueDate: "2026-11-20", today: "2026-11-20" });
   q = enterFee(q, "bundle:ye-ct", 99000);
   assert.equal(q.status, "draft");
   assert.equal(q.validUntil, null);
@@ -210,4 +210,51 @@ test("pipeline: reference-only; no Microsoft Lists or SharePoint connection; rem
   const n = nudgesDue([e], "2026-11-19");
   assert.match(n[0].text, /Decide whether to follow up/);
   assert.deepEqual(Object.keys(n[0]).sort(), ["key", "ref", "since", "stage", "text"]);
+});
+
+// ------------------------------------------------------------------ second independent review (11 Nov)
+test("review 2-M8: unreadable diary entries are never ignored; slot length from config; hold hours must be set", () => {
+  const ctx = { availability, book: [], today: MON };
+  for (const b of [{ date: S.date, from: "18:00", to: "21:00:00" }, { date: S.date, from: "9:00", to: "20:00" }, { date: S.date, from: "18:00", to: "24:00" }, { date: "26/11/2026", from: "18:00", to: "20:00" }, null])
+    assert.match(slotProblem(S, { ...ctx, busy: [b] }), /couldn't be read/, JSON.stringify(b));
+  assert.match(slotProblem(S, { ...ctx, busy: [{ date: S.date, allDay: true }] }), /clashes/);
+  assert.equal(slotProblem(S, { ...ctx, busy: [{ date: "2026-11-27", from: "9:00", to: "x" }] }), null); // other days don't matter
+  assert.match(slotProblem({ date: S.date, time: "19:30" }, { ...ctx, availability: { ...availability, slotMinutes: 45 }, book: [{ ref: "BKR-Z", ...S, status: "confirmed" }] }), /already taken/);
+  const { holdHours, ...noHold } = availability;
+  assert.throws(() => assessRequest({ ref: "BKR-H", slots: [S], communication: "Video call" }, { availability: noHold, book: [], today: MON, now: `${MON}T09:00:00Z` }), /hold-hours-not-set/);
+});
+
+test("review 2-M9: approvals are tied to the exact content approved", () => {
+  const q = approveQuote(readyQuote(), { by: "Lucindha", confirmedPersonally: true, issueDate: "2026-11-20", today: "2026-11-20" });
+  assert.equal(quoteStatus(q, "2026-11-21"), "approved");
+  assert.equal(quoteStatus({ ...q, lines: q.lines.map((l) => ({ ...l, feePence: 1 })) }, "2026-11-21"), "changed-since-approval");
+  assert.equal(quoteStatus({ ...q, validUntil: "2099-01-01" }, "2026-11-21"), "changed-since-approval");
+  assert.equal(quoteStatus({ ...readyQuote(), status: "approved", validUntil: "2099-01-01" }, "2026-11-21"), "changed-since-approval");
+  assert.throws(() => approveQuote(readyQuote(), { by: "Lucindha", confirmedPersonally: true, issueDate: "2026-11-01", today: "2026-11-20" }), /past/);
+  let l = letter();
+  l = setSchedule(setSchedule(l, "Bookkeeping", "FICTIONAL.", YES), "VAT returns", "FICTIONAL.", YES);
+  l = approveWording(l, { by: "Lucindha", confirmedPersonally: true });
+  assert.equal(isFinal(l), true);
+  assert.equal(isFinal({ ...l, sections: { ...l.sections, g: "FICTIONAL. Different fees wording." } }), false);
+  assert.equal(isFinal({ ...l, services: [...l.services, "Start-up support"], schedules: { ...l.schedules, "Start-up support": "x" } }), false);
+  const c = finish(flags(newChecklist({ ref: "ONB-F", clientRef: "CLI-F", clientType: "Individual" })), "high");
+  assert.throws(() => recordDecision({ ...c, riskLevel: "low", steps: Object.fromEntries(Object.entries(c.steps).filter(([k]) => !["edd", "source-of-funds"].includes(k))) }, { outcome: "accepted", date: "2026-11-21", ...ME, confirmedPersonally: true }), /not-well-formed/);
+});
+
+test("review 2-low: payroll in free text, investigate vs invest, insolvency and probate", () => {
+  const f = (t) => buildQuoteDraft({ ref: "QTE-L", clientType: "Sole trader", services: ["Bookkeeping"], requestText: t }, pricing).flags.join(" ");
+  assert.match(f("FICTIONAL. Could you do my payroll too?"), /Payroll is excluded/);
+  assert.doesNotMatch(f("FICTIONAL. Please investigate my VAT error"), /investment/);
+  assert.match(f("FICTIONAL. Help with insolvency"), /insolvency practitioner/);
+  assert.match(f("FICTIONAL. Mum's probate"), /reserved legal activity/);
+  const q = setQuoteSection(readyQuote(), "assumptions", "FICTIONAL. You agree to do your own invoicing.", YES);
+  assert.equal(q.sections.assumptions, "FICTIONAL. You agree to do your own invoicing.");
+});
+
+test("review 2-low: no electronic address check; PEP monitoring is enhanced; month-end dates handled", () => {
+  assert.ok(!STEPS.find((s) => s.id === "address").methods.some((m) => /electronic/i.test(m)));
+  let c = finish(flags(newChecklist({ ref: "ONB-PEP", clientRef: "CLI-PEP", clientType: "Individual" }), ["pep"]), "medium");
+  c = recordDecision(c, { outcome: "accepted", date: "2028-02-29", ...ME, confirmedPersonally: true, reviewedRedFlags: true });
+  assert.equal(monitoringDue([c], "2029-02-27").length, 0);
+  assert.match(monitoringDue([c], "2029-02-28")[0].text, /due 2029-02-28/);
 });

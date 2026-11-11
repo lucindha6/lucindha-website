@@ -18,7 +18,7 @@ Gate S4-1, fictional data only. This branch (`feature/stage4-onboarding`) is **n
 
 ```
 cd stage4
-npm test        # 54 tests (24 core, 12 from the first review, 18 for your 11 Nov decisions)
+npm test        # 58 tests (24 core, 12 from the first review, 22 for your 11 Nov decisions and the second review)
 npm run demo    # fictional clients, end to end
 ```
 
@@ -37,3 +37,7 @@ An independent reviewer found 17 issues (2 high, 7 medium, 8 low). All are fixed
 - **Engagement letters**: the (a)–(p) structure was checked against AAT's current Client Care Policy (version 1, issued 1 July 2025) and matches it. Clarified (l) to include suspicious activity reporting, (n) the commission or fee-reduction treatment, and (p) the six-or-fewer-clients route. Checks were added for (l), (m) and (p), and PII territorial coverage was added as a practice detail. `isFinal` is true only after your final approval following the last change.
 - **AML**: PEP checks and sanctions screening are now separate steps. Sanctions screening is against the **UK Sanctions List** (FCDO; the single UK list since 28 Jan 2026). A possible sanctions match stops everything, and acceptance is impossible through the checklist. Identity checks are manual and risk-based, with no electronic provider option. The checklist sets out the firm-wide prerequisites it relies on (risk assessment, policies, Nominated Officer, training, records, supervision). Ongoing-monitoring reminders follow risk level (intervals PROPOSED: 3, 2 and 1 years).
 - **Pipeline**: still reference-only, with no Microsoft Lists or SharePoint code (a test checks this). Reminders only.
+
+### Second independent review (11 Nov 2026)
+
+Fixed: unreadable diary entries are refused, not ignored; the slot length comes from config; the hold length must be set. Approvals are now tied to the exact content approved (a fingerprint), so a quote or letter changed after approval no longer counts as approved or final. A checklist whose risk level doesn't match your recorded assessment is refused. A quote can't be issued with a past date. Payroll mentioned in free text is flagged. "Investigate" no longer counts as investment. Insolvency and probate are flagged. "You agree to do..." is no longer treated as a placeholder. Electronic address checks are removed. PEPs get the enhanced (12-month) monitoring interval. Month-end dates are handled.
