@@ -48,7 +48,7 @@ body = f'''
 
 <div class="card wa-card">
 <h2>WhatsApp</h2>
-<p><a href="https://wa.me/447708996817" class="link" target="_blank" rel="noopener">Message me on WhatsApp<span class="sr"> (opens WhatsApp in a new tab)</span></a></p>
+<p><a href="https://wa.me/message/55VPGHD4HYG4B1" class="link" target="_blank" rel="noopener">Message me on WhatsApp<span class="sr"> (opens WhatsApp in a new tab)</span></a></p>
 <p>07708 996817</p>
 <p>For written messages: quick questions about my services, and arranging or changing appointments. Please send a written message rather than a voice note or call. I aim to respond within 2 working days.</p>
 <p class="wa-note"><strong>Please don't send financial documents, bank details, ID or other confidential information by WhatsApp.</strong> I'll never ask for them there, and identity checks aren't done over WhatsApp. If we work together, I'll give you a secure way to share documents. <a href="privacy.html#whatsapp">How WhatsApp messages are handled</a>.</p>
