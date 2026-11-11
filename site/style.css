@@ -611,3 +611,26 @@ html[data-theme="yellow"] .ds-float .display-btn,html[data-theme="yellow"] .ds-f
 .quote-card blockquote{margin:0;display:flex;flex-direction:column;gap:12px;border-left:3px solid var(--gold);padding-left:18px}
 .quote-card blockquote p{color:var(--cream);margin:0;font-size:1.05rem;line-height:1.7}
 .quote-card figcaption{margin-top:auto;padding-top:8px;font-weight:600;color:var(--gold-text)}
+
+/* ---------- WhatsApp: discreet floating button (bottom-right; Display settings sits bottom-left) ---------- */
+.wa-float{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:65;display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:8px 18px 8px 14px;border-radius:999px;border:1.5px solid var(--gold-text);background:var(--navy-3);color:var(--cream);font-weight:700;font-size:1rem;line-height:1.2;text-decoration:none;box-shadow:0 8px 24px rgba(0,0,0,.35);transition:background .2s ease}
+.wa-float svg{flex:none;color:var(--gold-text)}
+.wa-float:hover{background:var(--navy-2);color:var(--cream)}
+.wa-float:focus-visible{outline:3px solid var(--gold-text);outline-offset:3px;border-radius:999px}
+html[data-theme="yellow"] .wa-float{border-color:#111}
+html[data-theme="yellow"] .wa-float svg{color:#111}
+/* keyboard users: anything scrolled into view stops clear of the corner buttons */
+html{scroll-padding-bottom:96px}
+/* phones and tablets: a smaller pill that keeps the word "WhatsApp" so everyone knows what it is */
+@media (max-width:900px){
+  .wa-float{right:12px;gap:6px;padding:6px 14px 6px 11px;font-size:.95rem}
+  .wa-float svg{width:22px;height:22px}
+  .site-footer{padding-bottom:92px}
+}
+/* hidden while the phone menu is open and when printing (build_contact.py leaves it off the Contact page) */
+body:has(.menu-open) .wa-float{display:none}
+@media print{.wa-float{display:none}}
+@media (prefers-reduced-motion:reduce){.wa-float{transition:none}}
+
+/* WhatsApp card on the Contact page */
+.wa-card .wa-note{border-left:3px solid var(--gold);padding-left:14px;font-size:1rem}

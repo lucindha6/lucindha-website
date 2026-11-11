@@ -2,7 +2,7 @@
 """Builds site/contact.html in the soft style on the main navy (#0B1F33).
 The form keeps its Netlify Forms set-up (name="enquiry", data-netlify, honeypot, field names) - don't rename fields.
 Run:  python3 tools/build_contact.py"""
-import sys, pathlib, html
+import sys, pathlib, html, re
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from page_shell import page, ROOT
 e = lambda s: html.escape(s, quote=True)
@@ -37,6 +37,14 @@ body = f'''
 <div class="card">
 <h2>Meetings</h2>
 <p>Weekday evenings and Saturdays, by video call or in person, by arrangement.</p>
+</div>
+
+<div class="card wa-card">
+<h2>WhatsApp</h2>
+<p><a href="https://wa.me/447708996817" class="link" target="_blank" rel="noopener">Message me on WhatsApp<span class="sr"> (opens WhatsApp in a new tab)</span></a></p>
+<p>07708 996817</p>
+<p>For written messages: quick questions about my services, and arranging or changing appointments. Please send a written message rather than a voice note or call. I reply within 2 working days.</p>
+<p class="wa-note"><strong>Please don't send financial documents, bank details, ID or other confidential information by WhatsApp.</strong> I'll never ask for them there, and identity checks aren't done over WhatsApp. If we work together, I'll give you a secure way to share documents. <a href="privacy.html#whatsapp">How WhatsApp messages are handled</a>.</p>
 </div>
 
 <div class="card">
@@ -121,5 +129,6 @@ body = f'''
 out = page("Contact", "Request a free, no-obligation quote from Lucindha Lawson. Choose how you'd like to be contacted, including BSL and other access needs.",
            "contact.html", body)
 out = out.replace('\n<a href="contact.html" class="pill">Request a quote</a>', "")   # no quote button on the quote page itself
+out = re.sub(r'<a class="wa-float".*?</a>\n', "", out, flags=re.S)   # WhatsApp is shown in full on this page, so no floating button
 (ROOT / "contact.html").write_text(out)
 print("contact.html written")

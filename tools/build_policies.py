@@ -2,7 +2,7 @@
 """Builds the policy pages in the soft style on the main navy (#0B1F33):
 policies.html (hub), privacy.html, cookies.html, accessibility.html, complaints.html, terms.html, professional.html.
 Edit the wording below and run:  python3 tools/build_policies.py
-Remember to update UPDATED when the wording changes, and review every policy at least once a year."""
+Remember to update UPDATED (or a policy's own "updated" date) when the wording changes, and review every policy at least once a year."""
 import sys, pathlib, html
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from page_shell import page, ROOT
@@ -17,11 +17,12 @@ COMPLAINTS = '<a href="mailto:complaints@lucindhalawson.co.uk">complaints@lucind
 EXT = lambda href, text: f'<a href="{href}" target="_blank" rel="noopener">{text}<span class="sr"> (opens in a new tab)</span></a>'
 ICO = EXT("https://ico.org.uk/make-a-complaint/", "ico.org.uk/make-a-complaint")
 AAT_FORM = EXT("https://aat.jotform.com/232834671107051", "AAT's online complaint form")
+WA_PRIVACY = EXT("https://www.whatsapp.com/legal/privacy-policy", "WhatsApp's privacy policy")
 AAT_ETHICS = EXT("https://www.aat.org.uk/about-aat/aat-standards", "AAT's standards and Code of Professional Ethics")
 
 # Each policy: slug, menu title, h1 (with <em>), card summary, meta description, intro, sections [(id, heading, html)]
 POLICIES = [
-dict(slug="privacy", title="Privacy notice", h1='Privacy <em>notice.</em>',
+dict(slug="privacy", title="Privacy notice", h1='Privacy <em>notice.</em>', updated="11 November 2026",
  summary="What personal information I collect, why I need it, who sees it, how long I keep it and your rights.",
  meta="How LUCINDHA LAWSON LTD collects, uses and protects your personal information, and your data protection rights.",
  intro="Your information is safe with me. This notice explains, in plain English, what I collect, why, and what your rights are.",
@@ -37,12 +38,18 @@ dict(slug="privacy", title="Privacy notice", h1='Privacy <em>notice.</em>',
 <li>People who book or attend coaching sessions, talks or workshops, and the organisations that book them.</li></ul>"""),
  ("collect", "What I collect", """
 <p><strong>When you send an enquiry:</strong> your name, email address, mobile number (if you give it), what your enquiry is about, the services you're interested in, what best describes you, the details you share, how you'd like me to contact you and any communication or access needs you tell me about.</p>
+<p><strong>When you message me on WhatsApp:</strong> your phone number, your WhatsApp profile name and picture (depending on your WhatsApp settings), and the messages you send. See <a href="#whatsapp">WhatsApp messages</a> below.</p>
 <p><strong>If you become an accounting client:</strong> identity details and documents, which I must check under anti-money laundering law; contact details; and the financial, business and tax information I need to do the work, such as bank statements, invoices, receipts, payroll information, your Unique Taxpayer Reference and National Insurance number.</p>
 <p><strong>For coaching, talks and workshops:</strong> the contact and booking details needed to arrange the session, any access requirements, and, for coaching, the emergency contact and health information you choose to share so the session can be run safely.</p>
 <p><strong>When you visit the website:</strong> my hosting provider automatically records technical information, such as your IP address, browser type and the pages requested, to deliver the site and keep it secure. I don't use analytics or advertising tools, and the site doesn't set cookies. See the <a href="cookies.html">cookie policy</a>.</p>"""),
  ("access", "Access needs and health information", """
 <p>Information about access needs or health can be “special category” information, which the law protects more carefully. I only use it with your explicit consent, and only to make my communication and services accessible and safe for you – for example to book a BSL interpreter.</p>
 <p>You never have to share it, and you can withdraw your consent at any time by emailing me.</p>"""),
+ ("whatsapp", "WhatsApp messages", f"""
+<p>I use WhatsApp Business on 07708 996817 for written enquiries and for arranging appointments. I use what you send to reply to you and to arrange our meetings, because you've asked me to, before entering into a contract, or because it's in my legitimate interests to reply to people who contact me.</p>
+<p><strong>Please don't send financial documents, bank details, ID or other confidential information by WhatsApp.</strong> I don't carry out identity checks over WhatsApp and I'll never ask you to send these things there. Clients are given a secure way to share documents. If you send something confidential by WhatsApp anyway, I'll move it to my secure business systems and delete it from WhatsApp.</p>
+<p>WhatsApp messages are end-to-end encrypted, so WhatsApp can't read them. WhatsApp (part of Meta) does handle information such as your phone number and when messages are sent, under {WA_PRIVACY}. Messages are kept on a password-protected device.</p>
+<p>Messaging me on WhatsApp is always optional. You can contact me by email or through the <a href="contact.html">enquiry form</a> instead.</p>"""),
  ("why", "Why I use it, and the legal reasons", """
 <ul><li><strong>To reply to your enquiry and prepare a quote</strong> – because you've asked me to, before entering into a contract.</li>
 <li><strong>To provide the services you've engaged me for</strong> – to perform my contract with you.</li>
@@ -54,6 +61,7 @@ dict(slug="privacy", title="Privacy notice", h1='Privacy <em>notice.</em>',
 <p>I never sell your information. I only share it where I need to, with:</p>
 <ul><li><strong>My website hosting provider</strong>, which hosts this website and receives the enquiry form.</li>
 <li><strong>Microsoft</strong> (Microsoft 365), which provides my email and secure file storage.</li>
+<li><strong>WhatsApp</strong> (part of Meta), which provides WhatsApp Business, if you choose to message me there.</li>
 <li><strong>Google Fonts</strong>, which delivers the fonts used on this website. Your browser connects to Google to download them, so Google receives your IP address.</li>
 <li><strong>The accounting and tax software I use</strong> to deliver your work.</li>
 <li><strong>HMRC, Companies House and other government bodies</strong>, when I act for you.</li>
@@ -61,9 +69,9 @@ dict(slug="privacy", title="Privacy notice", h1='Privacy <em>notice.</em>',
 <li><strong>The Association of Accounting Technicians (AAT)</strong>, my professional body and anti-money laundering supervisor, when it monitors or inspects my practice.</li>
 <li><strong>My insurers and professional advisers</strong>, if needed to manage a claim or a complaint.</li>
 <li><strong>The National Crime Agency or other authorities</strong>, where the law requires it. In some cases the law doesn't allow me to tell you.</li></ul>
-<p>My hosting provider, Microsoft, Google and some software providers may store or process data outside the UK, including in the United States. Where that happens, the safeguards UK data protection law requires are in place, such as an adequacy decision or approved contract clauses.</p>"""),
+<p>My hosting provider, Microsoft, Google, WhatsApp and some software providers may store or process data outside the UK, including in the United States. Where that happens, the safeguards UK data protection law requires are in place, such as an adequacy decision or approved contract clauses.</p>"""),
  ("keep", "How long I keep it", """
-<ul><li><strong>Enquiries</strong> that don't lead to work: up to 12 months after our last contact.</li>
+<ul><li><strong>Enquiries</strong> that don't lead to work, including WhatsApp messages: up to 12 months after our last contact.</li>
 <li><strong>Client identity and due diligence records</strong>: 5 years after our business relationship ends, as anti-money laundering law requires.</li>
 <li><strong>Client accounting and tax records</strong>: generally 6 years after the end of the tax year or accounting period they relate to, or longer where the law, my insurer or my professional body requires it.</li>
 <li><strong>Coaching, talk and workshop bookings</strong>: as long as needed to deliver the session and follow up, and longer only where the law or insurance requires it (for example an accident record).</li></ul>
@@ -226,7 +234,7 @@ def policy_body(p):
 <p class="eyebrow">Policies</p>
 <h1 id="page-title">{p["h1"]}</h1>
 <p class="lead">{e(p["intro"])}</p>
-<p class="updated">Last updated {UPDATED}</p>
+<p class="updated">Last updated {p.get("updated", UPDATED)}</p>
 </div>
 </div>
 </section>
