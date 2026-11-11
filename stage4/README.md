@@ -18,7 +18,7 @@ Gate S4-1, fictional data only. This branch (`feature/stage4-onboarding`) is **n
 
 ```
 cd stage4
-npm test        # 60 tests
+npm test        # 61 tests
 npm run demo    # fictional clients, end to end
 ```
 
@@ -45,3 +45,5 @@ Fixed: unreadable diary entries are refused, not ignored; the slot length comes 
 ### AML trigger events (approved for fictional-data development, 11 Nov 2026)
 
 `recordTrigger` lets you record, as a code, an event that brings a client's monitoring review forward: change of ownership, becoming a PEP, a high-risk country, a possible sanctions match, unusual activity, new services, pressure or reluctance, adverse information, or guidance changes. Suspicions are deliberately not a code here; they stay in your Nominated Officer log. `recordMonitoringReview` records your completed review and re-rated risk, and clears open triggers. A possible sanctions match must be resolved outside the tool first, and PEP or high-risk-country clients can't be re-rated low. The intervals stay PROPOSED.
+
+After a third independent review: review and trigger dates are checked (not in the future, not before acceptance or a previous review, and a review only clears triggers on or before its date), and `recordSanctionsResolution` lets you record, as a code, a false positive or a report to OFSI. A reported match stays flagged.

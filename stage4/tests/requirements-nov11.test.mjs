@@ -263,29 +263,51 @@ test("review 2-low: no electronic address check; PEP monitoring is enhanced; mon
 test("AML triggers: recorded by you as codes only; bring the review forward; sanctions match stops; review clears them", async () => {
   const { recordTrigger, recordMonitoringReview, TRIGGERS } = await import("../lib/onboarding.mjs");
   let c = finish(flags(newChecklist({ ref: "ONB-T", clientRef: "CLI-T", clientType: "Individual" })), "low");
-  assert.throws(() => recordTrigger(c, { trigger: "ownership-change", date: "2026-11-25", by: "Lucindha" }), /accepted-clients/);
+  assert.throws(() => recordTrigger(c, { trigger: "ownership-change", date: "2026-11-25", by: "Lucindha", today: "2026-11-25" }), /accepted-clients/);
   c = recordDecision(c, { outcome: "accepted", date: "2026-11-21", ...ME, confirmedPersonally: true });
   assert.equal(monitoringDue([c], "2027-06-01").length, 0); // low risk: 3 years
-  assert.throws(() => recordTrigger(c, { trigger: "I think they're laundering", date: "2027-06-01", by: "Lucindha" }), /bad-trigger/);
+  assert.throws(() => recordTrigger(c, { trigger: "I think they're laundering", date: "2027-06-01", by: "Lucindha", today: "2027-06-01" }), /bad-trigger/);
   assert.ok(!Object.keys(TRIGGERS).some((k) => /suspici/i.test(k)));
-  assert.throws(() => recordTrigger(c, { trigger: "new-services", date: "2027-06-01", by: "system" }), /only-lucindha/);
-  assert.throws(() => recordTrigger(c, { trigger: "new-services", date: "2026-11-01", by: "Lucindha" }), /before-acceptance/);
-  c = recordTrigger(c, { trigger: "new-services", date: "2027-06-01", by: "Lucindha" });
+  assert.throws(() => recordTrigger(c, { trigger: "new-services", date: "2027-06-01", by: "system", today: "2027-06-01" }), /only-lucindha/);
+  assert.throws(() => recordTrigger(c, { trigger: "new-services", date: "2026-11-01", by: "Lucindha", today: "2026-11-01" }), /before-acceptance/);
+  c = recordTrigger(c, { trigger: "new-services", date: "2027-06-01", by: "Lucindha", today: "2027-06-01" });
   assert.equal(c.status, "accepted");
   let due = monitoringDue([c], "2027-06-01");
   assert.match(due[0].text, /EARLIER REVIEW NEEDED \(a request for new services/);
-  c = recordTrigger(c, { trigger: "sanctions-possible-match", date: "2027-06-02", by: "Lucindha" });
+  c = recordTrigger(c, { trigger: "sanctions-possible-match", date: "2027-06-02", by: "Lucindha", today: "2027-06-02" });
   assert.match(monitoringDue([c], "2027-06-02")[0].text, /do NOT proceed.*OFSI/);
-  assert.throws(() => recordMonitoringReview(c, { date: "2027-06-03", by: "Lucindha", riskLevel: "high", confirmedPersonally: true }), /sanctions-match-outside/);
+  assert.throws(() => recordMonitoringReview(c, { date: "2027-06-03", by: "Lucindha", riskLevel: "high", confirmedPersonally: true, today: "2027-06-03" }), /resolve-sanctions-match-first/);
 });
 
 test("AML triggers: a client who becomes a PEP moves to yearly monitoring and can't be re-rated low", async () => {
   const { recordTrigger, recordMonitoringReview } = await import("../lib/onboarding.mjs");
   let c = recordDecision(finish(flags(newChecklist({ ref: "ONB-P2", clientRef: "CLI-P2", clientType: "Individual" })), "low"), { outcome: "accepted", date: "2026-11-21", ...ME, confirmedPersonally: true });
-  c = recordTrigger(c, { trigger: "became-pep", date: "2027-01-10", by: "Lucindha" });
-  assert.throws(() => recordMonitoringReview(c, { date: "2027-01-12", by: "Lucindha", riskLevel: "low", confirmedPersonally: true }), /cannot-be-low/);
-  assert.throws(() => recordMonitoringReview(c, { date: "2027-01-12", by: "Lucindha", riskLevel: "medium" }), /personally/);
-  c = recordMonitoringReview(c, { date: "2027-01-12", by: "Lucindha", riskLevel: "medium", confirmedPersonally: true });
+  c = recordTrigger(c, { trigger: "became-pep", date: "2027-01-10", by: "Lucindha", today: "2027-01-10" });
+  assert.throws(() => recordMonitoringReview(c, { date: "2027-01-12", by: "Lucindha", riskLevel: "low", confirmedPersonally: true, today: "2027-01-12" }), /cannot-be-low/);
+  assert.throws(() => recordMonitoringReview(c, { date: "2027-01-12", by: "Lucindha", riskLevel: "medium", today: "2027-01-12" }), /personally/);
+  c = recordMonitoringReview(c, { date: "2027-01-12", by: "Lucindha", riskLevel: "medium", confirmedPersonally: true, today: "2027-01-12" });
   assert.equal(monitoringDue([c], "2028-01-11").length, 0);
   assert.match(monitoringDue([c], "2028-01-12")[0].text, /due 2028-01-12/); // yearly from the review
+});
+
+test("review 3-M5/L2/L3: review and trigger dates checked; a sanctions match can be resolved by you, by code", async () => {
+  const { recordTrigger, recordMonitoringReview, recordSanctionsResolution } = await import("../lib/onboarding.mjs");
+  let c = recordDecision(finish(flags(newChecklist({ ref: "ONB-R3", clientRef: "CLI-R3", clientType: "Individual" })), "low"), { outcome: "accepted", date: "2026-11-21", ...ME, confirmedPersonally: true });
+  const P = { by: "Lucindha", riskLevel: "medium", confirmedPersonally: true };
+  assert.throws(() => recordMonitoringReview(c, { ...P, date: "2099-01-01", today: "2027-01-01" }), /in-the-future/);
+  assert.throws(() => recordMonitoringReview(c, { ...P, date: "2026-01-01", today: "2027-01-01" }), /before-acceptance/);
+  assert.throws(() => recordTrigger(c, { trigger: "new-services", date: "2099-01-01", by: "Lucindha", today: "2027-01-01" }), /in-the-future/);
+  assert.throws(() => recordTrigger({ ...c, decision: {} }, { trigger: "new-services", date: "2027-01-01", by: "Lucindha", today: "2027-01-01" }), /accepted-clients/);
+  c = recordTrigger(c, { trigger: "ownership-change", date: "2027-05-01", by: "Lucindha", today: "2027-05-01" });
+  assert.throws(() => recordMonitoringReview(c, { ...P, date: "2027-01-01", today: "2027-05-02" }), /trigger-came-after/);
+  c = recordMonitoringReview(c, { ...P, date: "2027-05-02", today: "2027-05-02" });
+  assert.throws(() => recordMonitoringReview(c, { ...P, date: "2027-05-01", today: "2027-05-03" }), /before-previous-review/);
+  c = recordTrigger(c, { trigger: "sanctions-possible-match", date: "2027-06-01", by: "Lucindha", today: "2027-06-01" });
+  assert.throws(() => recordSanctionsResolution(c, { outcome: "ignore", date: "2027-06-02", by: "Lucindha", confirmedPersonally: true, today: "2027-06-02" }), /bad-outcome/);
+  assert.throws(() => recordSanctionsResolution(c, { outcome: "false-positive", date: "2027-06-02", by: "Lucindha", today: "2027-06-02" }), /personally/);
+  const fp = recordSanctionsResolution(c, { outcome: "false-positive", date: "2027-06-02", by: "Lucindha", confirmedPersonally: true, today: "2027-06-02" });
+  assert.equal(monitoringDue([fp], "2027-06-03").length, 0);
+  assert.equal(recordMonitoringReview(fp, { ...P, date: "2027-06-03", today: "2027-06-03" }).lastReview.date, "2027-06-03");
+  const rep = recordSanctionsResolution(c, { outcome: "reported-to-ofsi", date: "2027-06-02", by: "Lucindha", confirmedPersonally: true, today: "2027-06-02" });
+  assert.match(monitoringDue([rep], "2027-06-03")[0].text, /reported to OFSI.*outside this tool/);
 });

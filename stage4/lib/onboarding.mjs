@@ -194,25 +194,50 @@ export const TRIGGERS = {
 };
 
 /** You record a trigger event for an ACCEPTED client. Doesn't change the decision; brings the review forward. */
-export function recordTrigger(c, { trigger, date, by } = {}) {
+export function recordTrigger(c, { trigger, date, by, today } = {}) {
   if (by !== "Lucindha") throw new Error("only-lucindha-records-triggers");
-  if (c.status !== "accepted" || !c.decision) throw new Error("triggers-are-for-accepted-clients");
+  if (c.status !== "accepted" || !c.decision || typeof c.decision.date !== "string") throw new Error("triggers-are-for-accepted-clients");
+  assertDate(c.decision.date);
   if (!Object.hasOwn(TRIGGERS, trigger)) throw new Error("bad-trigger");
   assertDate(date);
+  assertDate(today);
+  if (date > today) throw new Error("trigger-in-the-future");
   if (date < c.decision.date) throw new Error("trigger-before-acceptance");
   return { ...c, triggers: [...(c.triggers || []), { trigger, date, reviewed: false }] };
 }
 
 /** You record a completed ongoing-monitoring review, with your re-rated risk. Clears open triggers. */
-export function recordMonitoringReview(c, { date, by, riskLevel, confirmedPersonally = false } = {}) {
+export function recordMonitoringReview(c, { date, by, riskLevel, confirmedPersonally = false, today } = {}) {
   if (by !== "Lucindha" || confirmedPersonally !== true) throw new Error("review-must-be-made-personally-by-lucindha");
-  if (c.status !== "accepted") throw new Error("reviews-are-for-accepted-clients");
+  if (c.status !== "accepted" || !c.decision || typeof c.decision.date !== "string") throw new Error("reviews-are-for-accepted-clients");
   if (!["low", "medium", "high"].includes(riskLevel)) throw new Error("bad-risk-level");
   assertDate(date);
+  assertDate(today);
+  if (date > today) throw new Error("review-in-the-future");
+  if (date < assertDate(c.decision.date)) throw new Error("review-before-acceptance");
+  if (c.lastReview && date < c.lastReview.date) throw new Error("review-before-previous-review");
+  if ((c.triggers || []).some((t) => !t.reviewed && t.date > date)) throw new Error("a-trigger-came-after-this-review-date");
   const pepOrCountry = c.redFlags.some((f) => ["pep", "high-risk-country"].includes(f.id) && f.present === true) || (c.triggers || []).some((t) => ["became-pep", "high-risk-country"].includes(t.trigger));
   if (riskLevel === "low" && pepOrCountry) throw new Error("risk-cannot-be-low-with-pep-or-high-risk-country");
-  if ((c.triggers || []).some((t) => !t.reviewed && t.trigger === "sanctions-possible-match")) throw new Error("resolve-sanctions-match-outside-this-tool-first");
-  return { ...c, riskLevel, lastReview: { date, riskLevel }, triggers: (c.triggers || []).map((t) => ({ ...t, reviewed: true })) };
+  if ((c.triggers || []).some((t) => !t.reviewed && t.trigger === "sanctions-possible-match")) throw new Error("resolve-sanctions-match-first");
+  return { ...c, riskLevel, lastReview: { date, riskLevel }, triggers: (c.triggers || []).map((t) => (t.date <= date ? { ...t, reviewed: true } : t)) };
+}
+
+/**
+ * YOUR record of how a possible sanctions match was resolved (codes only): "false-positive" after you
+ * checked the UK Sanctions List entry, or "reported-to-ofsi" for a true match. A reported match
+ * keeps the client flagged: decisions about the relationship happen outside this tool.
+ */
+export function recordSanctionsResolution(c, { outcome, date, by, confirmedPersonally = false, today } = {}) {
+  if (by !== "Lucindha" || confirmedPersonally !== true) throw new Error("resolution-must-be-made-personally-by-lucindha");
+  if (!["false-positive", "reported-to-ofsi"].includes(outcome)) throw new Error("bad-outcome");
+  assertDate(date);
+  assertDate(today);
+  if (date > today) throw new Error("resolution-in-the-future");
+  const open = (c.triggers || []).filter((t) => !t.reviewed && t.trigger === "sanctions-possible-match" && t.date <= date);
+  if (!open.length) throw new Error("no-open-sanctions-match");
+  const triggers = c.triggers.map((t) => (open.includes(t) ? { ...t, reviewed: outcome === "false-positive", resolution: outcome, resolvedOn: date } : t));
+  return { ...c, triggers, sanctionsReported: outcome === "reported-to-ofsi" ? date : c.sanctionsReported || null };
 }
 
 /**
@@ -226,7 +251,8 @@ export function monitoringDue(checklists, today) {
   for (const c of checklists) {
     if (c.status !== "accepted" || !c.steps["monitoring-date"]) continue;
     const level = c.lastReview?.riskLevel || c.riskLevel;
-    const open = (c.triggers || []).filter((t) => !t.reviewed && t.date <= today);
+    if (c.sanctionsReported) { out.push({ ref: c.ref, due: c.sanctionsReported, trigger: true, text: `${c.ref}: sanctions match reported to OFSI on ${c.sanctionsReported}. Do not proceed or move any money; decisions about the relationship are made outside this tool.` }); continue; }
+    const open = (c.triggers || []).filter((t) => !t.reviewed && !t.resolution && t.date <= today);
     if (open.length) {
       const sanctions = open.some((t) => t.trigger === "sanctions-possible-match");
       out.push({ ref: c.ref, due: open.map((t) => t.date).sort()[0], trigger: true, text: `${c.ref}: EARLIER REVIEW NEEDED (${open.map((t) => TRIGGERS[t.trigger]).join("; ")}).${sanctions ? " Possible sanctions match: do NOT proceed or move any money; check the UK Sanctions List entry and report to OFSI if it's a match." : ""} Refresh due diligence and re-rate the risk.` });
