@@ -1,11 +1,14 @@
-// Weekdays at 18:00 UTC (6pm UK in winter, 7pm in summer).
+// Weekdays at 6pm UK time all year. Netlify schedules are in UTC, so this is scheduled at both
+// 17:00 and 18:00 UTC and only the run that falls at 6pm in London continues (see isSixPmUk).
 import { getStore } from "@netlify/blobs";
 import { dailyCheck } from "../../lib/daily.mjs";
 import { realGraph } from "../../lib/graph.mjs";
 import { mailboxNotifier } from "../../lib/notify.mjs";
 import { configMissing } from "../../lib/handler.mjs";
+import { isSixPmUk } from "../../lib/workdays.mjs";
 
 export default async () => {
+  if (!isSixPmUk(Date.now())) return new Response("not 6pm in the UK");
   const env = process.env;
   const mode = String(env.DRAFT_MODE || "off").toLowerCase();
   if (mode !== "test" && mode !== "live") return new Response("disabled");
@@ -25,4 +28,4 @@ export default async () => {
   return new Response("ok");
 };
 
-export const config = { schedule: "0 18 * * 1-5" };
+export const config = { schedule: "0 17,18 * * 1-5" };

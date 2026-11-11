@@ -39,7 +39,9 @@ Live mode refuses to run until it is approved.
 - **The alert** on your phone and computer is the Netlify enquiry email you already receive for every
   enquiry. It is real email, so it alerts like any other message. Stage 2 doesn't change it.
 - **Notices** say what Stage 2 did. Each one is saved as an **unaddressed draft** in a top-level folder
-  called **Stage 2 notices** (or in Drafts if that folder doesn't exist). Creating drafts is fully
+  called exactly **Stage 2 notices**. If that folder is missing, Stage 2 does **not** put notices
+  anywhere else: it logs the error `stage2-notices-folder-missing` with how to fix it, and the daily
+  check puts one clearly labelled set-up warning in Drafts each day until the folder exists. Creating drafts is fully
   supported by Microsoft with Mail.ReadWrite and isn't affected by the 31 December 2026 restriction
   on changing non-draft messages. A notice has no recipient, so it can't be sent.
 - Microsoft provides **no supported way** for an app to place an unread, non-draft message in the
@@ -65,6 +67,12 @@ An optional *personaliser* may later replace only the opening paragraph (`DRAFT_
 a provider passed in). It is not supplied in Phase 2. It would see only the fixed form values, and any
 failure or unsafe answer falls back to the template.
 
+## Daily check
+
+Weekdays at **6pm UK time all year**. Netlify schedules run in UTC, so the function is scheduled at
+17:00 and 18:00 UTC and only the run that is 6pm in London does anything (18:00 UTC in winter,
+17:00 UTC in summer).
+
 ## Settings (Stage 2 site only, Functions scope, Production only, marked secret)
 
 | Variable | Purpose |
@@ -84,7 +92,7 @@ Folder to create: **Stage 2 notices** (top level).
 ## Tests
 
 ```
-cd stage2 && npm test      # 112 tests; fictional data; stand-in Microsoft mailbox
+cd stage2 && npm test      # 118 tests; fictional data; stand-in Microsoft mailbox
 node tools/demo.mjs        # data for the Outlook demonstration and reply previews
 ```
 

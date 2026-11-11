@@ -28,6 +28,22 @@ export async function dailyCheck({ store, graph, notify, log, env = {}, now = ()
   const mine = (rec) => !(env.DRAFTS_MAILBOX && rec.mailbox && rec.mailbox !== env.DRAFTS_MAILBOX);
   const tell = async (n) => { try { await notify(n); return true; } catch { return false; } };
 
+  // 0. Set-up check: is the "Stage 2 notices" folder there? If not, say so clearly (once a day),
+  //    in the log and as one warning draft in Drafts, rather than putting notices somewhere else.
+  try {
+    if (graph.noticeFolderExists && !(await graph.noticeFolderExists())) {
+      summary.setupProblem = "stage2-notices-folder-missing";
+      const day = new Date(t).toISOString().slice(0, 10);
+      const once = await store.setJSON(`setup/${day}`, { at: t }, { onlyIfNew: true });
+      if (once?.modified === true) {
+        await graph.createSetupWarning({
+          subject: "[Stage 2] Set-up problem: the \"Stage 2 notices\" folder is missing",
+          message: `Stage 2 couldn't find a top-level folder named exactly "Stage 2 notices" in this mailbox, so it can't save its notices.\n\nPlease create it (same level as Inbox and Drafts, exact spelling). Reply drafts are still being created as normal.`,
+        });
+      }
+    }
+  } catch { summary.errors++; }
+
   // 1. Problems the webhook couldn't report.
   for (const [k, rec] of recs) {
     if (!rec) continue;

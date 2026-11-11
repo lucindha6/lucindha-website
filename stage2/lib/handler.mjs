@@ -267,13 +267,17 @@ async function personalisedOpening(deps, s, t) {
 
 /** Tries twice. Returns false if the notice could not be delivered. */
 async function safeNotify(notify, notice, log, ref) {
+  let error = "unknown";
   for (let i = 0; i < 2; i++) {
     try {
       await notify(notice);
       return true;
-    } catch { /* try once more */ }
+    } catch (err) {
+      error = /^[a-z0-9-]{3,60}$/.test(err?.message) ? err.message : "unknown"; // our own codes only
+      if (error === "stage2-notices-folder-missing") break; // retrying won't help
+    }
   }
-  log({ fn: "stage2", ref, result: "notice-failed" });
+  log({ fn: "stage2", ref, result: "notice-failed", error, ...(error === "stage2-notices-folder-missing" ? { fix: `Create a top-level folder named exactly "Stage 2 notices" in the drafts mailbox` } : {}) });
   return false;
 }
 
@@ -288,7 +292,7 @@ function withTimeout(promise, ms) {
 /** Delete records, references and counters after RETAIN_DAYS; same-person fingerprints after 2 days. */
 export async function tidy(store, now) {
   try {
-    for (const prefix of ["rec/", "ref/", "addr/", "count/"]) {
+    for (const prefix of ["rec/", "ref/", "addr/", "count/", "setup/"]) {
       const { blobs = [] } = (await store.list({ prefix })) || {};
       for (const b of blobs) {
         if (prefix === "count/") {

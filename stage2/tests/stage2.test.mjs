@@ -13,7 +13,7 @@ import { mockAi, buildAiInput, assertMinimalInput } from "../lib/ai.mjs";
 import { validateIntro } from "../lib/validate.mjs";
 import { mockGraph, subjectHasRef } from "../lib/graph.mjs";
 import { mailboxNotifier } from "../lib/notify.mjs";
-import { workingDaysSince, HOLIDAYS_VALID_UNTIL } from "../lib/workdays.mjs";
+import { workingDaysSince, HOLIDAYS_VALID_UNTIL, isSixPmUk } from "../lib/workdays.mjs";
 import { detectPreferences } from "../lib/access.mjs";
 import { internalKey, referenceCandidates, reserveReference, REF_PATTERN } from "../lib/ids.mjs";
 import { CATEGORIES } from "../lib/compose.mjs";
@@ -740,11 +740,12 @@ test("real Graph client: follows absolute nextLinks on Graph only; notices are u
   assert.equal(body.toRecipients, undefined, "a notice has no recipient, so it can't be sent");
   assert.ok(!JSON.stringify(body).includes("0x0E07"), "no unsupported message-flag workaround");
   assert.ok(!urls.some((u) => u.init.method === "PATCH"));
-  // No "Stage 2 notices" folder yet → falls back to Drafts.
-  const h = realGraph({ ...ENV }, async (url, init) => url.includes("oauth2") ? new Response(JSON.stringify({ access_token: "t" }))
-    : url.includes("mailFolders?$filter") ? new Response(JSON.stringify({ value: [] }))
-    : url.includes("/mailFolders/drafts/messages") ? new Response(JSON.stringify({ id: "d1" })) : new Response("{}", { status: 404 }));
-  assert.equal(await h.createNotice({ subject: "s", message: "m" }), "d1");
+  // No "Stage 2 notices" folder → a clear error, and NOTHING is written to Drafts instead.
+  const hUrls = [];
+  const h = realGraph({ ...ENV }, async (url, init = {}) => { hUrls.push({ url, init }); return url.includes("oauth2") ? new Response(JSON.stringify({ access_token: "t" }))
+    : url.includes("mailFolders?$filter") ? new Response(JSON.stringify({ value: [] })) : new Response(JSON.stringify({ id: "d1" })); });
+  await assert.rejects(h.createNotice({ subject: "s", message: "m" }), /stage2-notices-folder-missing/);
+  assert.ok(!hUrls.some((u) => u.init.method === "POST" && u.url.includes("/messages")), "no silent fallback to Drafts");
   const evil = realGraph({ ...ENV }, async (url) => url.includes("oauth2") ? new Response(JSON.stringify({ access_token: "t" })) : new Response(JSON.stringify({ value: [], "@odata.nextLink": "https://evil.example/steal" })));
   await assert.rejects(evil.sentSince("2026-11-16T00:00:00Z"), /graph-bad-link/);
 });
@@ -916,4 +917,126 @@ test("community requests that may need a qualification (accredited BSL course, f
   assert.equal(mk("Could you deliver an accredited BSL Level 1 course for our staff?").route, "manual");
   assert.equal(mk("We need first aid training with certificates for our coaches.").route, "manual");
   assert.equal(mk("For example, a Deaf awareness session, of course at our office.").route, "ordinary", "'example' and 'of course' are fine");
+});
+
+// ===================================================== development refinements (Gate B day)
+test("daily check runs at 6pm UK time all year: 18:00 UTC in GMT, 17:00 UTC in BST, never at weekends", () => {
+  const src = readFileSync(new URL("../netlify/functions/daily-check.mjs", import.meta.url), "utf8");
+  assert.match(src, /schedule: "0 17,18 \* \* 1-5"/);
+  assert.match(src, /if \(!isSixPmUk\(Date\.now\(\)\)\) return/);
+  assert.equal(isSixPmUk(Date.parse("2026-11-16T18:00:00Z")), true); // Mon, GMT
+  assert.equal(isSixPmUk(Date.parse("2026-11-16T17:00:00Z")), false);
+  assert.equal(isSixPmUk(Date.parse("2027-06-14T17:00:00Z")), true); // Mon, BST
+  assert.equal(isSixPmUk(Date.parse("2027-06-14T18:00:00Z")), false);
+  assert.equal(isSixPmUk(Date.parse("2026-03-30T17:00:00Z")), true); // first weekday after clocks go forward
+  assert.equal(isSixPmUk(Date.parse("2026-10-26T18:00:00Z")), true); // first weekday after clocks go back
+  assert.equal(isSixPmUk(Date.parse("2026-11-21T18:00:00Z")), false); // Saturday
+  // Every weekday of 2026 and 2027: exactly one of the two scheduled runs is 6pm UK.
+  for (let d = Date.parse("2026-01-01T00:00:00Z"); d < Date.parse("2028-01-01T00:00:00Z"); d += 864e5) {
+    const wd = new Date(d).getUTCDay();
+    if (wd === 0 || wd === 6) continue;
+    const runs = [17, 18].filter((h) => isSixPmUk(d + h * 3600e3));
+    assert.equal(runs.length, 1, new Date(d).toISOString());
+  }
+});
+
+test("missing 'Stage 2 notices' folder: drafts still made, a clear logged error, no notice put in Drafts", async () => {
+  const x = setup({ graph: mockGraph({ noNoticeFolder: true }) });
+  assert.equal((await send(x.deps, submission(ENQUIRIES[0].data))).result, "draft-ready");
+  assert.equal(x.deps.graph.drafts.size, 1);
+  assert.equal(x.notices.length, 0);
+  const err = x.logs.find((l) => l.result === "notice-failed");
+  assert.equal(err.error, "stage2-notices-folder-missing");
+  assert.match(err.fix, /Stage 2 notices/);
+  assert.equal(recs(x)[0].noticeFailed, true);
+});
+
+test("missing folder: the daily check puts ONE clear set-up warning in Drafts per day, then reports undelivered notices once fixed", async () => {
+  const g = mockGraph({ noNoticeFolder: true });
+  const x = setup({ graph: g });
+  await send(x.deps, submission(ENQUIRIES[12].data)); // sensitive: notice only
+  let s = await dailyCheck({ ...x.deps, now: evening("2026-11-16T18:00:00Z") });
+  assert.equal(s.setupProblem, "stage2-notices-folder-missing");
+  await dailyCheck({ ...x.deps, now: evening("2026-11-16T18:30:00Z") });
+  assert.equal(g.setupWarnings.length, 1);
+  assert.match(g.setupWarnings[0].subject, /Set-up problem: the "Stage 2 notices" folder is missing/);
+  assert.equal(g.notices.length, 0);
+  // You create the folder: next day the undelivered notice is reported.
+  const fixed = mockGraph();
+  const y = { ...x.deps, graph: fixed, notify: mailboxNotifier(fixed) };
+  s = await dailyCheck({ ...y, now: evening("2026-11-17T18:00:00Z") });
+  assert.equal(s.setupProblem, undefined);
+  assert.equal(s.recovered, 1);
+  assert.match(fixed.notices[0].message, /couldn't be delivered/);
+});
+
+test("separate kinds stay separate in every order and combination", async () => {
+  const C = "Community Work (sport, speaking or workshops)";
+  const acc = (over = {}) => ({ ...ENQUIRIES[0].data, ...over });
+  const com = (over = {}) => ({ ...ENQUIRIES[0].data, about: C, services: ["Workshops"], "client-type": "School, charity or organisation", details: "Could you run a Deaf awareness workshop for our volunteers?", ...over });
+  const media = { ...ENQUIRIES[0].data, about: "Something else", services: [], details: "I'm a journalist at a sports magazine and would like to interview you about Deaf futsal." };
+  // community first, then accounting
+  let x = setup();
+  await send(x.deps, submission(com())); x.tick(3600e3);
+  assert.equal((await send(x.deps, submission(acc()))).result, "draft-ready");
+  assert.equal(x.deps.graph.drafts.size, 2);
+  // accounting, community and media from one person, all separate
+  x = setup();
+  for (const d of [acc(), com(), media]) { assert.equal((await send(x.deps, submission(d))).result, "draft-ready"); x.tick(600e3); }
+  assert.equal(x.deps.graph.drafts.size, 3);
+  assert.ok([...x.deps.graph.drafts.values()].every((d) => d.category === CATEGORIES.template));
+  // a SENSITIVE accounting enquiry never re-labels the person's community draft
+  x = setup();
+  await send(x.deps, submission(com())); x.tick(3600e3);
+  assert.equal((await send(x.deps, submission(acc({ details: "HMRC have opened an investigation into my tax." })))).result, "sensitive");
+  assert.equal([...x.deps.graph.drafts.values()][0].category, CATEGORIES.template);
+  // both kinds arriving at the same moment
+  x = setup();
+  const rs = await Promise.all([send(x.deps, submission(acc())), send(x.deps, submission(com()))]);
+  assert.deepEqual(rs.map((r) => r.result).sort(), ["draft-ready", "draft-ready"]);
+  // replying to one does not answer the other
+  x = setup();
+  await send(x.deps, submission(acc())); x.tick(600e3);
+  await send(x.deps, submission(com()));
+  const [a] = recs(x);
+  x.deps.graph.youReplySeparately("priya.shah@example.org", "2026-11-17T09:00:00.000Z", `Re: (ref ${a.ref})`);
+  const s = await dailyCheck({ ...x.deps, now: evening("2026-11-19T18:00:00Z") });
+  assert.equal(s.reminders, 1, "the community enquiry is still waiting");
+});
+
+test("security: hostile names, fields and payloads are handled safely", async () => {
+  // HTML and line breaks in the name never reach the draft as markup or headers
+  let x = setup();
+  await send(x.deps, submission({ ...ENQUIRIES[0].data, name: "<img src=x onerror=alert(1)> Bob" }));
+  let [d] = [...x.deps.graph.drafts.values()];
+  assert.ok(!/<img|onerror/.test(d.html));
+  assert.match(d.html, /Hello,/);
+  x = setup();
+  await send(x.deps, submission({ ...ENQUIRIES[0].data, name: "Eve\r\nBcc: victim@example.org" }));
+  [d] = [...x.deps.graph.drafts.values()];
+  assert.ok(!/Bcc|victim/.test(d.html + d.subject));
+  // the recipient is always exactly the validated address, never something smuggled in
+  x = setup({ env: { DRAFT_TEST_ALLOWLIST: "a@example.org,b@example.org" } });
+  await send(x.deps, submission({ ...ENQUIRIES[0].data, email: "a@example.org,b@example.org" }));
+  assert.equal(x.deps.graph.drafts.size, 0);
+  // lookalike form names and odd payloads are ignored
+  for (const form of ["Enquiry", "enquiry ", "enquiry​"]) {
+    x = setup();
+    assert.equal((await send(x.deps, submission(ENQUIRIES[0].data, { form_name: form }))).result, "ignored", JSON.stringify(form));
+  }
+  x = setup();
+  const raw = '{"payload":{"__proto__":{"form_name":"enquiry"},"id":"x1"}}';
+  assert.equal((await handleWebhook(raw, signForTests(raw, SECRET), x.deps)).result, "ignored");
+  assert.equal(({}).form_name, undefined, "no prototype pollution");
+  // a lookalike 'about' value can't pick a template
+  x = setup();
+  assert.equal((await send(x.deps, submission({ ...ENQUIRIES[0].data, about: "Accounting services​" }))).result, "manual");
+});
+
+test("security: no secret, address or enquiry text appears in logs, even for failures", async () => {
+  const x = setup({ graph: mockGraph({ failCreate: true, noNoticeFolder: true }) });
+  await send(x.deps, submission(ENQUIRIES[0].data));
+  await send(x.deps, submission(ENQUIRIES[12].data));
+  const blob = JSON.stringify(x.logs);
+  for (const v of ["VERY-SECRET", "hash-secret", SECRET, "priya", "kim.brown", "dog-walking", "complaint about my previous"]) assert.ok(!blob.toLowerCase().includes(v.toLowerCase()), v);
 });

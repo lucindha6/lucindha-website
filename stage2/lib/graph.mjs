@@ -64,8 +64,9 @@ export function realGraph(env, fetchFn = fetch) {
       return (await res.json()).id;
     },
     /**
-     * Saves a notice as an UNADDRESSED draft in your "Stage 2 notices" folder (or in Drafts if that
-     * folder doesn't exist). Creating drafts is fully supported by Microsoft with Mail.ReadWrite,
+     * Saves a notice as an UNADDRESSED draft in your "Stage 2 notices" folder. If that folder doesn't
+     * exist, it fails with the clear error "stage2-notices-folder-missing" (it never quietly uses
+     * Drafts instead); the daily check then puts one setup warning in Drafts so you can see it. Creating drafts is fully supported by Microsoft with Mail.ReadWrite,
      * and isn't affected by the 31 December 2026 restriction. With no recipient, a notice can't be
      * sent. Notices don't alert your phone themselves: the alert is the Netlify enquiry email you
      * already get for every enquiry.
@@ -75,7 +76,8 @@ export function realGraph(env, fetchFn = fetch) {
         const name = encodeURIComponent(`displayName eq '${NOTICE_FOLDER.replace(/'/g, "''")}'`);
         const f = await call(`/mailFolders?$filter=${name}&$select=id`);
         if (!f.ok) throw new Error(`graph-folder-${f.status}`);
-        noticeFolderId = (await f.json()).value?.[0]?.id || "drafts";
+        noticeFolderId = (await f.json()).value?.[0]?.id || null;
+        if (!noticeFolderId) throw new Error("stage2-notices-folder-missing");
       }
       const res = await call(`/mailFolders/${encodeURIComponent(noticeFolderId)}/messages`, {
         method: "POST",
@@ -88,6 +90,21 @@ export function realGraph(env, fetchFn = fetch) {
       });
       if (!res.ok) throw new Error(`graph-notice-${res.status}`);
       return (await res.json()).id;
+    },
+    /** True if the "Stage 2 notices" folder exists (used by the daily set-up check). */
+    async noticeFolderExists() {
+      const name = encodeURIComponent(`displayName eq '${NOTICE_FOLDER.replace(/'/g, "''")}'`);
+      const f = await call(`/mailFolders?$filter=${name}&$select=id`);
+      if (!f.ok) throw new Error(`graph-folder-${f.status}`);
+      return Boolean((await f.json()).value?.[0]?.id);
+    },
+    /** A clearly labelled, unaddressed set-up warning in Drafts (used only when the notices folder is missing). */
+    async createSetupWarning({ subject, message }) {
+      const res = await call("/mailFolders/drafts/messages", {
+        method: "POST",
+        body: JSON.stringify({ subject, body: { contentType: "Text", content: message }, categories: ["Stage 2 notice"] }),
+      });
+      if (!res.ok) throw new Error(`graph-setup-warning-${res.status}`);
     },
     /** Returns null ONLY when Microsoft says the item doesn't exist; any other problem throws. */
     async getMessage(id) {
@@ -137,7 +154,7 @@ export function realGraph(env, fetchFn = fetch) {
 }
 
 /** In-memory stand-in for one mailbox, used by tests and the demonstration. */
-export function mockGraph({ failCreate = false, failNotice = false } = {}) {
+export function mockGraph({ failCreate = false, failNotice = false, noNoticeFolder = false } = {}) {
   const drafts = new Map(); // id -> message
   const sent = []; // {to, at, subject}
   const notices = []; // notices saved by Stage 2 in the "Stage 2 notices" folder
@@ -146,7 +163,11 @@ export function mockGraph({ failCreate = false, failNotice = false } = {}) {
     drafts,
     sent,
     notices,
+    setupWarnings: [],
+    async noticeFolderExists() { return !noNoticeFolder; },
+    async createSetupWarning(w) { this.setupWarnings.push(w); },
     async createNotice(notice) {
+      if (noNoticeFolder) throw new Error("stage2-notices-folder-missing");
       if (failNotice) throw new Error("graph-notice-503");
       notices.push({ ...notice, category: "Stage 2 notice", folder: "Stage 2 notices", to: [] });
       return `notice-${notices.length}`;

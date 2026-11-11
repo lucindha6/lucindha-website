@@ -29,6 +29,18 @@ export function workingDaysSince(fromIso, now) {
   return count;
 }
 
+/**
+ * Netlify schedules run in UTC, so the daily check is scheduled at BOTH 17:00 and 18:00 UTC on
+ * weekdays, and only the run that falls at 6pm UK time does anything: 18:00 UTC in winter (GMT),
+ * 17:00 UTC in summer (BST). The other run exits straight away.
+ */
+export function isSixPmUk(now) {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", hour12: false, weekday: "short" }).formatToParts(new Date(now));
+  const hour = Number(parts.find((p) => p.type === "hour").value);
+  const weekday = parts.find((p) => p.type === "weekday").value;
+  return hour === 18 && !["Sat", "Sun"].includes(weekday);
+}
+
 export function holidaysOutOfDate(now) {
   return ukDate(new Date(now)) > HOLIDAYS_VALID_UNTIL;
 }
