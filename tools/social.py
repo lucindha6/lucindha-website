@@ -14,7 +14,7 @@ ICONS = {
 BUSINESS = [
     ("LinkedIn", "https://www.linkedin.com/company/lucindhalawson"),
     ("Instagram", "https://www.instagram.com/lucindhalawson/"),
-    ("Facebook", "https://www.facebook.com/share/1CdW91zivW/?mibextid=wwXIfr"),
+    ("Facebook", "https://www.facebook.com/lucindhalawsonltd"),
 ]
 PERSONAL = [
     ("LinkedIn", "https://www.linkedin.com/in/lucindha6/"),
