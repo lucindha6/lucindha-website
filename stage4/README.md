@@ -18,7 +18,7 @@ Gate S4-1, fictional data only. This branch (`feature/stage4-onboarding`) is **n
 
 ```
 cd stage4
-npm test        # 58 tests (24 core, 12 from the first review, 22 for your 11 Nov decisions and the second review)
+npm test        # 60 tests
 npm run demo    # fictional clients, end to end
 ```
 
@@ -41,3 +41,7 @@ An independent reviewer found 17 issues (2 high, 7 medium, 8 low). All are fixed
 ### Second independent review (11 Nov 2026)
 
 Fixed: unreadable diary entries are refused, not ignored; the slot length comes from config; the hold length must be set. Approvals are now tied to the exact content approved (a fingerprint), so a quote or letter changed after approval no longer counts as approved or final. A checklist whose risk level doesn't match your recorded assessment is refused. A quote can't be issued with a past date. Payroll mentioned in free text is flagged. "Investigate" no longer counts as investment. Insolvency and probate are flagged. "You agree to do..." is no longer treated as a placeholder. Electronic address checks are removed. PEPs get the enhanced (12-month) monitoring interval. Month-end dates are handled.
+
+### AML trigger events (approved for fictional-data development, 11 Nov 2026)
+
+`recordTrigger` lets you record, as a code, an event that brings a client's monitoring review forward: change of ownership, becoming a PEP, a high-risk country, a possible sanctions match, unusual activity, new services, pressure or reluctance, adverse information, or guidance changes. Suspicions are deliberately not a code here; they stay in your Nominated Officer log. `recordMonitoringReview` records your completed review and re-rated risk, and clears open triggers. A possible sanctions match must be resolved outside the tool first, and PEP or high-risk-country clients can't be re-rated low. The intervals stay PROPOSED.

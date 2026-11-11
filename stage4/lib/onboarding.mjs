@@ -175,16 +175,68 @@ export const MONITORING = { approved: false, months: { low: 36, medium: 24, high
  * Accepted clients whose next ongoing-monitoring review is due (from the monitoring date you set
  * and their risk level). Reminders for you only; nothing is sent.
  */
+/**
+ * Events that bring an ongoing-monitoring review forward, whatever the interval (approved for
+ * fictional-data development, 11 Nov 2026). Codes only, never free text. A SUSPICION of money
+ * laundering is deliberately NOT a code here: it goes to your confidential Nominated Officer log.
+ */
+export const TRIGGERS = {
+  "id-doubt": "doubts about whether ID details are still accurate",
+  "ownership-change": "change of ownership, directors, structure or business activity",
+  "high-risk-country": "new link with a high-risk third country",
+  "became-pep": "the client, a family member or close associate became a PEP",
+  "sanctions-possible-match": "a sanctions designation or possible match on the UK Sanctions List",
+  "unusual-activity": "unusual transactions or payments, unexplained wealth, or a sudden rise in turnover or cash",
+  "new-services": "a request for new services (check they're within your licence)",
+  "pressure-or-reluctance": "pressure to skip checks, or reluctance to provide information",
+  "adverse-information": "adverse media, or information from a regulator",
+  "guidance-change": "updated AAT or government risk guidance affecting this client",
+};
+
+/** You record a trigger event for an ACCEPTED client. Doesn't change the decision; brings the review forward. */
+export function recordTrigger(c, { trigger, date, by } = {}) {
+  if (by !== "Lucindha") throw new Error("only-lucindha-records-triggers");
+  if (c.status !== "accepted" || !c.decision) throw new Error("triggers-are-for-accepted-clients");
+  if (!Object.hasOwn(TRIGGERS, trigger)) throw new Error("bad-trigger");
+  assertDate(date);
+  if (date < c.decision.date) throw new Error("trigger-before-acceptance");
+  return { ...c, triggers: [...(c.triggers || []), { trigger, date, reviewed: false }] };
+}
+
+/** You record a completed ongoing-monitoring review, with your re-rated risk. Clears open triggers. */
+export function recordMonitoringReview(c, { date, by, riskLevel, confirmedPersonally = false } = {}) {
+  if (by !== "Lucindha" || confirmedPersonally !== true) throw new Error("review-must-be-made-personally-by-lucindha");
+  if (c.status !== "accepted") throw new Error("reviews-are-for-accepted-clients");
+  if (!["low", "medium", "high"].includes(riskLevel)) throw new Error("bad-risk-level");
+  assertDate(date);
+  const pepOrCountry = c.redFlags.some((f) => ["pep", "high-risk-country"].includes(f.id) && f.present === true) || (c.triggers || []).some((t) => ["became-pep", "high-risk-country"].includes(t.trigger));
+  if (riskLevel === "low" && pepOrCountry) throw new Error("risk-cannot-be-low-with-pep-or-high-risk-country");
+  if ((c.triggers || []).some((t) => !t.reviewed && t.trigger === "sanctions-possible-match")) throw new Error("resolve-sanctions-match-outside-this-tool-first");
+  return { ...c, riskLevel, lastReview: { date, riskLevel }, triggers: (c.triggers || []).map((t) => ({ ...t, reviewed: true })) };
+}
+
+/**
+ * Accepted clients whose next ongoing-monitoring review is due: from the last review (or the
+ * acceptance date), by risk level, or straight away when a trigger event is open. Reminders for you
+ * only; nothing is sent.
+ */
 export function monitoringDue(checklists, today) {
   assertDate(today);
   const out = [];
   for (const c of checklists) {
     if (c.status !== "accepted" || !c.steps["monitoring-date"]) continue;
-    const pepOrHigh = c.riskLevel === "high" || c.redFlags.some((f) => ["pep", "high-risk-country"].includes(f.id) && f.present === true);
-    const months = pepOrHigh ? MONITORING.months.high : Object.hasOwn(MONITORING.months, c.riskLevel) ? MONITORING.months[c.riskLevel] : null; // PEPs: enhanced ongoing monitoring (reg. 35)
+    const level = c.lastReview?.riskLevel || c.riskLevel;
+    const open = (c.triggers || []).filter((t) => !t.reviewed && t.date <= today);
+    if (open.length) {
+      const sanctions = open.some((t) => t.trigger === "sanctions-possible-match");
+      out.push({ ref: c.ref, due: open.map((t) => t.date).sort()[0], trigger: true, text: `${c.ref}: EARLIER REVIEW NEEDED (${open.map((t) => TRIGGERS[t.trigger]).join("; ")}).${sanctions ? " Possible sanctions match: do NOT proceed or move any money; check the UK Sanctions List entry and report to OFSI if it's a match." : ""} Refresh due diligence and re-rate the risk.` });
+      continue;
+    }
+    const pepOrHigh = level === "high" || c.redFlags.some((f) => ["pep", "high-risk-country"].includes(f.id) && f.present === true) || (c.triggers || []).some((t) => ["became-pep", "high-risk-country"].includes(t.trigger));
+    const months = pepOrHigh ? MONITORING.months.high : Object.hasOwn(MONITORING.months, level) ? MONITORING.months[level] : null; // PEPs: enhanced ongoing monitoring (reg. 35)
     if (!months) { out.push({ ref: c.ref, due: null, text: `${c.ref}: risk level missing; set the next review yourself.` }); continue; }
-    const due = addCalendarMonths(c.decision.date, months);
-    if (today >= due) out.push({ ref: c.ref, due, text: `${c.ref}: ongoing-monitoring review due ${due} (${c.riskLevel} risk). Refresh due diligence and re-check sanctions and PEP status.` });
+    const due = addCalendarMonths(c.lastReview?.date || c.decision.date, months);
+    if (today >= due) out.push({ ref: c.ref, due, text: `${c.ref}: ongoing-monitoring review due ${due} (${level} risk). Refresh due diligence and re-check sanctions and PEP status.` });
   }
   return out;
 }

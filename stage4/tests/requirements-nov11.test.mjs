@@ -258,3 +258,34 @@ test("review 2-low: no electronic address check; PEP monitoring is enhanced; mon
   assert.equal(monitoringDue([c], "2029-02-27").length, 0);
   assert.match(monitoringDue([c], "2029-02-28")[0].text, /due 2029-02-28/);
 });
+
+// ------------------------------------------------------------------ AML trigger events (approved 11 Nov, fictional data)
+test("AML triggers: recorded by you as codes only; bring the review forward; sanctions match stops; review clears them", async () => {
+  const { recordTrigger, recordMonitoringReview, TRIGGERS } = await import("../lib/onboarding.mjs");
+  let c = finish(flags(newChecklist({ ref: "ONB-T", clientRef: "CLI-T", clientType: "Individual" })), "low");
+  assert.throws(() => recordTrigger(c, { trigger: "ownership-change", date: "2026-11-25", by: "Lucindha" }), /accepted-clients/);
+  c = recordDecision(c, { outcome: "accepted", date: "2026-11-21", ...ME, confirmedPersonally: true });
+  assert.equal(monitoringDue([c], "2027-06-01").length, 0); // low risk: 3 years
+  assert.throws(() => recordTrigger(c, { trigger: "I think they're laundering", date: "2027-06-01", by: "Lucindha" }), /bad-trigger/);
+  assert.ok(!Object.keys(TRIGGERS).some((k) => /suspici/i.test(k)));
+  assert.throws(() => recordTrigger(c, { trigger: "new-services", date: "2027-06-01", by: "system" }), /only-lucindha/);
+  assert.throws(() => recordTrigger(c, { trigger: "new-services", date: "2026-11-01", by: "Lucindha" }), /before-acceptance/);
+  c = recordTrigger(c, { trigger: "new-services", date: "2027-06-01", by: "Lucindha" });
+  assert.equal(c.status, "accepted");
+  let due = monitoringDue([c], "2027-06-01");
+  assert.match(due[0].text, /EARLIER REVIEW NEEDED \(a request for new services/);
+  c = recordTrigger(c, { trigger: "sanctions-possible-match", date: "2027-06-02", by: "Lucindha" });
+  assert.match(monitoringDue([c], "2027-06-02")[0].text, /do NOT proceed.*OFSI/);
+  assert.throws(() => recordMonitoringReview(c, { date: "2027-06-03", by: "Lucindha", riskLevel: "high", confirmedPersonally: true }), /sanctions-match-outside/);
+});
+
+test("AML triggers: a client who becomes a PEP moves to yearly monitoring and can't be re-rated low", async () => {
+  const { recordTrigger, recordMonitoringReview } = await import("../lib/onboarding.mjs");
+  let c = recordDecision(finish(flags(newChecklist({ ref: "ONB-P2", clientRef: "CLI-P2", clientType: "Individual" })), "low"), { outcome: "accepted", date: "2026-11-21", ...ME, confirmedPersonally: true });
+  c = recordTrigger(c, { trigger: "became-pep", date: "2027-01-10", by: "Lucindha" });
+  assert.throws(() => recordMonitoringReview(c, { date: "2027-01-12", by: "Lucindha", riskLevel: "low", confirmedPersonally: true }), /cannot-be-low/);
+  assert.throws(() => recordMonitoringReview(c, { date: "2027-01-12", by: "Lucindha", riskLevel: "medium" }), /personally/);
+  c = recordMonitoringReview(c, { date: "2027-01-12", by: "Lucindha", riskLevel: "medium", confirmedPersonally: true });
+  assert.equal(monitoringDue([c], "2028-01-11").length, 0);
+  assert.match(monitoringDue([c], "2028-01-12")[0].text, /due 2028-01-12/); // yearly from the review
+});
