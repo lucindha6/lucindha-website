@@ -1,0 +1,8 @@
+{
+  "name": "lucindha-stage4-onboarding",
+  "private": true,
+  "type": "module",
+  "description": "Stage 4 (development only): draft quotes, engagement letter structure and checks, AAT-aligned onboarding/AML checklist, client pipeline, booking requests approved by Lucindha. Fictional data. Never sends, books or decides.",
+  "scripts": { "test": "node --test tests/*.test.mjs", "demo": "node tools/demo.mjs" },
+  "engines": { "node": ">=20" }
+}

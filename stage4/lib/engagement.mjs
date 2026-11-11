@@ -1,0 +1,99 @@
+// Engagement letter STRUCTURE and checks (DEVELOPMENT ONLY).
+//
+// AAT Client Care 5.1: a letter of engagement must be issued before any professional work and must
+// include at least items (a) to (p). This module holds the structure and checks a letter against
+// it. It contains NO legal wording: every section is a placeholder until you supply or approve
+// wording, ideally from AAT's own template letters (5.2). A letter can reach "ready for your review",
+// never "sent", and never without every placeholder replaced.
+//
+// Also: a new letter is needed when services are added or terms change (5.3), and a disengagement
+// letter when an engagement ends (5.9).
+import { clean } from "./util.mjs";
+
+export const PLACEHOLDER = "[AAT SAMPLE WORDING NOT SUPPLIED OR APPROVED]";
+
+export const AAT_ITEMS = [
+  ["a", "Nature, scope and reporting", "The nature of the assignment, the scope of the work, and the format and type of any report."],
+  ["b", "Timing", "Start date (and any dependence on client information), duration, and report deadlines."],
+  ["c", "Recurrence", "One-off, monthly or annual, and whether it continues until the client ends it."],
+  ["d", "Client responsibilities", "Providing accurate records on time; for tax work, acting as the client's agent on information the client supplies."],
+  ["e", "Irregularities and fraud", "Detecting irregularities and fraud is management's responsibility and normally outside the engagement."],
+  ["f", "Liability", "Any liability disclaimers, e.g. reliance on client-supplied information or compliance with legislation."],
+  ["g", "Fees", "Fee basis, billing frequency and rates, expenses, an estimate and hourly rates if no fixed fee, and any additional taxes (VAT)."],
+  ["h", "Books, records and lien", "Ownership of records, any lien if fees are unpaid or disputed, and retention, destruction or return."],
+  ["i", "Unpaid fees", "Steps if a fee is unpaid, including any interest and its rate, stopping work and recovery."],
+  ["j", "Use by third parties", "How the client may use your work for a third party, with suitable disclaimers."],
+  ["k", "Investment work", "A statement that the AAT licence does not authorise any investment work."],
+  ["l", "Money laundering", "Your duties under the Money Laundering Regulations: due diligence, risk assessments, record keeping and reporting."],
+  ["m", "Data protection", "Whether you're registered with the Information Commissioner, and your duty to process data securely under UK GDPR."],
+  ["n", "Client money and commissions", "How client money is handled and how commissions or other benefits are disclosed and accounted for."],
+  ["o", "Complaints", "How complaints are handled, the Principal responsible, and that unresolved complaints can be referred to AAT."],
+  ["p", "Continuity", "An alternate who can contact the client if you're permanently incapacitated or ill, and that the client may appoint another firm."],
+].map(([id, title, covers]) => ({ id, title, covers }));
+
+/** Practice details the letter needs from you (unknown to this code; placeholders until you decide). */
+export const PRACTICE_FACTS = [
+  ["firmName", "LUCINDHA LAWSON LTD"],
+  ["licence", "AAT licence no. 1010532"],
+  ["principal", "Lucindha Lawson MAAT"],
+  ["icoRegistration", null],
+  ["piiInsurer", null],
+  ["continuityAlternate", null],
+  ["vatStatus", null],
+].map(([key, value]) => ({ key, value }));
+
+export function newLetter({ ref, clientRef, services = [], licensedServices = [] }) {
+  return {
+    ref, clientRef, kind: "engagement",
+    services: services.map((s) => clean(s, 80)),
+    licensedServices,
+    sections: Object.fromEntries(AAT_ITEMS.map((i) => [i.id, PLACEHOLDER])),
+    schedules: Object.fromEntries(services.map((s) => [clean(s, 80), PLACEHOLDER])),
+    practice: Object.fromEntries(PRACTICE_FACTS.map((f) => [f.key, f.value])),
+    wordingApproved: false,
+    status: "draft",
+  };
+}
+
+/** You supply approved wording for one section (e.g. from AAT's template). */
+export function setSection(letter, id, text, { approvedByLucindha = false } = {}) {
+  if (!AAT_ITEMS.some((i) => i.id === id)) throw new Error("bad-section");
+  if (!approvedByLucindha) throw new Error("wording-must-be-approved-by-lucindha");
+  const t = clean(text, 4000);
+  if (!t || t.includes("[")) throw new Error("wording-has-placeholder");
+  return { ...letter, sections: { ...letter.sections, [id]: t } };
+}
+
+/** Checks a letter against AAT 5.1 (a)-(p) and your licensed services. Never sends anything. */
+export function checkLetter(letter) {
+  const missing = AAT_ITEMS.filter((i) => !letter.sections[i.id] || letter.sections[i.id] === PLACEHOLDER).map((i) => `(${i.id}) ${i.title}`);
+  const problems = [];
+  if (missing.length) problems.push(`Required AAT items still placeholders: ${missing.join("; ")}.`);
+  for (const [s, text] of Object.entries(letter.schedules)) if (!text || text === PLACEHOLDER) problems.push(`Scope schedule for "${s}" is a placeholder.`);
+  for (const f of PRACTICE_FACTS) if (!letter.practice[f.key]) problems.push(`Practice detail needed: ${f.key}.`);
+  const unlicensed = letter.services.filter((s) => !letter.licensedServices.includes(s));
+  if (unlicensed.length) problems.push(`Services not on your licensed list: ${unlicensed.join(", ")}.`);
+  const allText = JSON.stringify(letter.sections) + JSON.stringify(letter.schedules);
+  if (/\b(investment advice|we (will|can) (advise on|recommend) (investments|pensions))\b/i.test(allText)) problems.push("Wording suggests investment work, which your AAT licence doesn't authorise.");
+  if (letter.sections.k && letter.sections.k !== PLACEHOLDER && !/investment/i.test(letter.sections.k)) problems.push("Item (k) must state that the AAT licence doesn't authorise investment work.");
+  if (letter.sections.o && letter.sections.o !== PLACEHOLDER && !/\bAAT\b/.test(letter.sections.o)) problems.push("Item (o) must say unresolved complaints can be referred to AAT.");
+  return { status: problems.length ? "incomplete" : "ready-for-review", problems };
+}
+
+/** AAT 5.3: a new letter is needed when services are added or terms change. */
+export function newLetterNeeded({ previousServices = [], services = [], termsChanged = false }) {
+  const added = services.filter((s) => !previousServices.includes(s));
+  const reasons = [];
+  if (added.length) reasons.push(`new services: ${added.join(", ")}`);
+  if (termsChanged) reasons.push("terms changed");
+  return { needed: reasons.length > 0, reasons };
+}
+
+/** AAT 5.9: disengagement letter structure (placeholders until you supply wording). */
+export function disengagementChecklist({ outstandingWork = null, deadlinesStated = false, newAdviserRequestHandled = null }) {
+  const problems = [];
+  if (outstandingWork === null) problems.push("State work you'll complete before the engagement ends, and work you won't.");
+  if (!deadlinesStated) problems.push("State any relevant deadlines (e.g. Self Assessment, VAT, Companies House).");
+  if (newAdviserRequestHandled === null) problems.push("If a new adviser asks for information, respond with the client's consent (professional clearance).");
+  return { status: problems.length ? "incomplete" : "ready-for-review", problems, wording: PLACEHOLDER };
+}
