@@ -238,7 +238,8 @@
     // wait until the browser has finished its own scroll for the newly focused element
     requestAnimationFrame(function () {
       var a = t.getBoundingClientRect(), b = wa.getBoundingClientRect();
-      if (a.bottom > b.top && a.top < b.bottom && a.right > b.left && a.left < b.right) window.scrollBy({ top: a.bottom - b.top + 16, behavior: 'instant' });
+      var gap = 12; // keep a clear gap around the button, not just "not overlapping"
+      if (a.bottom > b.top - gap && a.top < b.bottom + gap && a.right > b.left - gap && a.left < b.right + gap) window.scrollBy({ top: a.bottom - b.top + gap + 4, behavior: 'instant' });
     });
   });
 })();
