@@ -48,15 +48,13 @@ body = f'''
 
 <div class="card wa-card">
 <h2>WhatsApp</h2>
-<p><a href="https://wa.me/message/55VPGHD4HYG4B1" class="link" target="_blank" rel="noopener">Message me on WhatsApp<span class="sr"> (opens WhatsApp in a new tab)</span></a></p>
-<p>07708 996817</p>
-<p>For written messages: quick questions about my services, and arranging or changing appointments. Please send a written message rather than a voice note or call. I aim to respond within 2 working days.</p>
-<figure class="wa-qr">
-<img src="images/whatsapp-business-qr.png" width="641" height="684" loading="lazy" alt="QR code for the Lucindha Lawson Ltd WhatsApp Business account. Scanning it opens a WhatsApp chat with Lucindha Lawson Ltd.">
-<figcaption>Scan to message us on WhatsApp Business.</figcaption>
-</figure>
-<p class="small">Can't scan the code? Use the <a href="https://wa.me/message/55VPGHD4HYG4B1" target="_blank" rel="noopener">WhatsApp link<span class="sr"> (opens WhatsApp in a new tab)</span></a> instead.</p>
-<p class="wa-note"><strong>Please don't send financial documents, bank details, ID or other confidential information by WhatsApp.</strong> I'll never ask for them there, and identity checks aren't done over WhatsApp. If we work together, I'll give you a secure way to share documents. <a href="privacy.html#whatsapp">How WhatsApp messages are handled</a>.</p>
+<p><a class="wa-btn" href="https://wa.me/447708996817" target="_blank" rel="noopener"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 19.5l1.2-3.6A8 8 0 1 1 8.6 18.6z"></path><path d="M9 10.5h6M9 13.5h4"></path></svg><span>Message me on WhatsApp</span><span class="sr"> (opens WhatsApp in a new tab)</span></a></p>
+<ul class="wa-points">
+<li>For written enquiries about my services, and arranging or changing appointments. Number: 07708 996817.</li>
+<li>I don't accept voice calls or voice notes.</li>
+<li>I aim to respond within 2 working days.</li>
+</ul>
+<p class="wa-note"><strong>Don't send financial documents, bank details, ID or other confidential information by WhatsApp.</strong> <a href="privacy.html#whatsapp">WhatsApp and your privacy</a></p>
 </div>
 
 <div class="card follow-card">

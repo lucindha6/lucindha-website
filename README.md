@@ -14,6 +14,6 @@ Every change saved to the `main` branch is published by Netlify automatically.
 
 ## WhatsApp Business
 - Number: 07708 996817 (written messages only – no voice notes or calls).
-- Official WhatsApp Business short link (used on the site): `https://wa.me/message/55VPGHD4HYG4B1`. Confirmed 11 Nov 2026 from the QR code in the WhatsApp Business app (account: Lucindha Lawson Ltd). If the short link is ever reset in the app, it stops working, so switch back to the fallback.
-- Fallback direct number link: `https://wa.me/447708996817`. This never changes.
-- Where the link appears: the Contact page card (`tools/build_contact.py`), the footer and the floating button (the footer of `site/home.html`, copied to every page). To change it, replace the link in those places and rebuild.
+- Direct number link (used on the site): `https://wa.me/447708996817`. It's based on the business number, so it never changes.
+- Official WhatsApp Business short link (not used): `https://wa.me/message/55VPGHD4HYG4B1`. It stops working if it's reset in the WhatsApp Business app.
+- Where the link appears: the Contact page WhatsApp button (`tools/build_contact.py`), the footer button and the floating button (the footer of `site/home.html`, copied to every page). To change it, replace the link in those places and rebuild.

@@ -35,9 +35,26 @@
     else if (y < lastY - 6) header.classList.remove('is-hidden');
     header.classList.toggle('is-raised', y > 10);
     lastY = y; ticking = false;
+    // pinned elements (the policy pages' "On this page" list) sit below the header while it's showing
+    var off = header.classList.contains('is-hidden') ? 0 : Math.max(0, header.getBoundingClientRect().bottom);
+    document.documentElement.style.setProperty('--hdr-offset', off + 'px');
+    clearFocus();
+  }
+  // If the header is showing over the element that has keyboard focus, scroll that element clear of it.
+  function clearFocus() {
+    var t = document.activeElement;
+    if (!t || t === document.body || header.contains(t) || header.classList.contains('is-hidden')) return;
+    if (t.classList && t.classList.contains('skip')) return;
+    var a = t.getBoundingClientRect(), b = header.getBoundingClientRect();
+    if (a.height && b.bottom > 0 && a.top < b.bottom && a.bottom > b.top) window.scrollBy({ top: a.top - b.bottom - 12, behavior: 'instant' });
   }
   window.addEventListener('scroll', function () { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
   header.addEventListener('focusin', function () { header.classList.remove('is-hidden'); });
+  // Keyboard users: anchors and focus scrolling stop below the header, and an element that receives
+  // focus while the header is showing is never left underneath it (WCAG 2.4.11 Focus Not Obscured).
+  function pad() { document.documentElement.style.scrollPaddingTop = (header.offsetHeight + 12) + 'px'; }
+  pad(); window.addEventListener('resize', pad); update();
+  document.addEventListener('focusin', function () { requestAnimationFrame(clearFocus); });
 })();
 
 /* Header drop-downs (Community Work, Media) - keyboard and screen-reader friendly. */
