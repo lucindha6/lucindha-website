@@ -45,11 +45,11 @@ const graph = mockGraph();
 const env = envFor(week.map(([, , d]) => d.email));
 const inbox = [];
 for (const [when, iso, data] of week) {
-  const before = graph.inbox.length;
+  const before = graph.notices.length;
   const r = await run({ store, graph, env, data, at: Date.parse(iso) });
   graph.stage1AcknowledgementSent(data.email, iso); // Stage 1 still sends its acknowledgement, saved in Sent Items
   inbox.push({ when, kind: "original", who: data.name, result: r.result });
-  for (const n of graph.inbox.slice(before)) inbox.push({ when, kind: "notice", subject: n.subject, body: n.message });
+  for (const n of graph.notices.slice(before)) inbox.push({ when, kind: "notice", subject: n.subject, body: n.message });
 }
 const refs = Object.fromEntries([...store.m.entries()].filter(([k]) => k.startsWith("rec/")).map(([, v]) => JSON.parse(v)).map((r, i) => [week[i][2].name + (i === 4 ? " (follow-up)" : ""), r.ref]));
 const draftsMonday = [...graph.drafts.values()].map((d) => ({ to: d.to, subject: d.subject, category: d.category }));
@@ -83,7 +83,7 @@ for (const [label, data] of previewCases) {
   const g = mockGraph();
   await run({ store: memStore(), graph: g, env: envFor([data.email]), data, at: Date.parse("2026-11-16T10:00:00Z") });
   const [d] = [...g.drafts.values()];
-  previews.push({ label, name: data.name, to: d.to, subject: d.subject, category: d.category, html: d.html, notice: g.inbox[0] });
+  previews.push({ label, name: data.name, to: d.to, subject: d.subject, category: d.category, html: d.html, notice: g.notices[0] });
 }
 
 console.log(JSON.stringify({ inbox, refs, draftsMonday, later, wed, thu, finalCategories, previews }, null, 2));

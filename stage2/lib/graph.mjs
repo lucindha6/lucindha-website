@@ -1,5 +1,5 @@
 // Microsoft Graph access for the SEPARATE "Website enquiry drafts" app.
-// It only ever: creates a draft in one mailbox, places a short notice in that mailbox's Inbox,
+// It only ever: creates a draft in one mailbox, saves a short notice as an unaddressed draft,
 // reads a message it created, sets a category, and searches Sent Items for a reply that
 // carries the enquiry's reference. There is deliberately NO send function in Stage 2,
 // and the app is never given Mail.Send, so even a bug or a stolen key cannot send email.
@@ -11,8 +11,7 @@
 const GRAPH = "https://graph.microsoft.com/v1.0";
 const REF_PROP = "String {5e1f3f6e-7a41-4d1e-9c4b-0c2b1d7f0a11} Name LLEnquiryRef"; // hidden property holding the reference
 const NOTICE_PROP = "String {5e1f3f6e-7a41-4d1e-9c4b-0c2b1d7f0a11} Name LLStage2Notice"; // marks genuine notices
-const MESSAGE_FLAGS = "Integer 0x0E07"; // PidTagMessageFlags: 0 = unread and NOT a draft (no unsent flag)
-const DELIVERY_TIME = "SystemTime 0x0E06"; // PidTagMessageDeliveryTime, so it sorts as received now
+export const NOTICE_FOLDER = "Stage 2 notices"; // a top-level folder you create in the mailbox
 
 /** True only if a sent message's subject carries one of these references (not just the address). */
 export function subjectHasRef(subject, refs) {
@@ -23,6 +22,7 @@ export function subjectHasRef(subject, refs) {
 export function realGraph(env, fetchFn = fetch) {
   let token = null;
   let deletedFolderId = null;
+  let noticeFolderId = null;
   const mailbox = encodeURIComponent(env.DRAFTS_MAILBOX);
   async function getToken() {
     if (token && token.exp - 60_000 > Date.now()) return token.value;
@@ -64,31 +64,29 @@ export function realGraph(env, fetchFn = fetch) {
       return (await res.json()).id;
     },
     /**
-     * Places a notice directly in the Inbox. VERIFY in integration testing: that it shows as a
-     * normal unread message (not a draft), that it triggers Outlook's new-mail alert on your
-     * phone and computer, and that it sorts at the top.
+     * Saves a notice as an UNADDRESSED draft in your "Stage 2 notices" folder (or in Drafts if that
+     * folder doesn't exist). Creating drafts is fully supported by Microsoft with Mail.ReadWrite,
+     * and isn't affected by the 31 December 2026 restriction. With no recipient, a notice can't be
+     * sent. Notices don't alert your phone themselves: the alert is the Netlify enquiry email you
+     * already get for every enquiry.
      */
     async createNotice({ subject, message }) {
-      const res = await call("/mailFolders/inbox/messages", {
+      if (noticeFolderId === null) {
+        const name = encodeURIComponent(`displayName eq '${NOTICE_FOLDER.replace(/'/g, "''")}'`);
+        const f = await call(`/mailFolders?$filter=${name}&$select=id`);
+        if (!f.ok) throw new Error(`graph-folder-${f.status}`);
+        noticeFolderId = (await f.json()).value?.[0]?.id || "drafts";
+      }
+      const res = await call(`/mailFolders/${encodeURIComponent(noticeFolderId)}/messages`, {
         method: "POST",
         body: JSON.stringify({
           subject,
           body: { contentType: "Text", content: message },
-          from: { emailAddress: { name: "Stage 2 notices", address: env.DRAFTS_MAILBOX } },
-          toRecipients: [{ emailAddress: { address: env.DRAFTS_MAILBOX } }],
           categories: ["Stage 2 notice"],
-          singleValueExtendedProperties: [
-            { id: MESSAGE_FLAGS, value: "0" },
-            { id: DELIVERY_TIME, value: new Date().toISOString() },
-            { id: NOTICE_PROP, value: "1" },
-          ],
+          singleValueExtendedProperties: [{ id: NOTICE_PROP, value: "1" }],
         }),
       });
       if (!res.ok) throw new Error(`graph-notice-${res.status}`);
-      // Created unread and not a draft, in one step: nothing is changed afterwards, so Microsoft's
-      // restriction on editing non-draft messages (from 31 Dec 2026) doesn't affect notices.
-      // VERIFY in integration testing that this still works; if it doesn't, the call fails,
-      // the record is marked and the daily check tells you.
       return (await res.json()).id;
     },
     /** Returns null ONLY when Microsoft says the item doesn't exist; any other problem throws. */
@@ -142,16 +140,16 @@ export function realGraph(env, fetchFn = fetch) {
 export function mockGraph({ failCreate = false, failNotice = false } = {}) {
   const drafts = new Map(); // id -> message
   const sent = []; // {to, at, subject}
-  const inbox = []; // notices placed by Stage 2
+  const notices = []; // notices saved by Stage 2 in the "Stage 2 notices" folder
   let n = 0;
   return {
     drafts,
     sent,
-    inbox,
+    notices,
     async createNotice(notice) {
       if (failNotice) throw new Error("graph-notice-503");
-      inbox.push({ ...notice, category: "Stage 2 notice" });
-      return `notice-${inbox.length}`;
+      notices.push({ ...notice, category: "Stage 2 notice", folder: "Stage 2 notices", to: [] });
+      return `notice-${notices.length}`;
     },
     async createDraft(m) {
       if (failCreate) throw new Error("graph-create-503");

@@ -1,11 +1,14 @@
-// Notices to you. Phase 2 change: notices are no longer posted to a public Netlify form (which
-// anyone on the internet could also post to, and which stored notices on Netlify). Instead the
-// Stage 2 Microsoft app places each notice DIRECTLY into the hello@ Inbox, using the same
-// mailbox-scoped permission it uses for drafts. Nothing from outside can create one, so:
+// Notices to you. Phase 3 design: the Stage 2 Microsoft app saves each notice as an UNADDRESSED
+// draft in a "Stage 2 notices" folder in the mailbox, using the same mailbox-scoped permission it
+// uses for reply drafts. (Microsoft has no supported way for an app to put an unread, non-draft
+// message in the Inbox without permission to send email.) Nothing from outside can create one, so:
 //
-//   A genuine Stage 2 notice is never an incoming email. It has no external sender, it carries
-//   the Outlook category "Stage 2 notice", and its subject starts with "[Stage 2]".
+//   A genuine Stage 2 notice is never an incoming email. It sits in the "Stage 2 notices" folder,
+//   has no recipient, carries the category "Stage 2 notice", and its subject starts with "[Stage 2]".
 //   An email that ARRIVES claiming to be a Stage 2 notice is forged and can be deleted.
+//
+// Your phone and computer are alerted by the Netlify enquiry email you already receive for every
+// enquiry; the notice tells you what Stage 2 did with it.
 //
 // Notices hold the reference, status, services ticked, flag reasons and a summary of
 // communication preferences. They never hold names, email addresses, enquiry text or the
@@ -48,7 +51,7 @@ export function noticeText({ ref, status, kind = "", services = [], reasons = []
   return { subject: `[Stage 2] ${TITLES[status] || status} · ${ref}`, message: lines.join("\n") };
 }
 
-/** Delivers notices by creating them inside the drafts mailbox's Inbox (see graph.createNotice). */
+/** Delivers notices by saving them in the "Stage 2 notices" folder (see graph.createNotice). */
 export function mailboxNotifier(graph) {
   return async (notice) => graph.createNotice(notice);
 }

@@ -1,9 +1,9 @@
 {
-  "_status": "PROPOSED - NOT APPROVED. Draft wording for Lucindha's review (Phase 2, 10 November 2026; community and media wording added the same day). Prices and services are copied from the live website (tools/build_accounting.py); the footer is copied from the live Stage 1 acknowledgement. Nothing here may be used outside automated tests until Lucindha confirms every line and 'approved' is set to true by her decision.",
+  "_status": "PROPOSED - NOT APPROVED. Draft wording for Lucindha's review (Phase 3 planning, 11 November 2026). Prices and services are copied from the live website (tools/build_accounting.py); the footer is copied from the live Stage 1 acknowledgement. Nothing here may be used outside automated tests until Lucindha confirms every line and 'approved' is set to true by her decision.",
   "approved": false,
   "approvedBy": null,
   "approvedOn": null,
-  "version": "2026-11-10-proposal-3",
+  "version": "2026-11-11-proposal-4",
   "services": {
     "Bookkeeping": {
       "phrase": "bookkeeping",
@@ -105,38 +105,35 @@
     "LUCINDHA LAWSON LTD. Registered in England & Wales. Company no. 17408408. Registered office: 128 City Road, London, EC1V 2NX."
   ],
   "community": {
-    "_note": "No fees are published for community work, so drafts never state a fee, a date, availability or a booking. They only ask questions.",
+    "_note": "Short first reply. No fees are published for community work, so drafts never state a fee, a date, availability or a booking. Workshop topics are not listed in the draft; it points to the workshops page, which lists what Lucindha currently offers.",
     "services": {
       "Sport & Coaching": {
         "phrase": "sport and coaching",
-        "question": "What kind of coaching or sports involvement do you have in mind, and what is the age group and experience level of the players?"
+        "question": "What kind of session do you have in mind, and what is the age group and experience level of the players?"
       },
       "Public Speaking": {
         "phrase": "a talk",
-        "question": "Is there a particular topic or theme you'd like me to speak about?"
+        "question": "What is the event, and who would the audience be?"
       },
       "Workshops": {
         "phrase": "a workshop",
-        "question": "Which workshop topic are you interested in, for example Deaf awareness or an introduction to BSL?"
+        "question": "Which workshop are you interested in, and who would it be for? My current workshops are listed at www.lucindhalawson.co.uk/workshops.html."
       },
       "I'm not sure yet": {
         "phrase": "working together",
-        "question": "What kind of activity did you have in mind? It doesn't need to be decided yet."
+        "question": "What do you have in mind, and who would it be for?"
       }
     },
     "sentences": {
-      "opening": "Thank you for getting in touch about {services}. I'd like to understand a bit more about what you have in mind.",
-      "questionsLead": "Could you tell me:",
+      "opening": "Thank you for thinking of me for {services}. I'd be glad to hear more.",
+      "questionsLead": "To start with, could you tell me:",
+      "generalQuestion": "What do you have in mind, and who would it be for?",
       "commonQuestions": [
-        "Who is it for, roughly how many people, and what age group?",
-        "What are you hoping it will achieve?",
-        "Which date or dates are you considering, and how long would it be?",
-        "Where would it take place, or would it be online?",
-        "What communication and access arrangements are planned or available, for example BSL interpreters, live captions, a hearing loop or step-free access?",
-        "Is this a paid engagement, a possible collaboration, or a request for voluntary support? If there's a budget, it would help to know it."
+        "Roughly when and where would it be?",
+        "What communication support would be available, for example BSL interpreters or live captions?",
+        "Is this a paid engagement, a collaboration, or a request for voluntary support?"
       ],
-      "fees": "If there would be a fee, I'll confirm it in writing once I know more about what's involved, including any preparation and travel.",
-      "noCommitment": "Once I have these details, I'll check whether I'm able to help and let you know. Nothing is booked until we've both agreed the details in writing.",
+      "noCommitment": "Once I know a little more, I'll let you know whether I can help and, if there would be a fee, what it would be. Nothing is booked until we've agreed the details in writing.",
       "closing": "I look forward to hearing from you."
     },
     "signature": [
@@ -166,5 +163,15 @@
       "Lucindha Lawson",
       "www.lucindhalawson.co.uk"
     ]
-  }
+  },
+  "combinedPrices": [
+    {
+      "services": [
+        "Year-end accounts",
+        "Corporation tax returns"
+      ],
+      "label": "Year-end accounts and Corporation Tax return",
+      "price": "from £850 a year in total for a small limited company (one price for both)"
+    }
+  ]
 }

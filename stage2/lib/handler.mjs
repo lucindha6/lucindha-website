@@ -135,9 +135,12 @@ export async function handleWebhook(rawBody, signature, deps) {
       return done(200, result);
     };
 
-    // 7. Same person within 24 hours? The per-person pointer always names the FIRST enquiry of the
-    //    current chain (root) and the latest one; repeats never move it.
-    const addrKey = `addr/${toHash}`;
+    // 7. Same person, same KIND of enquiry, within 24 hours? (accounting, community work, media
+    //    and other are kept apart: an accounting enquiry and a speaking request from one person on
+    //    the same day are handled separately, each with its own draft or notice.) The pointer names
+    //    the FIRST enquiry of the current chain (root) and the latest one; repeats never move it.
+    const addrKey = `addr/${toHash}/${s.kind}`;
+    const alsoSent = await otherKindsToday(store, toHash, s.kind, t);
     const fp = contentFingerprint(d, env.STAGE2_HASH_SECRET);
     const pointer = { rootKey: key, rootRef: ref, lastKey: key, lastRef: ref, at: t, fps: [fp] };
     const first = await store.setJSON(addrKey, pointer, { onlyIfNew: true });
@@ -194,8 +197,8 @@ export async function handleWebhook(rawBody, signature, deps) {
 
     // 8. Sensitive or unsure: notice only, no draft.
     if (s.route !== "ordinary") {
-      return finish({ status: s.route, route: s.route, refs: [ref], reminded: false },
-        noticeText({ ref, status: s.route, services: s.services, reasons: s.reasons, notes: s.notes, prefsSummary }), s.route);
+      return finish({ status: s.route, route: s.route, kind: s.kind, refs: [ref], reminded: false },
+        noticeText({ ref, status: s.route, kind: s.kind, services: s.services, reasons: s.reasons, notes: s.notes, prefsSummary, extra: alsoSent }), s.route);
     }
 
     // 9. Ordinary: the approved template, optionally with a personalised opening.
@@ -211,7 +214,7 @@ export async function handleWebhook(rawBody, signature, deps) {
     }
     // Stored record and log: route and ids only, never reasons (which can hint at health or debt).
     return finish({ status: "draft-ready", route: "ordinary", kind: s.kind, draftId, refs: [ref], reminded: false },
-      noticeText({ ref, status: "draft-ready", kind: s.kind, services: s.services, notes: [...s.notes, ...(note ? [note] : [])], prefsSummary }), "draft-ready");
+      noticeText({ ref, status: "draft-ready", kind: s.kind, services: s.services, notes: [...s.notes, ...(note ? [note] : [])], prefsSummary, extra: alsoSent }), "draft-ready");
   } catch {
     // Never lose an enquiry silently: tell you, and release the claim so a retry can try again.
     if (claimed && key) {
@@ -220,6 +223,21 @@ export async function handleWebhook(rawBody, signature, deps) {
     }
     return done(200, "error", { stage: "internal" });
   }
+}
+
+const KIND_LABEL = { accounting: "accounting", community: "community work", media: "media", other: "other" };
+
+/** A short line telling you the same person also sent a DIFFERENT kind of enquiry today. */
+async function otherKindsToday(store, toHash, kind, t) {
+  const { blobs = [] } = (await store.list({ prefix: `addr/${toHash}/` })) || {};
+  const seen = [];
+  for (const b of blobs) {
+    const k = b.key.split("/")[2];
+    if (k === kind) continue;
+    const p = await store.get(b.key, { type: "json" });
+    if (p && t - p.at < SAME_PERSON_WINDOW_MS) seen.push(`${p.lastRef || p.rootRef} (${KIND_LABEL[k] || k})`);
+  }
+  return seen.length ? `The same person also sent ${seen.join(", ")} in the last 24 hours. It's handled separately, so you can reply to each on its own or together.` : "";
 }
 
 /**

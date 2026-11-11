@@ -45,10 +45,14 @@ export function servicesPhrase(services, facts) {
 /** Returns the draft's parts as a list, so the text and HTML versions always match. */
 export function templateParagraphs({ services, prefs, facts, opening }) {
   const f = facts.sentences;
-  const lines = services.map((s) => {
-    const p = facts.services[s]?.price;
-    return `${s}: ${p || f.noPrice}`;
-  });
+  // Services priced together (e.g. year-end accounts + Corporation Tax) get ONE line, so the
+  // same starting price never appears twice as if it were two charges.
+  const combined = (facts.combinedPrices || []).filter((c) => c.services.every((x) => services.includes(x)));
+  const covered = new Set(combined.flatMap((c) => c.services));
+  const lines = [
+    ...combined.map((c) => `${c.label}: ${c.price}`),
+    ...services.filter((s) => !covered.has(s)).map((s) => `${s}: ${facts.services[s]?.price || f.noPrice}`),
+  ];
   const questions = [...new Set(services.flatMap((s) => facts.services[s]?.questions || []))].slice(0, 3);
   return [
     opening || f.opening.replace("{services}", servicesPhrase(services, facts)),
@@ -69,12 +73,13 @@ export function communityParagraphs({ services, prefs, facts }) {
   const c = facts.community;
   const f = c.sentences;
   const phrase = joinNatural(services.map((s) => c.services[s]?.phrase || s));
-  const specific = services.map((s) => c.services[s]?.question).filter(Boolean);
+  // Short first reply: one "what and who" question (service-specific when only one service is
+  // ticked), then when/where, communication support, and paid/collaboration/voluntary.
+  const first = services.length === 1 ? c.services[services[0]]?.question : f.generalQuestion;
   return [
     f.opening.replace("{services}", phrase),
-    { lead: f.questionsLead, list: [...new Set([...specific, ...f.commonQuestions])] },
+    { lead: f.questionsLead, list: [first || f.generalQuestion, ...f.commonQuestions] },
     ...accessibilitySentences(prefs, facts),
-    f.fees,
     f.noCommitment,
     f.closing,
   ].filter(Boolean);

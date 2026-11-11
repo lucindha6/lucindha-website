@@ -59,7 +59,7 @@ function setup(over = {}) {
     log: (o) => logs.push(o),
     now: () => clock,
   };
-  return { deps, logs, notices: graph.inbox, tick: (ms) => (clock += ms) };
+  return { deps, logs, notices: graph.notices, tick: (ms) => (clock += ms) };
 }
 
 const send = (deps, sub, sig) => {
@@ -278,7 +278,7 @@ test("every sentence in an ordinary draft comes from the wording file (nothing i
     const paras = d.html.match(/<(p|li)[^>]*>(.*?)<\/\1>/g).map((h) => h.replace(/<[^>]+>/g, "").replace(/&#39;/g, "'").replace(/&amp;/g, "&").replace(/&quot;/g, '"'));
     for (const p of paras) {
       const ok = allowed.has(p) || /^Hello( [A-Z][a-z]+)?,$/.test(p) || /^[A-Z][^:]+: /.test(p) /* price line */
-        || p.startsWith("Thank you for getting in touch about ") || p.includes("Lucindha Lawson");
+        || p.startsWith("Thank you for getting in touch about ") || /^Thank you for thinking of me for .+\. I'd be glad to hear more\.$/.test(p) || p.includes("Lucindha Lawson");
       assert.ok(ok, `not from wording file: ${p}`);
     }
   }
@@ -660,7 +660,7 @@ test("a retry after a crash part-way through a follow-up still links to the earl
 test("a notice that can't be delivered is retried, then reported by the daily check", async () => {
   const x = setup();
   let fails = 2;
-  x.deps.notify = async (n) => { if (fails-- > 0) throw new Error("down"); x.deps.graph.inbox.push(n); };
+  x.deps.notify = async (n) => { if (fails-- > 0) throw new Error("down"); x.deps.graph.notices.push(n); };
   await send(x.deps, submission(ENQUIRIES[12].data)); // sensitive: the notice is the only output
   assert.equal(x.notices.length, 0);
   assert.equal(recs(x)[0].noticeFailed, true);
@@ -669,7 +669,7 @@ test("a notice that can't be delivered is retried, then reported by the daily ch
   assert.match(x.notices[0].message, /couldn't be delivered/);
   const y = setup();
   let once = 1;
-  y.deps.notify = async (n) => { if (once-- > 0) throw new Error("blip"); y.deps.graph.inbox.push(n); };
+  y.deps.notify = async (n) => { if (once-- > 0) throw new Error("blip"); y.deps.graph.notices.push(n); };
   await send(y.deps, submission(ENQUIRIES[12].data));
   assert.equal(y.notices.length, 1); // a single failure is retried straight away
 });
@@ -716,7 +716,7 @@ test("the daily check reads Sent Items once, however many enquiries are open", a
   assert.equal(calls, 1);
 });
 
-test("real Graph client: follows absolute nextLinks on Graph only, and notices are created unread in one step", async () => {
+test("real Graph client: follows absolute nextLinks on Graph only; notices are unaddressed drafts in the 'Stage 2 notices' folder", async () => {
   const { realGraph } = await import("../lib/graph.mjs");
   const urls = [];
   const fetchFn = async (url, init = {}) => {
@@ -724,32 +724,42 @@ test("real Graph client: follows absolute nextLinks on Graph only, and notices a
     if (url.includes("oauth2")) return new Response(JSON.stringify({ access_token: "tok", expires_in: 3600 }));
     if (url.includes("page2")) return new Response(JSON.stringify({ value: [{ subject: "Re (ref ENQ-AAAAAA)", sentDateTime: "2026-11-17T10:00:00Z", toRecipients: [{ emailAddress: { address: "A@x.org" } }] }] }));
     if (url.includes("sentitems")) return new Response(JSON.stringify({ value: [], "@odata.nextLink": "https://graph.microsoft.com/v1.0/users('drafts-test%40lucindhalawson.co.uk')/mailFolders/sentitems/messages?page2" }));
-    if (url.includes("inbox")) return new Response(JSON.stringify({ id: "n1" }));
+    if (url.includes("mailFolders?$filter")) return new Response(JSON.stringify({ value: [{ id: "FOLDER-1" }] }));
+    if (url.includes("FOLDER-1/messages")) return new Response(JSON.stringify({ id: "n1" }));
     return new Response("{}", { status: 404 });
   };
   const g = realGraph({ ...ENV }, fetchFn);
   const sent = await g.sentSince("2026-11-16T00:00:00Z");
   assert.deepEqual(sent, [{ subject: "Re (ref ENQ-AAAAAA)", at: "2026-11-17T10:00:00Z", recipients: ["a@x.org"] }]);
   await g.createNotice({ subject: "[Stage 2] x", message: "y" });
-  const created = urls.find((u) => u.url.includes("inbox"));
+  await g.createNotice({ subject: "[Stage 2] z", message: "w" });
+  assert.equal(urls.filter((u) => u.url.includes("mailFolders?$filter")).length, 1, "folder looked up once");
+  const created = urls.find((u) => u.url.includes("FOLDER-1/messages"));
   const body = JSON.parse(created.init.body);
   assert.deepEqual(body.categories, ["Stage 2 notice"]);
-  assert.ok(body.singleValueExtendedProperties.some((p) => p.id === "Integer 0x0E07" && p.value === "0"));
+  assert.equal(body.toRecipients, undefined, "a notice has no recipient, so it can't be sent");
+  assert.ok(!JSON.stringify(body).includes("0x0E07"), "no unsupported message-flag workaround");
   assert.ok(!urls.some((u) => u.init.method === "PATCH"));
+  // No "Stage 2 notices" folder yet → falls back to Drafts.
+  const h = realGraph({ ...ENV }, async (url, init) => url.includes("oauth2") ? new Response(JSON.stringify({ access_token: "t" }))
+    : url.includes("mailFolders?$filter") ? new Response(JSON.stringify({ value: [] }))
+    : url.includes("/mailFolders/drafts/messages") ? new Response(JSON.stringify({ id: "d1" })) : new Response("{}", { status: 404 }));
+  assert.equal(await h.createNotice({ subject: "s", message: "m" }), "d1");
   const evil = realGraph({ ...ENV }, async (url) => url.includes("oauth2") ? new Response(JSON.stringify({ access_token: "t" })) : new Response(JSON.stringify({ value: [], "@odata.nextLink": "https://evil.example/steal" })));
   await assert.rejects(evil.sentSince("2026-11-16T00:00:00Z"), /graph-bad-link/);
 });
 
-// ===================================================== community work and media (Phase 2 addition)
+// ===================================================== community work and media
 const COMMUNITY = ENQUIRIES.filter((q) => q.data.about.startsWith("Community") && q.expect === "ordinary");
 
-test("community enquiries get a community template: questions about the activity, aims, dates, place, access and fees", async () => {
+test("community enquiries get a SHORT, welcoming template: what/who, when/where, communication support, paid or not", async () => {
   const x = setup();
   await send(x.deps, submission(ENQUIRIES.find((q) => q.note === "school talk with a date").data));
   const [d] = [...x.deps.graph.drafts.values()];
   assert.equal(d.category, CATEGORIES.template);
-  assert.match(d.html, /Thank you for getting in touch about a talk\./);
-  for (const q of [/particular topic or theme/, /Who is it for/, /hoping it will achieve/, /Which date or dates/, /Where would it take place/, /communication and access arrangements/, /paid engagement, a possible collaboration, or a request for voluntary support/]) assert.match(d.html, q);
+  assert.match(d.html, /Thank you for thinking of me for a talk\. I&#39;d be glad to hear more\./);
+  for (const q of [/What is the event, and who would the audience be\?/, /Roughly when and where would it be\?/, /BSL interpreters or live captions/, /paid engagement, a collaboration, or a request for voluntary support/]) assert.match(d.html, q);
+  assert.equal((d.html.match(/<li>/g) || []).length, 4, "four questions only");
   assert.ok(!/AAT|£|licence/i.test(d.html), "no accounting wording or prices in a community draft");
   assert.match(x.notices[0].message, /Type: community work/);
   assert.match(x.notices[0].message, /involves-young-people/);
@@ -762,10 +772,11 @@ test("community drafts never confirm a booking, availability, a date, a fee or a
   assert.equal(x.deps.graph.drafts.size, COMMUNITY.length);
   for (const d of x.deps.graph.drafts.values()) {
     const text = d.html.replace(/<[^>]+>/g, " ");
-    const withoutSafeguard = text.replace("Nothing is booked until we&#39;ve both agreed the details in writing.", "");
+    const withoutSafeguard = text.replace("Nothing is booked until we&#39;ve agreed the details in writing.", "");
     assert.ok(!/£\s?\d|\b(I am|I'm|I&#39;m) (available|free) on|(is|are) (booked|confirmed)|I (will|&#39;ll) (be there|attend|do it)|my fee (is|will be) /i.test(withoutSafeguard), text);
     assert.ok(!/12\/03\/2027|Year 10|£150/.test(text), "the person's own details are never repeated back");
-    assert.match(text, /Nothing is booked until we&#39;ve both agreed the details in writing/);
+    assert.match(text, /Nothing is booked until we&#39;ve agreed the details in writing/);
+    assert.ok(text.length < 2200, `community draft should be short (${text.length})`);
   }
 });
 
@@ -773,21 +784,24 @@ test("paid, collaboration and voluntary are asked about, never assumed", async (
   const x = setup();
   for (const c of COMMUNITY) await send(x.deps, submission(c.data));
   for (const d of x.deps.graph.drafts.values()) {
-    assert.match(d.html, /paid engagement, a possible collaboration, or a request for voluntary support/);
-    assert.match(d.html, /If there would be a fee/);
+    assert.match(d.html, /paid engagement, a collaboration, or a request for voluntary support/);
+    assert.match(d.html, /if there would be a fee, what it would be/);
     assert.ok(!/(your|this) (paid|voluntary) (event|request|engagement)|as a volunteer|free of charge|pro bono/i.test(d.html));
   }
 });
 
-test("each community service adds its own question; several services add several", async () => {
+test("one service → its own first question; several services → one general question (keeps it short)", async () => {
   const x = setup();
   await send(x.deps, submission(ENQUIRIES.find((q) => q.note === "possible collaboration, talk + workshop").data));
   await send(x.deps, submission(ENQUIRIES.find((q) => q.note === "coaching at a futsal court").data));
-  const [both, coach] = [...x.deps.graph.drafts.values()];
-  assert.match(both.html, /about a talk and a workshop\./);
-  assert.match(both.html, /particular topic or theme/);
-  assert.match(both.html, /Which workshop topic/);
+  await send(x.deps, submission(ENQUIRIES.find((q) => q.note === "community workshop for staff").data));
+  const [both, coach, workshop] = [...x.deps.graph.drafts.values()];
+  assert.match(both.html, /for a talk and a workshop\./);
+  assert.match(both.html, /What do you have in mind, and who would it be for\?/);
   assert.match(coach.html, /age group and experience level of the players/);
+  // Workshop topics are not listed in the draft: it points to the page of what you currently offer.
+  assert.match(workshop.html, /www\.lucindhalawson\.co\.uk\/workshops\.html/);
+  assert.ok(!/CPR|first aid|Level \d/i.test(workshop.html));
 });
 
 test("community screening: a futsal court, a charity appeal or an event date isn't sensitive; a complaint or disclosure is", () => {
@@ -829,4 +843,77 @@ test("no personaliser is ever used for community or media enquiries", async () =
   const x = setup({ personaliser: p, env: { DRAFT_PERSONALISER: "ai" } });
   for (const c of [...COMMUNITY, ENQUIRIES.find((q) => q.note === "media interview about futsal")]) await send(x.deps, submission(c.data));
   assert.equal(p.calls.length, 0);
+});
+
+// ===================================================== Phase 3 planning refinements
+test("year-end accounts + Corporation Tax: ONE price line, £850 shown once, described as one price for both", async () => {
+  const x = setup();
+  await send(x.deps, submission(ENQUIRIES[2].data));
+  const [d] = [...x.deps.graph.drafts.values()];
+  assert.equal(d.html.match(/£850/g).length, 1);
+  assert.match(d.html, /Year-end accounts and Corporation Tax return: from £850 a year in total for a small limited company \(one price for both\)/);
+  const y = setup();
+  await send(y.deps, submission({ ...ENQUIRIES[2].data, services: ["Year-end accounts"] }));
+  assert.match([...y.deps.graph.drafts.values()][0].html, /Year-end accounts: from £850 a year for a small limited company, including the Corporation Tax return/);
+});
+
+test("unrelated enquiries from the same person stay separate: accounting and a speaking request each get their own draft", async () => {
+  const x = setup();
+  const C = "Community Work (sport, speaking or workshops)";
+  await send(x.deps, submission(ENQUIRIES[0].data)); // Priya: bookkeeping
+  x.tick(2 * 3600e3);
+  const r = await send(x.deps, submission({ ...ENQUIRIES[0].data, about: C, services: ["Public Speaking"], "client-type": "School, charity or organisation", details: "Our dog-walkers' network would love a talk at our annual meet-up." }));
+  assert.equal(r.result, "draft-ready");
+  const drafts = [...x.deps.graph.drafts.values()];
+  assert.equal(drafts.length, 2);
+  assert.equal(drafts[0].category, CATEGORIES.template, "the accounting draft is NOT re-labelled");
+  assert.match(drafts[1].html, /for a talk/);
+  assert.notEqual(drafts[0].subject, drafts[1].subject);
+  const [a] = recs(x);
+  assert.match(x.notices[1].message, new RegExp(`also sent ${a.ref} \\(accounting\\).*handled separately`));
+  // ...and each gets its own reminder if unanswered.
+  const s = await dailyCheck({ ...x.deps, now: evening("2026-11-19T18:00:00Z") });
+  assert.equal(s.reminders, 2);
+});
+
+test("a second enquiry of the SAME kind from the same person is still treated as a follow-up", async () => {
+  const x = setup();
+  await send(x.deps, submission(ENQUIRIES[0].data));
+  x.tick(3600e3);
+  assert.equal((await send(x.deps, submission({ ...ENQUIRIES[0].data, services: ["VAT returns"], details: "I also need VAT help." }))).result, "follow-up");
+});
+
+test("notices are unaddressed drafts in the 'Stage 2 notices' folder, so they can't be sent", async () => {
+  const x = setup();
+  for (const c of ENQUIRIES.slice(0, 15)) await send(x.deps, submission(c.data));
+  for (const n of x.notices) {
+    assert.equal(n.folder, "Stage 2 notices");
+    assert.deepEqual(n.to, []);
+  }
+});
+
+test("sensitive topics — mental health, wellbeing, disability, Long QT, complaints, AML, personal circumstances — get no draft", async () => {
+  const C = "Community Work (sport, speaking or workshops)";
+  const cases = [
+    { about: C, services: ["Workshops"], details: "Could you run a mental health and wellbeing workshop for Deaf young people?" },
+    { about: C, services: ["Public Speaking"], details: "We'd like you to talk about living with Long QT syndrome." },
+    { about: C, services: ["Workshops"], details: "A disability inclusion session for our staff, please." },
+    { about: C, services: ["Workshops"], details: "I'm unhappy with how the last session went and want to complain." },
+    { about: "Accounting services", services: ["Bookkeeping"], details: "My business is cash only and money goes offshore." },
+    { about: "Accounting services", services: ["Personal tax"], details: "I'm going through a divorce and need help." },
+  ];
+  for (const c of cases) {
+    const x = setup();
+    const r = await send(x.deps, submission({ ...ENQUIRIES[0].data, ...c }));
+    assert.equal(r.result, "sensitive", c.details);
+    assert.equal(x.deps.graph.drafts.size, 0);
+  }
+});
+
+test("community requests that may need a qualification (accredited BSL course, first aid training) go to you", () => {
+  const C = "Community Work (sport, speaking or workshops)";
+  const mk = (details) => screen({ about: C, services: ["Workshops"], details, "contact-method": ["Email"] });
+  assert.equal(mk("Could you deliver an accredited BSL Level 1 course for our staff?").route, "manual");
+  assert.equal(mk("We need first aid training with certificates for our coaches.").route, "manual");
+  assert.equal(mk("For example, a Deaf awareness session, of course at our office.").route, "ordinary", "'example' and 'of course' are fine");
 });

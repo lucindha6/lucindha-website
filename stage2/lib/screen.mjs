@@ -24,7 +24,7 @@ const SENSITIVE = [
   ["debt", /\b(debt\w*|bailiff\w*|insolven\w*|bankrupt\w*|iva|liquidat\w*|ccj|arrears|repossess\w*)\b/i],
   ["bereavement", /\b(bereave\w*|died|passed away|death|deceased|probate|executor\w*|estate of|widow\w*)\b/i],
   ["family", /\b(divorc\w*|separation|separated|custody|maintenance)\b/i],
-  ["health", /\b(ill|illness|cancer|mental health|depress\w*|anxiety|disabilit\w*|disabled|hospital\w*|diagnos\w*|medication|terminal|pregnan\w*|carer|benefits)\b/i],
+  ["health", /\b(ill|illness|cancer|mental health|wellbeing|depress\w*|anxiety|disabilit\w*|disabled|hospital\w*|diagnos\w*|medication|terminal|pregnan\w*|carer|benefits|long qt|heart condition|cardiac)\b/i],
   ["safeguarding", /\b(abuse\w*|domestic|suicid\w*|self[- ]harm|vulnerab\w*|threat\w*|scared|afraid)\b/i],
 ];
 
@@ -53,6 +53,10 @@ const PERSONAL_STORY = /\b(foster\w*|in care|care leaver|childhood|trauma\w*|sui
 const NOT_PUBLIC = /\b(bda|british deaf association|trustee\w*)\b/i;
 // Young people: not sensitive, but worth a note (e.g. safeguarding arrangements, DBS).
 const YOUNG_PEOPLE = /\b(child\w*|kids?|young people|youth|pupils?|students?|school\w*|under[- ]?1\d|u1\d|teenager\w*|juniors?)\b/i;
+
+// Community requests that may need a specific qualification or accreditation (e.g. an accredited
+// BSL course or first aid training) need your judgement about what you're qualified to deliver.
+const NEEDS_QUALIFICATION = /\b(accredit\w*|certificat\w*|certified|qualification\w*|level [1-6]|first aid (training|course|qualification)|cpr (training|course|certificat\w*)|training course|(bsl|sign language) (course|classes|lessons|teacher|tutor))\b/i;
 
 const STOPWORDS = new Set("the a an and or to of in for on with my i i'm is are be have need help me you your it this that we our can would like please about".split(" "));
 
@@ -97,6 +101,7 @@ export function screen(data, { inputMode = "structured" } = {}) {
   if (kind === "media" && PERSONAL_STORY.test(details)) flag("manual", "media-about-personal-story");
   if (NOT_PUBLIC.test(details) || NOT_PUBLIC.test(clean(data.access, 2000))) flag("manual", "mentions-role-not-yet-public");
   if ((kind === "community" || kind === "media") && YOUNG_PEOPLE.test(details)) notes.push("involves-young-people");
+  if (kind === "community" && NEEDS_QUALIFICATION.test(details)) flag("manual", "may-need-a-qualification");
   if (clientType && !CLIENT_TYPES.includes(clientType)) flag("manual", "unknown-client-type");
   if (!details) flag("manual", "no-details");
   if (details.length > 1200) flag("manual", "long-message");
