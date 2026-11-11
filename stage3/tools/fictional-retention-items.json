@@ -1,0 +1,10 @@
+[
+  { "id": "fict-sub-001", "category": "enquiry-no-work", "clockDate": "2025-08-14" },
+  { "id": "fict-sub-002", "category": "enquiry-no-work", "clockDate": "2025-09-30", "flags": ["open-case"] },
+  { "id": "fict-sub-003", "category": "enquiry-no-work", "clockDate": "2026-10-02" },
+  { "id": "fict-sub-004", "category": "enquiry-no-work", "clockDate": "2025-06-01", "flags": ["became-client"] },
+  { "id": "fict-rec-005", "category": "stage2-record", "clockDate": "2026-09-01" },
+  { "id": "fict-cmp-006", "category": "complaint", "clockDate": "2024-03-01" },
+  { "id": "fict-id-007", "category": "client-identity", "clockDate": "2022-01-31" },
+  { "id": "fict-id-008", "category": "client-identity", "clockDate": "2020-05-01", "flags": ["legal-hold"] }
+]

@@ -1,0 +1,8 @@
+{
+  "name": "lucindha-stage3-inboxes-retention",
+  "private": true,
+  "type": "module",
+  "description": "Stage 3 (development only): specialist inbox case tracking, privacy/complaint deadlines, retention dry-run and weekly health report. Fictional data. Never sends or deletes.",
+  "scripts": { "test": "node --test tests/*.test.mjs", "demo": "node tools/demo.mjs" },
+  "engines": { "node": ">=20" }
+}

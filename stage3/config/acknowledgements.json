@@ -1,0 +1,54 @@
+{
+  "_status": "PROPOSED - NOT APPROVED. Draft wording for Lucindha's review (Stage 3, 11 November 2026). Layer 1 texts are for Exchange's built-in automatic replies on each shared mailbox (set by Lucindha; no app, no permission). Layer 2 texts are templates Lucindha completes and sends herself; nothing here is ever sent automatically by Stage 3.",
+  "approved": false,
+
+  "layer1_receipt_auto_replies": {
+    "_note": "Exchange automatic replies go once per sender while switched on, so they confirm receipt of a first contact. They are not the formal acknowledgement, which Lucindha writes for each new case.",
+    "complaints@lucindhalawson.co.uk": [
+      "Thank you for your message. This is an automatic reply to confirm I've received it.",
+      "If you're making a complaint, I'll acknowledge it personally in writing within 5 working days, setting out my understanding of your complaint. You can read my complaints procedure at www.lucindhalawson.co.uk/complaints.html.",
+      "If you need me to communicate in a particular way, for example in BSL, by text or in large print, please reply and let me know.",
+      "Lucindha Lawson MAAT, LUCINDHA LAWSON LTD"
+    ],
+    "privacy@lucindhalawson.co.uk": [
+      "Thank you for your message. This is an automatic reply to confirm I've received it.",
+      "If you're asking about your personal information, I'll reply personally. If I need to confirm your identity or understand exactly what you're asking for, I'll let you know as soon as possible. You can read how I use personal information at www.lucindhalawson.co.uk/privacy.html.",
+      "If you need me to communicate in a particular way, for example in BSL, by text or in large print, please reply and let me know.",
+      "Lucindha Lawson MAAT, LUCINDHA LAWSON LTD"
+    ],
+    "media@lucindhalawson.co.uk": [
+      "Thank you for getting in touch. This is an automatic reply to confirm I've received your message.",
+      "I'll reply personally, usually within 2 working days. Background information and short biographies are on my media page at www.lucindhalawson.co.uk/media.html.",
+      "Lucindha Lawson"
+    ]
+  },
+
+  "layer2_templates_you_complete": {
+    "_note": "Templates only. Square brackets are for you to fill in. Stage 3 never creates these as pre-addressed drafts and never sends them; it tracks the deadline and reminds you.",
+    "complaint_acknowledgement": [
+      "Dear [name],",
+      "Thank you for telling me about your concerns. I'm treating this as a complaint under my complaints procedure. Your reference is [CMP-reference].",
+      "My understanding of your complaint is: [summary in your own words].",
+      "If I've misunderstood anything, please let me know. I'll send you a full written response by [date: within 4 weeks of today].",
+      "[Communication preference: e.g. I'll continue to write to you by email, as you asked.]",
+      "Yours sincerely,",
+      "Lucindha Lawson MAAT"
+    ],
+    "privacy_request_acknowledgement": [
+      "Dear [name],",
+      "Thank you for your request about your personal information, which I received on [date]. Your reference is [DSR-reference].",
+      "[If no ID or clarification needed:] I'll respond by [due date].",
+      "[If ID needed:] Before I can respond, I need to confirm your identity. Please [what you need and how to send it securely]. I'll respond within one month of receiving it.",
+      "[If clarification needed:] To help me find the right information, please could you tell me [what you need to know].",
+      "Yours sincerely,",
+      "Lucindha Lawson MAAT"
+    ],
+    "privacy_request_extension_notice": [
+      "Dear [name],",
+      "I'm writing about your request [DSR-reference]. Because [reason: the request is complex / you've made several requests], I need more time to respond fully. I'll respond by [new date, no later than three months after the clock started].",
+      "You have the right to complain to the Information Commissioner's Office (ico.org.uk) or to seek a remedy through the courts.",
+      "Yours sincerely,",
+      "Lucindha Lawson MAAT"
+    ]
+  }
+}
