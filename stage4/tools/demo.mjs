@@ -44,7 +44,7 @@ q = enterFee(q, "bundle:ye-ct", 95000);
 q = enterFee(q, "VAT returns", 9000);
 for (const sec of QUOTE_SECTIONS) q = setQuoteSection(q, sec.key, `FICTIONAL ${sec.title.split(":")[0].toLowerCase()} wording you approved.`, { approvedByLucindha: true });
 console.log("\nAfter YOU enter fees and approve each section:", checkQuote(q).status);
-q = approveQuote(q, { by: "Lucindha", confirmedPersonally: true, issueDate: "2026-11-20" });
+q = approveQuote(q, { by: "Lucindha", confirmedPersonally: true, issueDate: "2026-11-20", today: "2026-11-20" });
 console.log("After YOUR approval:", q.status, "| valid until", q.validUntil, "| on 2026-12-21:", quoteStatus(q, "2026-12-21"));
 
 h("5. Engagement letter structure for the same FICTIONAL client");
