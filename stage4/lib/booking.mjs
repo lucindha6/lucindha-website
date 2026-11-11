@@ -1,19 +1,31 @@
-// Booking REQUESTS for the free 20-minute introductory chat (DEVELOPMENT ONLY).
+// Booking REQUESTS for the free 20-minute introductory chat (DEVELOPMENT ONLY, fictional data).
 //
-// Nobody books themselves in. A person asks for up to three times; this code checks them against
-// your published availability and your existing commitments, and prepares a DRAFT reply for you:
-// either offering one of their times or suggesting others. You decide and send it. A chat is
-// "confirmed" only when YOU record it, after the person has agreed. Nothing is written to a calendar.
+// Decision (11 Nov 2026): request-based only. Nobody books themselves in. A person asks for up to
+// three times; this code checks them against your published availability, your own busy times and
+// existing chats, and prepares a DRAFT reply for you, either offering one of their times or
+// suggesting others. You decide and send it yourself. A chat is "confirmed" only when YOU record
+// it, personally, after the person has agreed. Nothing is written to a calendar and nothing is sent.
 //
-// All times are UK local times ("YYYY-MM-DD" + "HH:MM").
+// Provisional hold: the offered slot is held INTERNALLY for `holdHours` (24, configurable) so two
+// people aren't offered the same time. When the hold expires, only that internal hold is released:
+// no enquiry is declined, no message is sent, no calendar is touched.
+//
+// Times are UK local ("YYYY-MM-DD" + "HH:MM"). `now` is a moment (ms or ISO) for hold expiry.
 import { assertDate, addDays, addWorkingDays, BANK_HOLIDAYS, holidaysCover, ukDateOf } from "./calendar.mjs";
 
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const TIME = /^([01]\d|2[0-3]):([0-5]\d)$/;
 export const dayName = (d) => WEEKDAY[new Date(`${assertDate(d)}T12:00:00Z`).getUTCDay()];
+const mins = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+const ms = (now) => { const v = typeof now === "number" ? now : Date.parse(now); if (!Number.isFinite(v)) throw new Error("bad-now"); return v; };
+const ACTIVE = ["proposed", "offered", "confirmed"];
 
-/** Why a requested slot can't be offered, or null if it can. `book` = your confirmed + tentatively offered chats. */
-export function slotProblem(slot, { availability, book, today }) {
+/** A tentative hold that has passed its expiry no longer blocks anything. */
+export const holdLapsed = (b, now) => b.status === "proposed" && b.holdUntil != null && Date.parse(b.holdUntil) <= ms(now);
+const blocking = (b, now) => ACTIVE.includes(b.status) && !holdLapsed(b, now);
+
+/** Why a requested slot can't be offered, or null if it can. */
+export function slotProblem(slot, { availability, book, today, now = `${today}T12:00:00Z`, busy = [] }) {
   if (!slot || typeof slot.time !== "string" || !TIME.test(slot.time)) return "not a valid time";
   try { assertDate(slot.date); } catch { return "not a valid date"; }
   const earliest = addWorkingDays(today, availability.minNoticeWorkingDays);
@@ -23,21 +35,26 @@ export function slotProblem(slot, { availability, book, today }) {
   if (availability.skipBankHolidays && BANK_HOLIDAYS.has(slot.date)) return "bank holiday";
   const times = availability.weekly[dayName(slot.date)] || [];
   if (!times.includes(slot.time)) return `outside your published times for ${dayName(slot.date)}`;
-  const sameDay = book.filter((b) => b.date === slot.date && ["confirmed", "offered", "proposed"].includes(b.status));
-  if (sameDay.some((b) => b.time === slot.time)) return "already taken";
+  const len = availability.slotMinutes || 20;
+  const start = mins(slot.time);
+  const clash = busy.some((x) => x.date === slot.date && TIME.test(x.from) && TIME.test(x.to) && start < mins(x.to) && mins(x.from) < start + len);
+  if (clash) return "clashes with something else in your diary";
+  const sameDay = book.filter((b) => b.date === slot.date && blocking(b, now));
+  if (sameDay.some((b) => Math.abs(mins(b.time) - start) < len)) return "already taken";
   if (sameDay.length >= availability.maxChatsPerDay) return "that day is full";
   return null;
 }
 
 /** Next free published slots after the minimum notice, for suggesting alternatives. */
-export function nextFreeSlots({ availability, book, today, count = 3 }) {
+export function nextFreeSlots({ availability, book, today, now = `${today}T12:00:00Z`, busy = [], count = 3 }) {
   const out = [];
   let d = addWorkingDays(today, availability.minNoticeWorkingDays);
   const last = addDays(today, availability.maxWeeksAhead * 7);
   while (d <= last && out.length < count) {
     for (const time of availability.weekly[dayName(d)] || []) {
       if (out.length >= count) break;
-      if (!slotProblem({ date: d, time }, { availability, book: [...book, ...out.map((o) => ({ ...o, status: "proposed" }))], today })) out.push({ date: d, time });
+      const withOut = [...book, ...out.map((o) => ({ ...o, status: "offered" }))];
+      if (!slotProblem({ date: d, time }, { availability, book: withOut, today, now, busy })) out.push({ date: d, time });
     }
     d = addDays(d, 1);
   }
@@ -45,47 +62,44 @@ export function nextFreeSlots({ availability, book, today, count = 3 }) {
 }
 
 const pretty = (s) => `${dayName(s.date)} ${s.date} at ${s.time}`;
+const lowerFirst = (s) => s[0].toLowerCase() + s.slice(1);
 
 /**
- * Assess a request and prepare a DRAFT reply for you. Holds the offered slot tentatively (status
- * "proposed") so two people aren't offered the same time; the hold lapses after proposalHoldDays
- * unless you send it.
- * request: { ref, slots: [{date, time}] (max 3), communication }
+ * Assess a request and prepare a DRAFT reply for you, never sent.
+ * request: { ref, slots: [{date, time}] (max 3), communication, accessNeeds?: boolean }
  */
-export function assessRequest(request, { availability, book, today }) {
+export function assessRequest(request, { availability, book, today, now, busy = [] }) {
   assertDate(today);
+  if (now === undefined) throw new Error("now-required");
+  const at = ms(now);
+  if (ukDateOf(at) !== today) throw new Error("now-and-today-disagree");
   const slots = (request.slots || []).slice(0, 3);
   const comm = availability.communication.includes(request.communication) ? request.communication : null;
-  const live = book.filter((b) => !(b.status === "proposed" && b.holdUntil && b.holdUntil < today));
-  const checked = slots.map((s) => ({ slot: s, problem: slotProblem(s, { availability, book: live, today }) }));
+  const checked = slots.map((s) => ({ slot: s, problem: slotProblem(s, { availability, book, today, now: at, busy }) }));
   const ok = checked.find((c) => !c.problem);
   const flags = [];
   if (!availability.approved) flags.push("Availability is still PROPOSED, not approved.");
-  if (!comm) flags.push("Communication preference not given or not recognised: ask how they'd like to communicate.");
+  if (!comm) flags.push("Communication preference not given or not recognised: ask how they'd like to communicate (written, BSL, captions or another way).");
   if (comm === "Face to face") flags.push("Face to face requested: decide the place, or offer video instead.");
+  if (comm && /Deafblind/.test(comm)) flags.push("Deafblind access: ask what works and arrange it before confirming (e.g. interpreter type, braille or large-print materials).");
+  if (comm && /BSL/.test(comm)) flags.push("BSL chosen: you'll sign directly; check whether they'd like anything in writing afterwards.");
   if ((request.slots || []).length > 3) flags.push("More than three times were sent; only the first three were checked.");
   if (ok) {
-    const hold = { ref: request.ref, ...ok.slot, status: "proposed", holdUntil: addDays(today, availability.proposalHoldDays), communication: comm };
+    const hold = { ref: request.ref, ...ok.slot, status: "proposed", heldAt: new Date(at).toISOString(), holdUntil: new Date(at + availability.holdHours * 3600e3).toISOString(), communication: comm };
     return {
-      outcome: "offer-draft",
-      hold,
-      checked,
-      flags,
+      outcome: "offer-draft", hold, checked, flags,
       draft: [
         "Hello,",
-        `Thank you for asking for a free 20-minute introductory chat. I can offer ${pretty(ok.slot)}${comm ? ` (${comm[0].toLowerCase()}${comm.slice(1)})` : ""}.`,
+        `Thank you for asking for a free 20-minute introductory chat. I can offer ${pretty(ok.slot)}${comm ? ` (${lowerFirst(comm)})` : ""}.`,
         "Please reply to let me know if that still suits you, and I'll confirm the details.",
+        "If you need anything to make the chat accessible, just tell me.",
         "[Your sign-off]",
       ].join("\n\n"),
     };
   }
-  const alternatives = nextFreeSlots({ availability, book: live, today });
+  const alternatives = nextFreeSlots({ availability, book, today, now: at, busy });
   return {
-    outcome: "alternatives-draft",
-    hold: null,
-    checked,
-    alternatives,
-    flags,
+    outcome: "alternatives-draft", hold: null, checked, alternatives, flags,
     draft: [
       "Hello,",
       "Thank you for asking for a free 20-minute introductory chat. I'm afraid the times you suggested aren't available.",
@@ -96,25 +110,44 @@ export function assessRequest(request, { availability, book, today }) {
 }
 
 /**
- * Status changes YOU make. Only you can mark "offered" (you sent it) and "confirmed" (they agreed).
- * Refused if the hold has lapsed, if someone else already has that time, or if the chat date has passed.
+ * Releases expired INTERNAL holds (status "lapsed"). Nothing else changes: no enquiry is declined,
+ * no message sent, no calendar touched. Returns the book and the refs released (for your info).
  */
-export function updateBooking(book, ref, to, { by, date } = {}) {
+export function expireHolds(book, now) {
+  const released = book.filter((b) => holdLapsed(b, now)).map((b) => b.ref);
+  return { book: book.map((b) => (holdLapsed(b, now) ? { ...b, status: "lapsed", lapsedAt: new Date(ms(now)).toISOString() } : b)), released };
+}
+
+/**
+ * Status changes YOU make. "offered" = you sent the offer; "confirmed" = they agreed AND you
+ * personally confirm (confirmedPersonally: true). Refused if the hold has lapsed, if anyone else
+ * holds that time, or if the chat time has already passed.
+ */
+export function updateBooking(book, ref, to, { by, now, confirmedPersonally = false } = {}) {
   if (by !== "Lucindha") throw new Error("only-lucindha-changes-bookings");
-  assertDate(date);
+  const at = ms(now);
   const allowed = { proposed: ["offered", "released"], offered: ["confirmed", "released"], confirmed: ["held", "cancelled"] };
-  const b = book.find((x) => x.ref === ref && !["released", "cancelled", "held"].includes(x.status));
+  const b = book.find((x) => x.ref === ref && ACTIVE.includes(x.status));
   if (!b) throw new Error("no-such-booking");
-  if (!(allowed[b.status] || []).includes(to)) throw new Error(`cannot-${b.status}-to-${to}`);
-  if (to === "offered" && b.holdUntil && b.holdUntil < date) throw new Error("hold-lapsed-check-again");
+  if (!(Object.hasOwn(allowed, b.status) && allowed[b.status].includes(to))) throw new Error(`cannot-${b.status}-to-${to}`);
+  if (to === "offered" && holdLapsed(b, at)) throw new Error("hold-lapsed-check-again");
+  if (to === "confirmed" && confirmedPersonally !== true) throw new Error("confirmation-must-be-made-personally-by-lucindha");
+  const startsAt = Date.parse(`${b.date}T${b.time}:00Z`) - (ukOffsetMinutes(b.date) * 60e3);
   if (["offered", "confirmed"].includes(to)) {
-    if (date > b.date) throw new Error("chat-date-has-passed");
-    const clash = book.some((x) => x !== b && x.date === b.date && x.time === b.time &&
-      (["offered", "confirmed"].includes(x.status) || (x.status === "proposed" && !(x.holdUntil && x.holdUntil < date))));
+    if (at >= startsAt) throw new Error("chat-time-has-passed");
+    const clash = book.some((x) => x !== b && x.date === b.date && Math.abs(mins(x.time) - mins(b.time)) < 20 && blocking(x, at));
     if (clash) throw new Error("time-already-taken");
   }
-  if (to === "held" && date < b.date) throw new Error("chat-not-happened-yet");
-  return book.map((x) => (x === b ? { ...x, status: to, [`${to}On`]: date, holdUntil: null } : x));
+  if (to === "held" && at < startsAt) throw new Error("chat-not-happened-yet");
+  const stamp = new Date(at).toISOString();
+  return book.map((x) => (x === b ? { ...x, status: to, [`${to}At`]: stamp, holdUntil: null } : x));
+}
+
+/** UK offset from UTC in minutes on a date (0 in winter, 60 in summer). */
+function ukOffsetMinutes(date) {
+  const noon = new Date(`${date}T12:00:00Z`);
+  const local = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", hourCycle: "h23" }).format(noon);
+  return (Number(local) - 12) * 60;
 }
 
 export { ukDateOf };

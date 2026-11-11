@@ -2,11 +2,11 @@
 // Nothing is sent, booked, stored or decided automatically. Every "Lucindha" step below is a
 // simulation of what you would do yourself.
 import { readFileSync } from "node:fs";
-import { buildQuoteDraft, enterFee, checkQuote, quoteText } from "../lib/quote.mjs";
+import { buildQuoteDraft, enterFee, checkQuote, quoteText, setQuoteSection, approveQuote, quoteStatus, QUOTE_SECTIONS } from "../lib/quote.mjs";
 import { newLetter, checkLetter, newLetterNeeded } from "../lib/engagement.mjs";
 import { newChecklist, applicableSteps, confirmStep, answerRedFlag, review, recordDecision, RED_FLAGS } from "../lib/onboarding.mjs";
 import { newEntry, move, nudgesDue } from "../lib/pipeline.mjs";
-import { assessRequest, updateBooking } from "../lib/booking.mjs";
+import { assessRequest, updateBooking, expireHolds } from "../lib/booking.mjs";
 
 const pricing = JSON.parse(readFileSync(new URL("../config/proposed-pricing.json", import.meta.url)));
 const availability = JSON.parse(readFileSync(new URL("../config/availability.json", import.meta.url)));
@@ -16,20 +16,24 @@ const ME = { by: "Lucindha" };
 
 h("1. Booking request: 'Priya Example' (FICTIONAL) asks for a chat");
 let book = [];
-const r1 = assessRequest({ ref: "BKR-PRJYAX", slots: [{ date: "2026-11-17", time: "19:00" }, { date: "2026-11-19", time: "19:00" }], communication: "Video call with BSL" }, { availability, book, today });
+const r1 = assessRequest({ ref: "BKR-PRJYAX", slots: [{ date: "2026-11-17", time: "19:00" }, { date: "2026-11-19", time: "19:00" }], communication: "Video call with BSL" }, { availability, book, today, now: `${today}T09:00:00Z` });
 console.log("Outcome:", r1.outcome, "| checked:", r1.checked.map((c) => `${c.slot.date} ${c.slot.time}: ${c.problem || "ok"}`).join("; "));
 console.log("Flags:", r1.flags.join(" "));
 console.log("--- DRAFT for you (not sent) ---\n" + r1.draft);
 book = [r1.hold];
 
 h("2. A second FICTIONAL person asks for the same time: offered alternatives instead");
-const r2 = assessRequest({ ref: "BKR-TQMEXA", slots: [{ date: "2026-11-19", time: "19:00" }, { date: "2026-11-20", time: "12:00" }], communication: "Email or text chat" }, { availability, book, today });
+const r2 = assessRequest({ ref: "BKR-TQMEXA", slots: [{ date: "2026-11-19", time: "19:00" }, { date: "2026-11-20", time: "12:00" }], communication: "Email or text chat (written)" }, { availability, book, today, now: `${today}T10:00:00Z` });
 console.log("Outcome:", r2.outcome);
 console.log("--- DRAFT for you (not sent) ---\n" + r2.draft);
 
 h("3. You send the offer and the person agrees; YOU record it");
-book = updateBooking(book, "BKR-PRJYAX", "offered", { ...ME, date: today });
-book = updateBooking(book, "BKR-PRJYAX", "confirmed", { ...ME, date: "2026-11-17" });
+console.log("Internal hold until:", book[0].holdUntil, "(24 hours; when it expires only the hold is released)");
+const lapsed = expireHolds(book, "2026-11-17T09:30:00Z");
+console.log("If you hadn't sent the offer within 24 hours:", lapsed.book[0].status, "- nothing declined, sent or put in a calendar.");
+book = updateBooking(book, "BKR-PRJYAX", "offered", { ...ME, now: `${today}T11:00:00Z` });
+try { updateBooking(book, "BKR-PRJYAX", "confirmed", { ...ME, now: "2026-11-17T08:00:00Z" }); } catch (e) { console.log("Confirming without your personal approval refused:", e.message); }
+book = updateBooking(book, "BKR-PRJYAX", "confirmed", { ...ME, confirmedPersonally: true, now: "2026-11-17T08:00:00Z" });
 console.log(book.map((b) => `${b.ref}: ${b.status} ${b.date} ${b.time}`).join("\n"));
 
 h("4. Draft quotation for FICTIONAL 'Example Widgets Ltd'");
@@ -38,7 +42,10 @@ console.log(quoteText(q));
 console.log("\nCheck now:", JSON.stringify(checkQuote(q), null, 1));
 q = enterFee(q, "bundle:ye-ct", 95000);
 q = enterFee(q, "VAT returns", 9000);
-console.log("\nAfter YOU enter fees and decide VAT/validity:", checkQuote(q, { vatStatusDecided: true, validityDecided: true }).status);
+for (const sec of QUOTE_SECTIONS) q = setQuoteSection(q, sec.key, `FICTIONAL ${sec.title.split(":")[0].toLowerCase()} wording you approved.`, { approvedByLucindha: true });
+console.log("\nAfter YOU enter fees and approve each section:", checkQuote(q).status);
+q = approveQuote(q, { by: "Lucindha", confirmedPersonally: true, issueDate: "2026-11-20" });
+console.log("After YOUR approval:", q.status, "| valid until", q.validUntil, "| on 2026-12-21:", quoteStatus(q, "2026-12-21"));
 
 h("5. Engagement letter structure for the same FICTIONAL client");
 const letter = newLetter({ ref: "ENG-EXWJDG", clientRef: "CLI-EXWJDG", services: ["Year-end accounts", "VAT returns"], licensedServices: Object.keys(pricing.services) });

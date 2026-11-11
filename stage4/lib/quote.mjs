@@ -5,6 +5,14 @@
 // only you fill in. A draft can be "ready for your review" only when you've entered every fee; it is
 // never sent by this code.
 //
+// Decisions (11 Nov 2026): quotes are valid for 30 days (configurable) from the date YOU approve
+// and issue them, with the expiry date shown; you enter and approve every fee and every quote;
+// payroll is excluded unless you separately authorise it.
+//
+// A quote covers: scope, exclusions, assumptions, fees, VAT treatment, payment terms and how
+// additional work is charged. Each wording section stays a blocked placeholder until you supply
+// and approve it.
+//
 // Rules:
 //  - Only services on your licensed list can be quoted. Anything else is left out and flagged.
 //  - Investment work (and other things your AAT licence doesn't cover) is never quoted and is flagged
@@ -12,15 +20,29 @@
 //  - Year-end accounts + Corporation Tax are one price, shown once.
 //  - A fee below your published starting price is allowed (your decision) but flagged for a second look.
 import { clean } from "./util.mjs";
+import { assertDate, addDays } from "./calendar.mjs";
 
 export const BLANK = "[enter your fee]";
+export const NEEDS_WORDING = "[NEEDS YOUR WORDING]";
+export const QUOTE_SECTIONS = [
+  ["scope", "Scope: what's included"],
+  ["exclusions", "Exclusions: what isn't included"],
+  ["assumptions", "Assumptions: what the fee relies on (e.g. records supplied on time, number of transactions)"],
+  ["vatTreatment", "VAT treatment: whether fees include or exclude VAT"],
+  ["paymentTerms", "Payment terms: when and how fees are paid (e.g. Direct Debit monthly)"],
+  ["additionalWork", "Additional work: how work outside the scope is agreed and charged"],
+].map(([key, title]) => ({ key, title }));
+const unfinished = (t) => { const v = clean(t, 4000); return !v || v.includes(NEEDS_WORDING) || /[[\]{}]|<<|>>|\b(TBC|TBD|XXX|to do|todo)\b/i.test(v); };
 
 export function buildQuoteDraft({ ref, clientType = "", services = [], requestText = "" }, pricing) {
   const canon = (name) => Object.keys(pricing.services).find((k) => k.toLowerCase() === name.toLowerCase()) || name;
   const asked = [...new Set((services || []).map((x) => canon(clean(x, 80))).filter(Boolean))];
   const flags = [];
-  const unknown = asked.filter((x) => !Object.hasOwn(pricing.services, x));
-  if (unknown.length) flags.push(`Not on your licensed list, so left out: ${unknown.join(", ")}. Decide whether to offer it.`);
+  const excluded = pricing.excludedServices || {};
+  const isExcluded = (x) => Object.keys(excluded).some((k) => k !== "_note" && k.toLowerCase() === x.toLowerCase());
+  for (const x of asked.filter(isExcluded)) flags.push(excluded[Object.keys(excluded).find((k) => k.toLowerCase() === x.toLowerCase())] + " Left out of the quote.");
+  const unknown = asked.filter((x) => !Object.hasOwn(pricing.services, x) && !isExcluded(x));
+  if (unknown.length) flags.push(`Not on your approved list, so left out: ${unknown.join(", ")}. Decide whether to offer it.`);
   const hay = `${asked.join(" ")} ${clean(requestText, 2000)}`;
   for (const g of pricing.notOffered?.groups || []) {
     const hits = [...new Set(g.patterns.map((p) => hay.match(new RegExp(`\\b(?:${p})\\b`, "i"))?.[0]?.toLowerCase()).filter(Boolean))];
@@ -42,43 +64,72 @@ export function buildQuoteDraft({ ref, clientType = "", services = [], requestTe
   }
   if (!lines.length) flags.push("Nothing quotable was asked for: reply personally.");
   const packages = (pricing.packages || []).filter((p) => p.for.includes(clean(clientType, 60))).map((p) => ({ name: p.name, price: p.price }));
-  return { ref, status: "draft", approvedPrices: pricing.approved === true, lines, packageOptions: packages, adviceSession: pricing.adviceSession, flags, vat: null, validUntil: null };
+  const sections = Object.fromEntries(QUOTE_SECTIONS.map((q) => [q.key, NEEDS_WORDING]));
+  const validityDays = Number.isInteger(pricing.quoteValidityDays) && pricing.quoteValidityDays > 0 ? pricing.quoteValidityDays : 30;
+  return { ref, status: "draft", approvedPrices: pricing.approved === true, lines, packageOptions: packages, adviceSession: pricing.adviceSession, flags, sections, validityDays, issueDate: null, validUntil: null, approvedBy: null };
 }
 
-/** You enter a fee (in pence) for one line. Returns the updated draft; never changes anything else. */
-export function enterFee(draft, key, feePence) {
+const withdraw = (d) => ({ ...d, status: "draft", issueDate: null, validUntil: null, approvedBy: null });
+
+/** You supply approved wording for one quote section. Any change withdraws approval. */
+export function setQuoteSection(draft, key, text, { approvedByLucindha = false } = {}) {
+  if (!QUOTE_SECTIONS.some((q) => q.key === key)) throw new Error("bad-section");
+  if (approvedByLucindha !== true) throw new Error("wording-must-be-approved-by-lucindha");
+  if (unfinished(text)) throw new Error("wording-has-placeholder");
+  return withdraw({ ...draft, sections: { ...draft.sections, [key]: clean(text, 4000) } });
+}
+
+/** You enter a fee (in pence) for one line. Any change withdraws approval. */
+export function enterFee(draft, key, feePence, { by = "Lucindha" } = {}) {
+  if (by !== "Lucindha") throw new Error("only-lucindha-enters-fees");
   if (!Number.isInteger(feePence) || feePence <= 0 || feePence > 10_000_000) throw new Error("bad-fee");
   const line = draft.lines.find((l) => l.key === key);
   if (!line) throw new Error("no-such-line");
-  return { ...draft, lines: draft.lines.map((l) => (l.key === key ? { ...l, feePence } : l)) };
+  return withdraw({ ...draft, lines: draft.lines.map((l) => (l.key === key ? { ...l, feePence } : l)) });
 }
 
-/** Checks a draft before YOU review and send it. Never sends; never sets status beyond "ready-for-review". */
-export function checkQuote(draft, { vatStatusDecided = false, validityDecided = false } = {}) {
-  vatStatusDecided = vatStatusDecided === true;
-  validityDecided = validityDecided === true;
+/** Checks a draft before YOU approve it. Never sends; never approves. */
+export function checkQuote(draft) {
   const problems = [];
   const warnings = [...draft.flags];
   for (const l of draft.lines) {
     if (l.feePence == null) problems.push(`${l.label}: ${BLANK}`);
     else if (l.fromPence && l.feePence < l.fromPence) warnings.push(`${l.label}: £${(l.feePence / 100).toFixed(2)} is below your published starting price (${l.published}). Fine if intended.`);
   }
+  for (const q of QUOTE_SECTIONS) if (unfinished((draft.sections || {})[q.key])) problems.push(`${q.title}: ${NEEDS_WORDING}`);
   if (!draft.approvedPrices) warnings.push("Published prices in this tool are still PROPOSED, not approved.");
-  if (!vatStatusDecided) problems.push("VAT: decide whether your fees include VAT (are you VAT-registered?).");
-  if (!validityDecided) problems.push("How long the quote is valid for: decide.");
   if (!draft.lines.length) problems.push("No quotable services.");
-  return { status: problems.length ? "incomplete" : "ready-for-review", problems, warnings };
+  return { status: problems.length ? "incomplete" : "ready-for-your-approval", problems, warnings };
+}
+
+/** YOUR approval of the whole quote, with the issue date. Sets the 30-day expiry. Refused if incomplete. */
+export function approveQuote(draft, { by, confirmedPersonally = false, issueDate } = {}) {
+  if (by !== "Lucindha" || confirmedPersonally !== true) throw new Error("approval-must-be-made-personally-by-lucindha");
+  assertDate(issueDate);
+  if (checkQuote(draft).status !== "ready-for-your-approval") throw new Error("quote-incomplete");
+  return { ...draft, status: "approved", issueDate, validUntil: addDays(issueDate, draft.validityDays), approvedBy: "Lucindha" };
+}
+
+/** Where a quote stands on a date: draft, approved (valid) or expired. */
+export function quoteStatus(draft, today) {
+  assertDate(today);
+  if (draft.status !== "approved" || !draft.validUntil) return "draft";
+  return today > draft.validUntil ? "expired" : "approved";
 }
 
 export function quoteText(draft) {
   const money = (p) => `£${(p / 100).toFixed(2)}`;
   return [
-    `Draft quote · ${draft.ref} · NOT SENT`,
+    `${draft.status === "approved" ? "Quote (approved by you)" : "Draft quote"} · ${draft.ref} · NOT SENT`,
+    draft.validUntil ? `Issued ${draft.issueDate}. Valid until ${draft.validUntil} (${draft.validityDays} days).` : `Valid for ${draft.validityDays} days from the date you approve and issue it.`,
     "",
     ...draft.lines.map((l) => `- ${l.label}: ${l.feePence == null ? BLANK : money(l.feePence)} (published: ${l.published})`),
     "",
     draft.packageOptions.length ? `Package options to mention: ${draft.packageOptions.map((p) => `${p.name} (${p.price})`).join("; ")}.` : "No package matches this client type.",
     draft.adviceSession,
+    "",
+    ...QUOTE_SECTIONS.map((q) => `${q.title.split(":")[0]}: ${(draft.sections || {})[q.key] || NEEDS_WORDING}`),
+    "",
     ...draft.flags.map((f) => `CHECK: ${f}`),
   ].join("\n");
 }

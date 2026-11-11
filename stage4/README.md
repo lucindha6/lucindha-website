@@ -18,7 +18,7 @@ Gate S4-1, fictional data only. This branch (`feature/stage4-onboarding`) is **n
 
 ```
 cd stage4
-npm test        # 36 tests (24 core + 12 from the independent review)
+npm test        # 54 tests (24 core, 12 from the first review, 18 for your 11 Nov decisions)
 npm run demo    # fictional clients, end to end
 ```
 
@@ -29,3 +29,11 @@ The roadmap document has the full list. In short: ICO registration number, PII i
 ## Independent review (11 Nov 2026)
 
 An independent reviewer found 17 issues (2 high, 7 medium, 8 low). All are fixed, and each has a regression test in `tests/review-fixes.test.mjs`. Main changes: anything that looks unfinished (`[...]`, `{...}`, `<<...>>`, TBC) blocks a letter; letters need your final read-through approval; a decided checklist is locked; only exactly `true` counts as your confirmation; EDD comes after the red flags and risk rating and is cleared if they change; a PEP always needs source of funds and wealth and can't be rated low risk; a booking can't be offered after its hold lapses or confirmed when someone else has the time; the tracker accepts references only; wider detection of investment, pension, audit and immigration wording with the right reason; and imports are limited to an approved list.
+
+## 11 November 2026 update (your decisions)
+
+- **Bookings**: request-based only. The offered slot is held internally for **24 hours** (`holdHours` in `config/availability.json`). When the hold expires only that internal hold is released (`expireHolds`): nothing is declined, sent or put in a calendar. Double bookings, clashes with your own diary (`busy`), confirming after a lapsed hold, and confirming after the chat time (with British Summer Time handled) are refused. **Every confirmation needs your personal approval** (`confirmedPersonally: true`). Written, BSL, captions and deafblind options are kept, with access flags in each draft.
+- **Quotes**: valid for **30 days** from the date you approve and issue them, with the expiry date shown (`quoteValidityDays`). Each quote has scope, exclusions, assumptions, fees, VAT treatment, payment terms and additional-work sections, all blocked placeholders until you approve the wording. Fees stay "[enter your fee]" until you enter them. **You approve every quote** (`approveQuote`), and any later change withdraws the approval. £850 is shown once. **Payroll is excluded** unless you separately authorise it.
+- **Engagement letters**: the (a)–(p) structure was checked against AAT's current Client Care Policy (version 1, issued 1 July 2025) and matches it. Clarified (l) to include suspicious activity reporting, (n) the commission or fee-reduction treatment, and (p) the six-or-fewer-clients route. Checks were added for (l), (m) and (p), and PII territorial coverage was added as a practice detail. `isFinal` is true only after your final approval following the last change.
+- **AML**: PEP checks and sanctions screening are now separate steps. Sanctions screening is against the **UK Sanctions List** (FCDO; the single UK list since 28 Jan 2026). A possible sanctions match stops everything, and acceptance is impossible through the checklist. Identity checks are manual and risk-based, with no electronic provider option. The checklist sets out the firm-wide prerequisites it relies on (risk assessment, policies, Nominated Officer, training, records, supervision). Ongoing-monitoring reminders follow risk level (intervals PROPOSED: 3, 2 and 1 years).
+- **Pipeline**: still reference-only, with no Microsoft Lists or SharePoint code (a test checks this). Reminders only.

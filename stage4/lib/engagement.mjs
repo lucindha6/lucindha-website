@@ -11,6 +11,8 @@
 import { clean } from "./util.mjs";
 
 export const PLACEHOLDER = "[AAT SAMPLE WORDING NOT SUPPLIED OR APPROVED]";
+/** The structure was checked against this document (11 Nov 2026): items (a)-(p) match section 5.1. */
+export const AAT_SOURCE = "AAT Client Care Policy, version 1, approved 18 June 2025, issued 1 July 2025 (section 5.1 (a)-(p); 5.3 new letters; 5.8 PII details; 5.9-5.10 disengagement)";
 
 export const AAT_ITEMS = [
   ["a", "Nature, scope and reporting", "The nature of the assignment, the scope of the work, and the format and type of any report."],
@@ -24,11 +26,11 @@ export const AAT_ITEMS = [
   ["i", "Unpaid fees", "Steps if a fee is unpaid, including any interest and its rate, stopping work and recovery."],
   ["j", "Use by third parties", "How the client may use your work for a third party, with suitable disclaimers."],
   ["k", "Investment work", "A statement that the AAT licence does not authorise any investment work."],
-  ["l", "Money laundering", "Your duties under the Money Laundering Regulations: due diligence, risk assessments, record keeping and reporting."],
+  ["l", "Money laundering", "Your duties under the Money Laundering Regulations: due diligence, risk assessments, record keeping and suspicious activity reporting."],
   ["m", "Data protection", "Whether you're registered with the Information Commissioner, and your duty to process data securely under UK GDPR."],
-  ["n", "Client money and commissions", "How client money is handled and how commissions or other benefits are disclosed and accounted for."],
+  ["n", "Client money and commissions", "How client money is handled, and how commissions or benefits from introductions are accounted for (including any fee reduction) under the Code of Professional Ethics."],
   ["o", "Complaints", "How complaints are handled, the Principal responsible, and that unresolved complaints can be referred to AAT."],
-  ["p", "Continuity", "An alternate who can contact the client if you're permanently incapacitated or ill, and that the client may appoint another firm."],
+  ["p", "Continuity", "An alternate who can contact the client if you're permanently incapacitated, and that the client may appoint another firm. (AAT: with six or fewer clients, cover isn't required if clients are told, agree, and it's recorded in the letter.)"],
 ].map(([id, title, covers]) => ({ id, title, covers }));
 
 /** Practice details the letter needs from you (unknown to this code; placeholders until you decide). */
@@ -40,6 +42,7 @@ export const PRACTICE_FACTS = [
   ["piiInsurer", null],
   ["continuityAlternate", null],
   ["vatStatus", null],
+  ["piiTerritorialCoverage", null],
 ].map(([key, value]) => ({ key, value }));
 
 export function newLetter({ ref, clientRef, services = [], licensedServices = [] }) {
@@ -88,6 +91,9 @@ export function setPracticeFact(letter, key, value, opts = {}) {
   return { ...letter, practice: { ...letter.practice, [key]: clean(value, 300) }, wordingApproved: false };
 }
 
+/** A letter is FINAL only when every check passes and you've given your final approval since the last change. */
+export const isFinal = (letter) => letter.wordingApproved === true && checkLetter(letter).status === "ready-for-review";
+
 /** Your final read-through of the whole letter. Refused while anything is unfinished. */
 export function approveWording(letter, { by, confirmedPersonally } = {}) {
   if (by !== "Lucindha" || confirmedPersonally !== true) throw new Error("approval-must-be-made-personally-by-lucindha");
@@ -113,6 +119,9 @@ export function checkLetter(letter) {
   if (INVESTMENT_WORDS.test(others)) problems.push("Wording outside item (k) mentions investment, pensions or similar, which your AAT licence doesn't authorise. Check it.");
   if (!looksUnfinished(sections.k) && !NEGATED_AUTHORITY.test(sections.k)) problems.push("Item (k) must state that the AAT licence does NOT authorise investment work.");
   if (!looksUnfinished(sections.o) && !/\bAAT\b/.test(sections.o)) problems.push("Item (o) must say unresolved complaints can be referred to AAT.");
+  if (!looksUnfinished(sections.l) && !/money laundering/i.test(sections.l)) problems.push("Item (l) must describe your Money Laundering Regulations duties.");
+  if (!looksUnfinished(sections.m) && !/(information commissioner|\bICO\b)/i.test(sections.m)) problems.push("Item (m) must say whether you're registered with the Information Commissioner.");
+  if (!looksUnfinished(sections.p) && !/(alternate|another (accountant|firm)|six or fewer)/i.test(sections.p)) problems.push("Item (p) must name the continuity arrangement (an alternate), or record the six-or-fewer-clients agreement.");
   if (!problems.length && letter.wordingApproved !== true) problems.push("Your final read-through approval is still needed.");
   return { status: problems.length ? "incomplete" : "ready-for-review", problems };
 }

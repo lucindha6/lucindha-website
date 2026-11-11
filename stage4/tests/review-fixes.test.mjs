@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { buildQuoteDraft, checkQuote, enterFee } from "../lib/quote.mjs";
+import { buildQuoteDraft, checkQuote, enterFee, setQuoteSection, approveQuote, QUOTE_SECTIONS } from "../lib/quote.mjs";
 import { newLetter, setSection, setSchedule, setPracticeFact, approveWording, checkLetter, AAT_ITEMS, looksUnfinished } from "../lib/engagement.mjs";
 import { newChecklist, applicableSteps, confirmStep, answerRedFlag, recordDecision, review, RED_FLAGS } from "../lib/onboarding.mjs";
 import { newEntry, move, markNudged } from "../lib/pipeline.mjs";
@@ -11,6 +11,7 @@ import { assessRequest, updateBooking, slotProblem } from "../lib/booking.mjs";
 const pricing = JSON.parse(readFileSync(new URL("../config/proposed-pricing.json", import.meta.url)));
 const availability = JSON.parse(readFileSync(new URL("../config/availability.json", import.meta.url)));
 const ME = { by: "Lucindha" };
+const N = (d) => `${d}T12:00:00Z`;
 const YES = { approvedByLucindha: true };
 const DECIDE = { by: "Lucindha", confirmedPersonally: true };
 
@@ -19,8 +20,11 @@ function fullLetter() {
   for (const i of AAT_ITEMS) l = setSection(l, i.id, `FICTIONAL wording for ${i.id}.`, YES);
   l = setSection(l, "k", "FICTIONAL. My AAT licence does not authorise investment work.", YES);
   l = setSection(l, "o", "FICTIONAL. Unresolved complaints may be referred to AAT.", YES);
+  l = setSection(l, "l", "FICTIONAL. Our Money Laundering Regulations duties.", YES);
+  l = setSection(l, "m", "FICTIONAL. Registered with the Information Commissioner.", YES);
+  l = setSection(l, "p", "FICTIONAL. Our alternate is a named practising accountant.", YES);
   l = setSchedule(l, "Bookkeeping", "FICTIONAL scope.", YES);
-  for (const k of ["icoRegistration", "piiInsurer", "continuityAlternate", "vatStatus"]) l = setPracticeFact(l, k, "FICTIONAL", YES);
+  for (const k of ["icoRegistration", "piiInsurer", "continuityAlternate", "vatStatus", "piiTerritorialCoverage"]) l = setPracticeFact(l, k, "FICTIONAL", YES);
   return approveWording(l, DECIDE);
 }
 function open(c, { risk = "low", date = "2026-11-20", except = [] } = {}) {
@@ -55,10 +59,11 @@ test("F3/F10: only exactly `true` counts as your confirmation", () => {
   assert.throws(() => recordDecision(c, { outcome: "accepted", date: "2026-11-21", ...DECIDE, reviewedRedFlags: "no" }), /not-reviewed/);
   assert.throws(() => recordDecision(c, { outcome: "accepted", date: "2026-11-21", by: "Lucindha", confirmedPersonally: "yes" }), /personally/);
   assert.throws(() => setSection(newLetter({ ref: "E", clientRef: "C", services: [] }), "a", "x", { approvedByLucindha: "no" }), /approved/);
-  const q = enterFee(buildQuoteDraft({ ref: "QTE-R", clientType: "Sole trader", services: ["Bookkeeping"] }, pricing), "Bookkeeping", 3000);
-  assert.equal(checkQuote(q, { vatStatusDecided: "no", validityDecided: true }).status, "incomplete");
-  assert.equal(checkQuote(q, { vatStatusDecided: true, validityDecided: "no" }).status, "incomplete");
-  assert.equal(checkQuote(q, { vatStatusDecided: true, validityDecided: true }).status, "ready-for-review");
+  let q = enterFee(buildQuoteDraft({ ref: "QTE-R", clientType: "Sole trader", services: ["Bookkeeping"] }, pricing), "Bookkeeping", 3000);
+  assert.throws(() => setQuoteSection(q, "scope", "FICTIONAL scope.", { approvedByLucindha: "yes" }), /approved/);
+  for (const sec of QUOTE_SECTIONS) q = setQuoteSection(q, sec.key, `FICTIONAL ${sec.key}.`, YES);
+  assert.equal(checkQuote(q).status, "ready-for-your-approval");
+  assert.throws(() => approveQuote(q, { by: "Lucindha", confirmedPersonally: "yes", issueDate: "2026-11-20" }), /personally/);
 });
 
 test("F4: EDD only after the flags are answered and risk assessed; no confirming steps that don't apply; no future-dated steps", () => {
@@ -94,16 +99,16 @@ test("F5: a PEP always needs source of funds and wealth, and can't be rated low 
 
 test("F6/F17: no double confirmation after a lapsed hold; no confirming a chat after its date", () => {
   const S = { date: "2026-11-26", time: "19:00" };
-  let book = [assessRequest({ ref: "BKR-CCCCCC", slots: [S], communication: "Video call" }, { availability, book: [], today: "2026-11-16" }).hold];
-  const r = assessRequest({ ref: "BKR-EEEEEE", slots: [S], communication: "Video call" }, { availability, book, today: "2026-11-20" });
+  let book = [assessRequest({ ref: "BKR-CCCCCC", slots: [S], communication: "Video call" }, { availability, book: [], today: "2026-11-16", now: N("2026-11-16") }).hold];
+  const r = assessRequest({ ref: "BKR-EEEEEE", slots: [S], communication: "Video call" }, { availability, book, today: "2026-11-20", now: N("2026-11-20") });
   assert.equal(r.outcome, "offer-draft");
   book = [...book, r.hold];
-  assert.throws(() => updateBooking(book, "BKR-CCCCCC", "offered", { ...ME, date: "2026-11-20" }), /hold-lapsed/);
-  book = updateBooking(book, "BKR-EEEEEE", "offered", { ...ME, date: "2026-11-20" });
-  book = updateBooking(book, "BKR-EEEEEE", "confirmed", { ...ME, date: "2026-11-21" });
+  assert.throws(() => updateBooking(book, "BKR-CCCCCC", "offered", { ...ME, now: N("2026-11-20") }), /hold-lapsed/);
+  book = updateBooking(book, "BKR-EEEEEE", "offered", { ...ME, now: N("2026-11-20") });
+  book = updateBooking(book, "BKR-EEEEEE", "confirmed", { ...ME, confirmedPersonally: true, now: N("2026-11-21") });
   const other = [{ ref: "BKR-X", ...S, status: "offered" }, ...book];
-  assert.throws(() => updateBooking(other, "BKR-X", "confirmed", { ...ME, date: "2026-11-22" }), /already-taken/);
-  assert.throws(() => updateBooking([{ ref: "BKR-Y", date: "2026-11-26", time: "18:30", status: "offered" }], "BKR-Y", "confirmed", { ...ME, date: "2026-11-27" }), /date-has-passed/);
+  assert.throws(() => updateBooking(other, "BKR-X", "confirmed", { ...ME, confirmedPersonally: true, now: N("2026-11-22") }), /already-taken/);
+  assert.throws(() => updateBooking([{ ref: "BKR-Y", date: "2026-11-26", time: "18:30", status: "offered" }], "BKR-Y", "confirmed", { ...ME, confirmedPersonally: true, now: N("2026-11-27") }), /chat-time-has-passed/);
 });
 
 test("F7/F14: pipeline holds references only and refuses hand-made stages and bad dates cleanly", () => {

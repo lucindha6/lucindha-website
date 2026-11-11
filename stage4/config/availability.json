@@ -1,20 +1,54 @@
 {
-  "_status": "PROPOSED - NOT APPROVED. Placeholder availability for the free 20-minute introductory chat, for FICTIONAL testing only. Lucindha sets the real times. Weekday evenings and Saturdays only (council arrangement).",
+  "_status": "PROPOSED - NOT APPROVED. Placeholder availability for the free 20-minute introductory chat, for FICTIONAL testing only. Lucindha sets the real times. Weekday evenings and Saturdays only (council arrangement). Booking is request-based only: Lucindha personally approves and confirms every appointment (decision 11 Nov 2026).",
   "approved": false,
   "slotMinutes": 20,
   "weekly": {
-    "Mon": ["18:30", "19:00", "19:30", "20:00"],
-    "Tue": ["18:30", "19:00", "19:30", "20:00"],
-    "Wed": ["18:30", "19:00", "19:30", "20:00"],
-    "Thu": ["18:30", "19:00", "19:30", "20:00"],
+    "Mon": [
+      "18:30",
+      "19:00",
+      "19:30",
+      "20:00"
+    ],
+    "Tue": [
+      "18:30",
+      "19:00",
+      "19:30",
+      "20:00"
+    ],
+    "Wed": [
+      "18:30",
+      "19:00",
+      "19:30",
+      "20:00"
+    ],
+    "Thu": [
+      "18:30",
+      "19:00",
+      "19:30",
+      "20:00"
+    ],
     "Fri": [],
-    "Sat": ["10:00", "10:30", "11:00", "11:30", "12:00"],
+    "Sat": [
+      "10:00",
+      "10:30",
+      "11:00",
+      "11:30",
+      "12:00"
+    ],
     "Sun": []
   },
   "minNoticeWorkingDays": 2,
   "maxWeeksAhead": 4,
   "maxChatsPerDay": 2,
   "skipBankHolidays": true,
-  "proposalHoldDays": 3,
-  "communication": ["Email or text chat", "Video call with BSL", "Video call with live captions", "Video call", "Face to face"]
+  "communication": [
+    "Email or text chat (written)",
+    "Video call with BSL",
+    "Video call with live captions",
+    "Video call",
+    "Face to face",
+    "Deafblind: ask what works (e.g. hands-on or visual-frame signing, braille, large print)"
+  ],
+  "holdHours": 24,
+  "_holdNote": "Decision 11 Nov 2026: provisional internal hold of 24 hours (change here). When it expires only the internal hold is released: nothing is declined, sent or put in a calendar."
 }

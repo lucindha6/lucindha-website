@@ -2,35 +2,154 @@
   "_status": "PROPOSED - NOT APPROVED. Copied from the live accounting page (tools/build_accounting.py) for FICTIONAL testing only. Every quoted fee is entered by Lucindha; nothing here is a quote.",
   "approved": false,
   "services": {
-    "Bookkeeping": { "from": "from £30 an hour", "fromPence": 3000, "unit": "hour" },
-    "VAT returns": { "from": "from £75 a quarter", "fromPence": 7500, "unit": "quarter" },
-    "Personal tax": { "from": "from £180 (simple Self Assessment) or from £250 (sole trader or landlord)", "fromPence": 18000, "unit": "return" },
-    "Year-end accounts": { "from": "from £850 a year (small limited company, includes the Corporation Tax return)", "fromPence": 85000, "unit": "year", "bundle": "ye-ct" },
-    "Corporation tax returns": { "from": "from £850 a year (small limited company, includes year-end accounts)", "fromPence": 85000, "unit": "year", "bundle": "ye-ct" },
-    "Management accounts": { "from": "from £150 a month", "fromPence": 15000, "unit": "month" },
-    "Start-up support": { "from": "from £150", "fromPence": 15000, "unit": "one-off" },
-    "Business support": { "from": null, "fromPence": null, "unit": null },
-    "Financial health check": { "from": "from £200", "fromPence": 20000, "unit": "one-off" }
+    "Bookkeeping": {
+      "from": "from £30 an hour",
+      "fromPence": 3000,
+      "unit": "hour"
+    },
+    "VAT returns": {
+      "from": "from £75 a quarter",
+      "fromPence": 7500,
+      "unit": "quarter"
+    },
+    "Personal tax": {
+      "from": "from £180 (simple Self Assessment) or from £250 (sole trader or landlord)",
+      "fromPence": 18000,
+      "unit": "return"
+    },
+    "Year-end accounts": {
+      "from": "from £850 a year (small limited company, includes the Corporation Tax return)",
+      "fromPence": 85000,
+      "unit": "year",
+      "bundle": "ye-ct"
+    },
+    "Corporation tax returns": {
+      "from": "from £850 a year (small limited company, includes year-end accounts)",
+      "fromPence": 85000,
+      "unit": "year",
+      "bundle": "ye-ct"
+    },
+    "Management accounts": {
+      "from": "from £150 a month",
+      "fromPence": 15000,
+      "unit": "month"
+    },
+    "Start-up support": {
+      "from": "from £150",
+      "fromPence": 15000,
+      "unit": "one-off"
+    },
+    "Business support": {
+      "from": null,
+      "fromPence": null,
+      "unit": null
+    },
+    "Financial health check": {
+      "from": "from £200",
+      "fromPence": 20000,
+      "unit": "one-off"
+    }
   },
   "bundles": {
-    "ye-ct": { "label": "Year-end accounts and Corporation Tax return", "from": "from £850 a year in total (one price for both)", "fromPence": 85000, "unit": "year" }
+    "ye-ct": {
+      "label": "Year-end accounts and Corporation Tax return",
+      "from": "from £850 a year in total (one price for both)",
+      "fromPence": 85000,
+      "unit": "year"
+    }
   },
   "packages": [
-    { "name": "Personal Tax", "for": ["Individual"], "price": "£20 a month" },
-    { "name": "Landlord", "for": ["Landlord"], "price": "from £35 a month" },
-    { "name": "Sole Trader Essentials", "for": ["Sole trader"], "price": "£35 a month" },
-    { "name": "Sole Trader Plus", "for": ["Sole trader"], "price": "£65 a month" },
-    { "name": "Limited Company Essentials", "for": ["Limited company"], "price": "£85 a month" },
-    { "name": "Limited Company Plus", "for": ["Limited company"], "price": "from £175 a month" }
+    {
+      "name": "Personal Tax",
+      "for": [
+        "Individual"
+      ],
+      "price": "£20 a month"
+    },
+    {
+      "name": "Landlord",
+      "for": [
+        "Landlord"
+      ],
+      "price": "from £35 a month"
+    },
+    {
+      "name": "Sole Trader Essentials",
+      "for": [
+        "Sole trader"
+      ],
+      "price": "£35 a month"
+    },
+    {
+      "name": "Sole Trader Plus",
+      "for": [
+        "Sole trader"
+      ],
+      "price": "£65 a month"
+    },
+    {
+      "name": "Limited Company Essentials",
+      "for": [
+        "Limited company"
+      ],
+      "price": "£85 a month"
+    },
+    {
+      "name": "Limited Company Plus",
+      "for": [
+        "Limited company"
+      ],
+      "price": "from £175 a month"
+    }
   ],
   "adviceSession": "Advice session (60 minutes): £60, taken off your first bill",
   "notOffered": {
     "_note": "Never quoted; flagged for Lucindha. AAT Client Care 5.1(k): the AAT licence does not authorise investment work. Audit needs registered-auditor status; legal and immigration advice need other authorisation.",
     "groups": [
-      { "reason": "Your AAT licence doesn't authorise investment work", "patterns": ["invest\\w*", "pension\\w*", "SIPPs?", "ISAs?", "annuit\\w*", "crypto\\w*", "bitcoin", "shares", "stocks?", "wealth management", "retirement planning", "financial (?:advice|adviser|advisor|planning|planner)", "mortgages?", "insurance"] },
-      { "reason": "Statutory audit needs registered-auditor status", "patterns": ["audit\\w*"] },
-      { "reason": "Legal advice is outside your practice", "patterns": ["legal advice", "solicitor"] },
-      { "reason": "Immigration advice needs Immigration Advice Authority registration", "patterns": ["immigration"] }
+      {
+        "reason": "Your AAT licence doesn't authorise investment work",
+        "patterns": [
+          "invest\\w*",
+          "pension\\w*",
+          "SIPPs?",
+          "ISAs?",
+          "annuit\\w*",
+          "crypto\\w*",
+          "bitcoin",
+          "shares",
+          "stocks?",
+          "wealth management",
+          "retirement planning",
+          "financial (?:advice|adviser|advisor|planning|planner)",
+          "mortgages?",
+          "insurance"
+        ]
+      },
+      {
+        "reason": "Statutory audit needs registered-auditor status",
+        "patterns": [
+          "audit\\w*"
+        ]
+      },
+      {
+        "reason": "Legal advice is outside your practice",
+        "patterns": [
+          "legal advice",
+          "solicitor"
+        ]
+      },
+      {
+        "reason": "Immigration advice needs Immigration Advice Authority registration",
+        "patterns": [
+          "immigration"
+        ]
+      }
     ]
+  },
+  "quoteValidityDays": 30,
+  "_quoteValidityNote": "Decision 11 Nov 2026: quotes valid for 30 days from the date you approve and issue them, with the expiry date shown.",
+  "excludedServices": {
+    "_note": "Decision 11 Nov 2026: not offered unless Lucindha separately authorises it.",
+    "Payroll": "Payroll is excluded from your approved services unless you separately authorise it."
   }
 }

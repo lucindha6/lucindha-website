@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { buildQuoteDraft, enterFee, checkQuote, quoteText, BLANK } from "../lib/quote.mjs";
+import { buildQuoteDraft, enterFee, checkQuote, quoteText, BLANK, setQuoteSection, QUOTE_SECTIONS } from "../lib/quote.mjs";
 import { newLetter, setSection, setSchedule, setPracticeFact, approveWording, checkLetter, newLetterNeeded, disengagementChecklist, AAT_ITEMS, PLACEHOLDER } from "../lib/engagement.mjs";
 import { newChecklist, applicableSteps, confirmStep, answerRedFlag, review, recordDecision, RED_FLAGS } from "../lib/onboarding.mjs";
 import { newEntry, move, nudgesDue, markNudged, LIST_COLUMNS } from "../lib/pipeline.mjs";
@@ -12,6 +12,7 @@ const pricing = JSON.parse(readFileSync(new URL("../config/proposed-pricing.json
 const availability = JSON.parse(readFileSync(new URL("../config/availability.json", import.meta.url)));
 const LICENSED = Object.keys(pricing.services);
 const ME = { by: "Lucindha" };
+const N = (d) => `${d}T12:00:00Z`;
 
 // ===================================================== quotes
 test("quote: published starting prices only, every fee left blank for you, £850 shown once for year-end + Corporation Tax", () => {
@@ -34,20 +35,23 @@ test("quote: services not on your licensed list are left out and flagged; invest
   assert.match(q2.flags.join(" "), /investing, pensions/);
 });
 
-test("quote: can't be 'ready for review' until you've entered every fee and decided VAT and validity; low fees flagged", () => {
+test("quote: you enter every fee and approve every wording section (scope, exclusions, assumptions, VAT, payment terms, additional work); low fees flagged", () => {
   let q = buildQuoteDraft({ ref: "QTE-C", clientType: "Sole trader", services: ["Bookkeeping", "VAT returns"] }, pricing);
   assert.equal(checkQuote(q).status, "incomplete");
   q = enterFee(q, "Bookkeeping", 2500);
   q = enterFee(q, "VAT returns", 9000);
   let c = checkQuote(q);
   assert.equal(c.status, "incomplete");
-  assert.match(c.problems.join(" "), /VAT/);
-  c = checkQuote(q, { vatStatusDecided: true, validityDecided: true });
-  assert.equal(c.status, "ready-for-review");
+  for (const t of ["Scope", "Exclusions", "Assumptions", "VAT treatment", "Payment terms", "Additional work"]) assert.match(c.problems.join(" "), new RegExp(t));
+  for (const sec of QUOTE_SECTIONS) q = setQuoteSection(q, sec.key, `FICTIONAL ${sec.key} wording.`, { approvedByLucindha: true });
+  c = checkQuote(q);
+  assert.equal(c.status, "ready-for-your-approval");
   assert.match(c.warnings.join(" "), /below your published starting price/);
   assert.match(c.warnings.join(" "), /PROPOSED, not approved/);
   assert.throws(() => enterFee(q, "Bookkeeping", -5), /bad-fee/);
   assert.throws(() => enterFee(q, "Payroll", 100), /no-such-line/);
+  assert.throws(() => enterFee(q, "Bookkeeping", 100, { by: "system" }), /only-lucindha/);
+  assert.throws(() => setQuoteSection(q, "scope", "Scope: [TBC]", { approvedByLucindha: true }), /placeholder/);
 });
 
 // ===================================================== engagement letters
@@ -69,12 +73,13 @@ test("engagement letter: wording only goes in when you approve it, never with pl
   assert.throws(() => setSection(l, "a", "Scope: [to do]", { approvedByLucindha: true }), /placeholder/);
   for (const i of AAT_ITEMS) l = setSection(l, i.id, `FICTIONAL approved wording for item ${i.id}.`, { approvedByLucindha: true });
   l = setSchedule(l, "Bookkeeping", "FICTIONAL scope for bookkeeping.", { approvedByLucindha: true });
-  for (const k of ["icoRegistration", "piiInsurer", "continuityAlternate", "vatStatus"]) l = setPracticeFact(l, k, "FICTIONAL", { approvedByLucindha: true });
+  for (const k of ["icoRegistration", "piiInsurer", "continuityAlternate", "vatStatus", "piiTerritorialCoverage"]) l = setPracticeFact(l, k, "FICTIONAL", { approvedByLucindha: true });
   let c = checkLetter(l);
   assert.match(c.problems.join(" "), /\(k\) must state/);
   assert.match(c.problems.join(" "), /\(o\) must say/);
   l = setSection(l, "k", "FICTIONAL. My AAT licence does not authorise investment work.", { approvedByLucindha: true });
   l = setSection(l, "o", "FICTIONAL. Unresolved complaints can be referred to AAT.", { approvedByLucindha: true });
+  for (const [id, t] of [["l", "FICTIONAL. Our Money Laundering Regulations duties."], ["m", "FICTIONAL. Registered with the Information Commissioner."], ["p", "FICTIONAL. Our alternate is a named practising accountant."]]) l = setSection(l, id, t, { approvedByLucindha: true });
   c = checkLetter(l);
   assert.deepEqual(c.problems, ["Your final read-through approval is still needed."]);
   assert.throws(() => approveWording(l, { by: "Lucindha" }), /personally/);
@@ -117,7 +122,7 @@ test("onboarding: nothing is ticked automatically; only you confirm steps, using
   const c = newChecklist({ ref: "ONB-C", clientRef: "CLI-C", clientType: "Sole trader" });
   assert.throws(() => confirmStep(c, "identity", { method: "original documents seen in person", date: "2026-11-20", by: "automation" }), /only-lucindha/);
   assert.throws(() => confirmStep(c, "identity", { method: "Passport 123456789", date: "2026-11-20", by: "Lucindha" }), /bad-method/);
-  const d = confirmStep(c, "identity", { method: "documents seen on video call", date: "2026-11-20", by: "Lucindha" });
+  const d = confirmStep(c, "identity", { method: "documents seen on video call, copies kept", date: "2026-11-20", by: "Lucindha" });
   assert.deepEqual(Object.keys(d.steps.identity).sort(), ["date", "method"]);
 });
 
@@ -230,7 +235,7 @@ test("booking: slots checked against your published times, notice period, bank h
 });
 
 test("booking: a request produces a DRAFT offer for you; nothing is booked or confirmed by the code", () => {
-  const r = assessRequest({ ref: "BKR-A", slots: [{ date: "2026-11-17", time: "19:00" }, { date: "2026-11-19", time: "19:00" }], communication: "Video call with BSL" }, { availability, book: [], today: T });
+  const r = assessRequest({ ref: "BKR-A", slots: [{ date: "2026-11-17", time: "19:00" }, { date: "2026-11-19", time: "19:00" }], communication: "Video call with BSL" }, { availability, book: [], today: T, now: N(T) });
   assert.equal(r.outcome, "offer-draft");
   assert.equal(r.hold.status, "proposed");
   assert.match(r.draft, /I can offer Thu 2026-11-19 at 19:00 \(video call with BSL\)/);
@@ -240,7 +245,7 @@ test("booking: a request produces a DRAFT offer for you; nothing is booked or co
 });
 
 test("booking: if no requested time works, the draft suggests your next free times instead", () => {
-  const r = assessRequest({ ref: "BKR-B", slots: [{ date: "2026-11-20", time: "12:00" }], communication: "Email or text chat" }, { availability, book: [], today: T });
+  const r = assessRequest({ ref: "BKR-B", slots: [{ date: "2026-11-20", time: "12:00" }], communication: "Email or text chat (written)" }, { availability, book: [], today: T, now: N(T) });
   assert.equal(r.outcome, "alternatives-draft");
   assert.equal(r.alternatives.length, 3);
   assert.deepEqual(r.alternatives[0], { date: "2026-11-18", time: "18:30" });
@@ -250,28 +255,28 @@ test("booking: if no requested time works, the draft suggests your next free tim
 test("booking: tentative holds stop double offers but lapse; only you mark offered, confirmed or released", () => {
   const S = { date: "2026-11-26", time: "19:00" }; // Thu
   let book = [];
-  const r1 = assessRequest({ ref: "BKR-C", slots: [S], communication: "Video call" }, { availability, book, today: T });
+  const r1 = assessRequest({ ref: "BKR-C", slots: [S], communication: "Video call" }, { availability, book, today: T, now: N(T) });
   assert.equal(r1.outcome, "offer-draft");
   book = [...book, r1.hold];
-  const r2 = assessRequest({ ref: "BKR-D", slots: [S], communication: "Video call" }, { availability, book, today: T });
+  const r2 = assessRequest({ ref: "BKR-D", slots: [S], communication: "Video call" }, { availability, book, today: T, now: N(T) });
   assert.equal(r2.outcome, "alternatives-draft");
-  const r3 = assessRequest({ ref: "BKR-E", slots: [S], communication: "Video call" }, { availability, book, today: "2026-11-20" });
+  const r3 = assessRequest({ ref: "BKR-E", slots: [S], communication: "Video call" }, { availability, book, today: "2026-11-20", now: N("2026-11-20") });
   assert.equal(r3.outcome, "offer-draft"); // BKR-C hold lapsed (not sent within 3 days)
-  assert.throws(() => updateBooking(book, "BKR-C", "confirmed", { by: "Lucindha", date: "2026-11-17" }), /cannot-proposed-to-confirmed/);
-  assert.throws(() => updateBooking(book, "BKR-C", "offered", { by: "system", date: "2026-11-17" }), /only-lucindha/);
-  book = updateBooking(book, "BKR-C", "offered", { by: "Lucindha", date: "2026-11-16" });
-  book = updateBooking(book, "BKR-C", "confirmed", { by: "Lucindha", date: "2026-11-17" });
+  assert.throws(() => updateBooking(book, "BKR-C", "confirmed", { by: "Lucindha", confirmedPersonally: true, now: N("2026-11-17") }), /cannot-proposed-to-confirmed/);
+  assert.throws(() => updateBooking(book, "BKR-C", "offered", { by: "system", now: N("2026-11-17") }), /only-lucindha/);
+  book = updateBooking(book, "BKR-C", "offered", { by: "Lucindha", now: N("2026-11-16") });
+  book = updateBooking(book, "BKR-C", "confirmed", { by: "Lucindha", confirmedPersonally: true, now: N("2026-11-17") });
   assert.equal(book[0].status, "confirmed");
   // a confirmed chat never lapses
-  assert.equal(assessRequest({ ref: "BKR-H", slots: [S], communication: "Video call" }, { availability, book, today: "2026-11-20" }).outcome, "alternatives-draft");
-  book = updateBooking(book, "BKR-C", "cancelled", { by: "Lucindha", date: "2026-11-18" });
+  assert.equal(assessRequest({ ref: "BKR-H", slots: [S], communication: "Video call" }, { availability, book, today: "2026-11-20", now: N("2026-11-20") }).outcome, "alternatives-draft");
+  book = updateBooking(book, "BKR-C", "cancelled", { by: "Lucindha", now: N("2026-11-18") });
   assert.equal(slotProblem(S, { availability, book, today: T }), null);
 });
 
 test("booking: missing or unusual communication preference is flagged; face to face needs your decision", () => {
-  let r = assessRequest({ ref: "BKR-F", slots: [{ date: "2026-11-19", time: "19:00" }] }, { availability, book: [], today: T });
+  let r = assessRequest({ ref: "BKR-F", slots: [{ date: "2026-11-19", time: "19:00" }] }, { availability, book: [], today: T, now: N(T) });
   assert.match(r.flags.join(" "), /ask how they'd like to communicate/);
-  r = assessRequest({ ref: "BKR-G", slots: [{ date: "2026-11-19", time: "19:00" }], communication: "Face to face" }, { availability, book: [], today: T });
+  r = assessRequest({ ref: "BKR-G", slots: [{ date: "2026-11-19", time: "19:00" }], communication: "Face to face" }, { availability, book: [], today: T, now: N(T) });
   assert.match(r.flags.join(" "), /decide the place/);
 });
 
