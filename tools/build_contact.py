@@ -2,9 +2,10 @@
 """Builds site/contact.html in the soft style on the main navy (#0B1F33).
 The form keeps its Netlify Forms set-up (name="enquiry", data-netlify, honeypot, field names) - don't rename fields.
 Run:  python3 tools/build_contact.py"""
-import sys, pathlib, html
+import sys, pathlib, html, re
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from page_shell import page, ROOT
+from social import social_named
 e = lambda s: html.escape(s, quote=True)
 
 ACC_SERVICES = ["Bookkeeping", "VAT returns", "Personal tax", "Year-end accounts", "Corporation tax returns",
@@ -43,6 +44,23 @@ body = f'''
 <h2>Prefer email?</h2>
 <p><a href="mailto:hello@lucindhalawson.co.uk" class="link">hello@lucindhalawson.co.uk</a></p>
 <p>Based in London, working with clients across the UK. BSL interpreters can be arranged where required.</p>
+</div>
+
+<div class="card wa-card">
+<h2>WhatsApp</h2>
+<p><a class="wa-btn" href="https://wa.me/447708996817" target="_blank" rel="noopener"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 19.5l1.2-3.6A8 8 0 1 1 8.6 18.6z"></path><path d="M9 10.5h6M9 13.5h4"></path></svg><span>Message me on WhatsApp</span><span class="sr"> (opens WhatsApp in a new tab)</span></a></p>
+<p>For enquiries about my services or to arrange or change an appointment, you can contact me through WhatsApp Business on 07708 996817.</p>
+<p>Written messages are preferred.</p>
+<p>I aim to respond within 2 working days.</p>
+<p class="wa-note"><strong>Please don't send financial documents, bank details, ID or other confidential information through WhatsApp.</strong> I'll provide a secure way to share documents when needed.</p>
+<p class="small wa-privacy"><a href="privacy.html#whatsapp">WhatsApp and your privacy</a></p>
+</div>
+
+<div class="card follow-card">
+<h2>Follow us</h2>
+<p>News and updates from LUCINDHA LAWSON LTD.</p>
+{social_named()}
+<p class="small">For enquiries, please use the form, email or WhatsApp rather than social media messages.</p>
 </div>
 </div>
 
@@ -121,5 +139,6 @@ body = f'''
 out = page("Contact", "Request a free, no-obligation quote from Lucindha Lawson. Choose how you'd like to be contacted, including BSL and other access needs.",
            "contact.html", body)
 out = out.replace('\n<a href="contact.html" class="pill">Request a quote</a>', "")   # no quote button on the quote page itself
+out = re.sub(r'<a class="wa-float".*?</a>\n', "", out, flags=re.S)   # WhatsApp is shown in full on this page, so no floating button
 (ROOT / "contact.html").write_text(out)
 print("contact.html written")

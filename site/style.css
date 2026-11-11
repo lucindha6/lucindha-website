@@ -18,7 +18,7 @@ a{color:var(--gold-text)}a:hover{color:#DCC499}
 a:focus-visible,button:focus-visible{outline:3px solid var(--gold-text);outline-offset:4px;border-radius:6px}
 img{max-width:100%}
 .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
-.skip{position:absolute;left:16px;top:-80px;background:var(--gold-text);color:var(--navy);padding:12px 16px;font-weight:700;border-radius:8px;z-index:10}
+.skip{position:absolute;left:16px;top:-80px;background:var(--gold-text);color:var(--navy);padding:12px 16px;font-weight:700;border-radius:8px;z-index:100}
 .skip:focus{top:12px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
@@ -296,7 +296,7 @@ section{padding:60px 0}
 .policy-hero .hero-text{max-width:52em}
 .updated{font-size:1rem;color:var(--gold-text)}
 .policy-layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:64px;align-items:start;padding-top:8px;padding-bottom:80px}
-.toc{position:sticky;top:28px;border-left:1px solid var(--line);padding:4px 0 4px 20px;display:flex;flex-direction:column;gap:12px}
+.toc{position:sticky;top:calc(var(--hdr-offset,0px) + 28px);transition:top .35s ease;border-left:1px solid var(--line);padding:4px 0 4px 20px;display:flex;flex-direction:column;gap:12px}
 .toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
 .toc a{display:block;padding:6px 0;text-decoration:none;color:var(--mist);font-size:1rem;line-height:1.4}
 .toc a:hover{color:var(--gold-text)}
@@ -611,3 +611,59 @@ html[data-theme="yellow"] .ds-float .display-btn,html[data-theme="yellow"] .ds-f
 .quote-card blockquote{margin:0;display:flex;flex-direction:column;gap:12px;border-left:3px solid var(--gold);padding-left:18px}
 .quote-card blockquote p{color:var(--cream);margin:0;font-size:1.05rem;line-height:1.7}
 .quote-card figcaption{margin-top:auto;padding-top:8px;font-weight:600;color:var(--gold-text)}
+
+/* ---------- WhatsApp: discreet floating button (bottom-right; Display settings sits bottom-left) ---------- */
+.wa-float{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:65;display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:8px 18px 8px 14px;border-radius:999px;border:1.5px solid var(--gold-text);background:var(--navy-3);color:var(--cream);font-weight:700;font-size:1rem;line-height:1.2;text-decoration:none;box-shadow:0 8px 24px rgba(0,0,0,.35);transition:background .2s ease}
+.wa-float svg{flex:none;color:var(--gold-text)}
+.wa-float:hover{background:var(--navy-2);color:var(--cream)}
+.wa-float:focus-visible{outline:3px solid var(--gold-text);outline-offset:3px;border-radius:999px}
+html[data-theme="yellow"] .wa-float{border-color:#111}
+html[data-theme="yellow"] .wa-float svg{color:#111}
+/* keyboard users: anything scrolled into view stops clear of the corner buttons */
+html{scroll-padding-bottom:96px}
+/* phones and tablets: a smaller pill that keeps the word "WhatsApp" so everyone knows what it is */
+@media (max-width:900px){
+  .wa-float{right:12px;gap:6px;padding:6px 14px 6px 11px;font-size:.95rem}
+  .wa-float svg{width:22px;height:22px}
+  .site-footer{padding-bottom:92px}
+}
+/* hidden while the phone menu is open and when printing (build_contact.py leaves it off the Contact page) */
+body:has(.menu-open) .wa-float{display:none}
+@media print{.wa-float{display:none}}
+@media (prefers-reduced-motion:reduce){.wa-float{transition:none}}
+
+/* WhatsApp card on the Contact page */
+.wa-card .wa-note{border-left:3px solid var(--gold);padding-left:14px;font-size:1rem;margin-bottom:8px}
+.wa-card .wa-privacy{margin:0;padding-left:17px}
+.wa-btn{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:8px 18px 8px 13px;line-height:1.3;font-size:1rem;border-radius:999px;border:1.5px solid var(--gold-text);background:var(--navy-3);color:var(--cream);font-weight:700;text-decoration:none}
+.wa-btn svg{flex:none;color:var(--gold-text)}
+.wa-btn:hover{background:var(--navy-2);color:var(--cream)}
+.wa-btn:focus-visible{outline:3px solid var(--gold-text);outline-offset:3px;border-radius:999px}
+html[data-theme="yellow"] .wa-btn,html[data-theme="yellow"] .wa-btn svg{color:#111;border-color:#111}
+
+/* Contact page "Follow us": icon plus visible platform name, 48px tall targets */
+.social-named{list-style:none;margin:6px 0 12px;padding:0;display:flex;flex-wrap:wrap;gap:10px}
+.social-named a{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:8px 16px 8px 12px;border-radius:999px;border:1px solid var(--line);color:var(--cream);font-weight:600;text-decoration:none;transition:background .2s ease}
+.social-named a svg{flex:none;color:var(--gold-text)}
+.social-named a:hover{background:rgba(203,171,116,.14)}
+.social-named a:focus-visible{outline:3px solid var(--gold-text);outline-offset:3px;border-radius:999px}
+html[data-theme="yellow"] .social-named a,html[data-theme="yellow"] .social-named a svg{color:#111;border-color:#111}
+@media (prefers-reduced-motion:reduce){.social-named a{transition:none}}
+
+/* Footer WhatsApp link: compact icon + two-line label, 44px+ target */
+.footer-wa{display:inline-grid;grid-template-columns:20px auto;justify-content:start;align-self:flex-start;justify-self:start;width:max-content;max-width:100%;align-items:center;column-gap:9px;min-height:44px;margin:6px 0;padding:5px 14px 5px 11px;border:1px solid var(--line);border-radius:14px;color:var(--cream);text-decoration:none;line-height:1.25}
+.footer-wa svg{grid-row:1 / span 2;width:20px;height:20px;color:var(--gold-text)}
+.footer-wa-label{font-weight:700;font-size:.95rem}
+.footer-wa-sub{grid-column:2;color:var(--mist);font-size:.8rem}
+.footer-wa:hover{background:rgba(203,171,116,.14);color:var(--cream)}
+.footer-wa:hover .footer-wa-label{text-decoration:underline}
+.footer-wa:focus-visible{outline:3px solid var(--gold-text);outline-offset:3px;border-radius:14px}
+html[data-theme="yellow"] .footer-wa,html[data-theme="yellow"] .footer-wa svg,html[data-theme="yellow"] .footer-wa-sub{color:#111;border-color:#111}
+
+
+/* Reflow at 320px with large text: long email addresses and narrow-screen labels may wrap instead of making the page scroll sideways */
+a[href^="mailto:"]{overflow-wrap:anywhere}
+fieldset{min-width:0}
+@media (max-width:360px){.eyebrow .nw{white-space:normal}}
+@media (prefers-reduced-motion:reduce){.toc{transition:none}}
+html[data-motion="reduced"] .toc{transition:none}
