@@ -50,7 +50,7 @@ body = f'''
 <h2>WhatsApp</h2>
 <p><a class="wa-btn" href="https://wa.me/447708996817" target="_blank" rel="noopener"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 19.5l1.2-3.6A8 8 0 1 1 8.6 18.6z"></path><path d="M9 10.5h6M9 13.5h4"></path></svg><span>Message me on WhatsApp</span><span class="sr"> (opens WhatsApp in a new tab)</span></a></p>
 <p>For enquiries about my services or to arrange or change an appointment, you can contact me through WhatsApp Business on 07708 996817.</p>
-<p>Written messages are preferred. Voice notes are welcome where transcription is available. Please use WhatsApp messages rather than voice calls.</p>
+<p>Written messages are preferred.</p>
 <p>I aim to respond within 2 working days.</p>
 <p class="wa-note"><strong>Please don't send financial documents, bank details, ID or other confidential information through WhatsApp.</strong> I'll provide a secure way to share documents when needed.</p>
 <p class="small wa-privacy"><a href="privacy.html#whatsapp">WhatsApp and your privacy</a></p>
