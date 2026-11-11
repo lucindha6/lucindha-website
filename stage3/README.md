@@ -44,6 +44,24 @@ So Stage 3 separates the two jobs:
    it's overdue. You write and send the formal acknowledgement yourself, using the templates in
    `config/acknowledgements.json`. Stage 3 never sends anything.
 
+**Safety rules** (from the independent review):
+
+- **Nothing is silently dropped.** Mail that looks automatic (auto-replies, bulk mail, a service's
+  no-reply address) opens no case at complaints@ or privacy@, but you get a "check this" notice. A
+  request sent through a service, with privacy wording, still opens a case.
+- **Privacy wording is checked everywhere.** It's checked in **every** message, subject and body, new
+  or follow-up. A privacy request inside a complaint thread opens a linked privacy case. Threads only
+  match cases of the same type.
+- **Interrupted runs finish next time.** A run stopped part-way finishes the job on the next try,
+  without sending notices twice.
+- **Reminders are confirmed.** A reminder is recorded as sent only after it's delivered.
+- **Updates can't overwrite each other.** Case updates use a version check, so two at once can't wipe
+  each other's events (Netlify Blobs conditional writes, to verify at integration).
+- **Dates are checked.** Recorded dates are checked: not in the future, not before receipt, and an
+  answer can't come before its question. A faulty case gets its own "needs attention" notice, and the
+  other cases carry on.
+- **No free text is stored.** Details belong in your own case file.
+
 To work on real mail, Stage 3 would later need read access to those mailboxes (Gate S3-3: a separate
 app, mailbox-limited by RBAC, never Mail.Send). Nothing is connected now.
 
@@ -65,8 +83,15 @@ Following the ICO's right of access guidance and UK GDPR Art. 12(3):
 - **Clarification:** the clock **pauses on the day you ask** and restarts the day after the answer
   arrives. The deadline moves on by the number of days paused, counted in days.
 - **Extension:** for complex or numerous requests, up to **two further months**, but only if you tell
-  the person, with reasons, **within the first month**. Stage 3 reminds you and warns if the notice
-  was late.
+  the person, with reasons, **within the first month**. Until you record that notice, the normal date
+  stands. Stage 3 reminds you 5 working days before the first month ends. A late notice doesn't extend
+  the deadline.
+- **Overlapping pauses:** they're merged, not counted twice. A clarification asked for after the
+  deadline has passed doesn't move it.
+- **Bank holidays:** dates beyond the bank holiday list carry a warning to check by hand.
+- **hello@ (the main enquiries inbox):** Stage 2 already sends privacy wording there to you as
+  *sensitive*. Log any privacy request that arrives there with `logCase` (channel `other-mailbox`) and
+  its real receipt date.
 
 Fees, refusals and exemptions are your decisions and aren't automated.
 
@@ -79,7 +104,9 @@ privacy notice and is marked **not approved**.
 - **Not yet decided:** retention periods for complaints and privacy requests are marked *NEEDS YOUR
   DECISION*. Unknown categories are always kept.
 - **Exceptions:** an open case, a legal hold, the enquirer becoming a client, or a regulatory hold
-  always means **keep**.
+  always means **keep**. So does any **unrecognised or misspelt flag**.
+- **Dates:** each item needs an explicit start date for its rule (for example the last contact).
+  Creation dates are used only where the rule really counts from creation.
 - **No access token needed:** the tool reads a file **you** export from Netlify, so it needs no
   Netlify access token.
 

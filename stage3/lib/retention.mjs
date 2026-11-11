@@ -39,16 +39,21 @@ export function dryRun(items, { asOf, schedule = SCHEDULE } = {}) {
   assertDate(asOf);
   const rows = [];
   for (const it of items) {
-    const id = String(it.id ?? "").slice(0, 64) || "(no id)";
-    const category = String(it.category ?? "");
-    const rule = schedule.rules[category];
-    const flags = (it.flags || []).filter((f) => EXCEPTIONS[f]);
+    const tidy = (v, n) => String(v ?? "").replace(/[^\w.@:-]/g, "_").slice(0, n);
+    const id = tidy(it.id, 64) || "(no id)";
+    const category = tidy(it.category, 40);
+    const rule = Object.prototype.hasOwnProperty.call(schedule.rules, it.category) ? schedule.rules[it.category] : null;
+    const rawFlags = Array.isArray(it.flags) ? it.flags.map(String) : [];
+    const flags = rawFlags.filter((f) => EXCEPTIONS[f]);
+    const unknownFlags = rawFlags.filter((f) => !EXCEPTIONS[f]);
+    // The clock date must be given explicitly, unless the rule really counts from creation.
     let clock = null;
     try {
-      clock = it.clockDate ? assertDate(it.clockDate) : it.createdAt ? ukDateOf(it.createdAt) : null;
+      clock = it.clockDate ? assertDate(it.clockDate) : rule?.from === "created" && it.createdAt ? ukDateOf(it.createdAt) : null;
     } catch { clock = null; }
     let action, reason, keepUntil = null;
     if (!rule) [action, reason] = ["keep", "unknown category: needs your decision"];
+    else if (unknownFlags.length) [action, reason] = ["keep", `unrecognised flag (${unknownFlags.map((f) => tidy(f, 20)).join(", ")}): check by hand`];
     else if (rule.keepMonths == null) [action, reason] = ["keep", rule.source];
     else if (!clock) [action, reason] = ["keep", "no reliable date: check by hand"];
     else {

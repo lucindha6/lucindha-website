@@ -13,8 +13,8 @@
 //   - one calendar month = the corresponding date in the next month, or the last day of that month
 //     if there's no corresponding date;
 //   - if the due date falls on a weekend or bank holiday, it moves to the next working day;
-//   - for complex or numerous requests it can be extended by up to two further months, but you
-//     must tell the person, with reasons, within the first month;
+//   - for complex or numerous requests it can be extended by up to two further months, but only
+//     if you tell the person, with reasons, within the first month (until then the normal date stands);
 //   - requests can arrive by ANY channel (verbal, letter, social media, any mailbox) and needn't use
 //     the words "subject access": the receipt date is when it reached you, however it came.
 //
@@ -45,6 +45,7 @@ export function complaintDeadlines({ received, acknowledged = null }) {
     responseRemind: subtractWorkingDays(responseDue, REMIND_WORKING_DAYS_BEFORE + 3),
     calendarCovered: holidaysCover(responseDue),
     notes,
+    warnings: holidaysCover(responseDue) ? [] : [`The bank holiday list doesn't cover ${responseDue} yet: check the dates by hand and update the list.`],
   };
 }
 const onWorkday = (d) => onOrNextWorkingDay(d) === d;
@@ -74,34 +75,55 @@ export function privacyRequestDeadlines({ received, idNeeded = false, idRequeste
   else notes.push(`Clock starts ${start}, the day the request reached you.`);
   if (idNeeded && idRequested && daysBetween(received, idRequested) > 5) warnings.push("ID was requested more than 5 days after the request arrived: the ICO expects you to ask promptly.");
 
-  // 2. Pauses for clarification (counted in whole days).
-  let paused = 0;
-  let open = null;
+  // 2. Pauses for clarification (counted in whole days). Overlapping pauses are merged, and a
+  //    pause asked for after the deadline had already passed doesn't move it.
   for (const c of clarifications) {
     assertDate(c.requested);
+    if (c.received) {
+      assertDate(c.received);
+      if (c.received < c.requested) throw new Error("clarification-received-before-requested");
+    }
     if (c.requested < start) warnings.push(`Clarification requested ${c.requested} before the clock started; it doesn't change the deadline.`);
-    if (!c.received) { open = c; continue; }
-    assertDate(c.received);
-    if (c.received < c.requested) throw new Error("clarification-received-before-requested");
-    if (c.requested >= start) paused += daysBetween(c.requested, c.received) + 1; // paused on the day asked, restarts the day after the answer
+  }
+  const open = clarifications.find((c) => !c.received && c.requested >= start);
+  const spans = clarifications.filter((c) => c.received && c.requested >= start).map((c) => [c.requested, c.received]).sort((x, y) => (x[0] < y[0] ? -1 : 1));
+  let paused = 0;
+  let mergedEnd = null;
+  let dueSoFar = addCalendarMonths(start, 1);
+  for (const [from, to] of spans) {
+    if (from > dueSoFar) { warnings.push(`Clarification asked on ${from}, after the deadline (${dueSoFar}) had passed: it doesn't extend it.`); continue; }
+    const effFrom = mergedEnd && from <= mergedEnd ? addDays(mergedEnd, 1) : from;
+    if (effFrom <= to) {
+      paused += daysBetween(effFrom, to) + 1; // paused on the day asked, restarts the day after the answer
+      mergedEnd = mergedEnd && mergedEnd > to ? mergedEnd : to;
+      dueSoFar = addDays(addCalendarMonths(start, 1), paused);
+    }
   }
   if (open) {
-    return { type: "privacy", status: "paused", clockStarts: start, due: null, pausedDays: paused, notes: [...notes, `Paused since ${open.requested} while you wait for clarification.`], warnings };
+    if (open.requested > dueSoFar) warnings.push(`Clarification asked on ${open.requested}, after the deadline (${dueSoFar}) had passed: the request is overdue.`);
+    else return { type: "privacy", status: "paused", clockStarts: start, due: null, pausedDays: paused, notes: [...notes, `Paused since ${open.requested} while you wait for clarification.`], warnings };
   }
   if (paused) notes.push(`Paused for ${paused} day(s) while waiting for clarification, so the deadline moves on by ${paused} day(s).`);
 
-  // 3. One calendar month (or three, if extended), plus pauses, rolled to a working day.
+  // 3. One calendar month (or three, if VALIDLY extended), plus pauses, rolled to a working day.
   const oneMonth = addDays(addCalendarMonths(start, 1), paused);
   const normalDue = onOrNextWorkingDay(oneMonth);
   if (normalDue !== oneMonth) notes.push(`${oneMonth} isn't a working day, so the deadline is the next working day, ${normalDue}.`);
   let due = normalDue;
+  let extensionNoticeRemind = null;
   if (extended) {
-    const threeMonths = addDays(addCalendarMonths(start, 3), paused);
-    due = onOrNextWorkingDay(threeMonths);
-    notes.push(`Extended by two months (complex or numerous request): due ${due}.`);
-    if (!extensionNotified) warnings.push(`You must tell the person about the extension, with reasons, by ${normalDue}.`);
-    else if (assertDate(extensionNotified) > normalDue) warnings.push(`The extension was notified on ${extensionNotified}, after the first month ended (${normalDue}): the extension may not be valid.`);
+    const threeMonths = onOrNextWorkingDay(addDays(addCalendarMonths(start, 3), paused));
+    if (extensionNotified && assertDate(extensionNotified) <= normalDue) {
+      due = threeMonths;
+      notes.push(`Extended by two months (complex or numerous request), notified ${extensionNotified}: due ${due}.`);
+    } else if (extensionNotified) {
+      warnings.push(`The extension was notified on ${extensionNotified}, after the first month ended (${normalDue}), so it isn't valid: the deadline stays ${normalDue}.`);
+    } else {
+      warnings.push(`Extension not yet valid: you must tell the person, with reasons, by ${normalDue}. Until then the deadline stays ${normalDue} (it becomes ${threeMonths} once notified in time).`);
+      extensionNoticeRemind = subtractWorkingDays(normalDue, 5);
+    }
   }
+  if (!holidaysCover(due)) warnings.push(`The bank holiday list doesn't cover ${due} yet: check the date by hand and update the list.`);
   return {
     type: "privacy",
     status: "running",
@@ -109,6 +131,7 @@ export function privacyRequestDeadlines({ received, idNeeded = false, idRequeste
     pausedDays: paused,
     due,
     extensionNoticeBy: normalDue,
+    extensionNoticeRemind,
     remind: subtractWorkingDays(due, 5),
     calendarCovered: holidaysCover(due),
     notes,

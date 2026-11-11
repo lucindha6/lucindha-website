@@ -26,13 +26,15 @@ export function buildHealthReport(facts) {
   }
   for (const f of facts.functions || []) {
     const rate = f.calls ? f.errors / f.calls : 0;
-    if (f.errors === 0) add("ok", `${f.site}/${f.name}: ${f.calls} calls, no errors.`);
+    if (f.errors > 0 && !f.calls) add("bad", `${f.site}/${f.name}: ${f.errors} error(s) with no successful calls recorded.`);
+    else if (f.errors === 0) add("ok", `${f.site}/${f.name}: ${f.calls} calls, no errors.`);
     else if (rate < 0.05) add("warn", `${f.site}/${f.name}: ${f.errors} error(s) in ${f.calls} calls.`);
     else add("bad", `${f.site}/${f.name}: ${f.errors} error(s) in ${f.calls} calls (${Math.round(rate * 100)}%).`);
   }
   for (const t of facts.tasks || []) {
     const age = t.lastRun ? daysBetween(t.lastRun, asOf) : Infinity;
-    if (t.status !== "succeeded") add("bad", `Scheduled task "${t.name}": last run ${t.status}${t.lastRun ? ` on ${t.lastRun}` : ""}.`);
+    if (!t.lastRun) add("warn", `Scheduled task "${t.name}": has never run.`);
+    else if (t.status !== "succeeded") add("bad", `Scheduled task "${t.name}": last run ${t.status} on ${t.lastRun}.`);
     else if (age > (t.expectedEveryDays || 7) + 1) add("warn", `Scheduled task "${t.name}": hasn't run since ${t.lastRun}.`);
     else add("ok", `Scheduled task "${t.name}": ran ${t.lastRun}.`);
   }
@@ -44,6 +46,11 @@ export function buildHealthReport(facts) {
     else if (left <= 60) add("warn", `${e.what}: expires ${e.date} (${left} days).`);
   }
   if (facts.formSubmissions7d === 0) add("warn", "No website enquiries in the last 7 days: check the form still works (or it's just a quiet week).");
+  // Missing information is a problem in itself: a report must never say "OK" because it saw nothing.
+  for (const [k, label] of [["deploys", "deploy status"], ["functions", "function figures"], ["tasks", "scheduled task results"]]) {
+    if (!Array.isArray(facts[k]) || facts[k].length === 0) add("warn", `No ${label} were collected this week: the check itself may have failed.`);
+  }
+  if (facts.formSubmissions7d == null) add("warn", "Website enquiry count wasn't collected this week.");
 
   const worst = items.some((i) => i.level === "bad") ? "bad" : items.some((i) => i.level === "warn") ? "warn" : "ok";
   const order = { bad: 0, warn: 1, ok: 2 };

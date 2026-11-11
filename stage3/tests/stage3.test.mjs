@@ -5,7 +5,9 @@ import { readFileSync, readdirSync } from "node:fs";
 import { memoryStore, message, SECRET } from "./helpers.mjs";
 import { addCalendarMonths, addWorkingDays, onOrNextWorkingDay, HOLIDAYS_VALID_UNTIL, ukDateOf } from "../lib/calendar.mjs";
 import { complaintDeadlines, privacyRequestDeadlines, mediaDeadlines } from "../lib/deadlines.mjs";
-import { intake, logCase, recordEvent, dailyCaseCheck, getCase, isAutomatic, looksLikePrivacyRequest } from "../lib/cases.mjs";
+import { intake, logCase, recordEvent as rawRecordEvent, dailyCaseCheck, getCase, isAutomatic, looksLikePrivacyRequest, bareAddress } from "../lib/cases.mjs";
+// Events are recorded "on the day" they happen (recordEvent refuses dates in the future).
+const recordEvent = (ref, e, d, x, extra = {}) => rawRecordEvent(ref, e, d, { ...x, now: Date.parse(`${d}T18:00:00Z`), ...extra });
 import { dryRun, reportText, SCHEDULE } from "../lib/retention.mjs";
 import { buildHealthReport } from "../lib/health.mjs";
 
@@ -83,12 +85,15 @@ test("privacy: clarification pauses the clock from the day asked to the day answ
 
 test("privacy: extension by two further months only with notice inside the first month", () => {
   let d = privacyRequestDeadlines({ received: "2026-11-16", extended: true });
-  assert.equal(d.due, "2027-02-16");
+  assert.equal(d.due, "2026-12-16", "not valid until notified: normal date stands");
   assert.equal(d.extensionNoticeBy, "2026-12-16");
-  assert.match(d.warnings.join(" "), /must tell the person.*by 2026-12-16/);
+  assert.equal(d.extensionNoticeRemind, "2026-12-09");
+  assert.match(d.warnings.join(" "), /must tell the person, with reasons, by 2026-12-16/);
   d = privacyRequestDeadlines({ received: "2026-11-16", extended: true, extensionNotified: "2026-12-20" });
-  assert.match(d.warnings.join(" "), /may not be valid/);
+  assert.equal(d.due, "2026-12-16", "late notice: extension not valid");
+  assert.match(d.warnings.join(" "), /isn't valid/);
   d = privacyRequestDeadlines({ received: "2026-11-16", extended: true, extensionNotified: "2026-12-01" });
+  assert.equal(d.due, "2027-02-16");
   assert.equal(d.warnings.length, 0);
 });
 
@@ -164,9 +169,12 @@ test("requests made by phone, video, letter, in person or social media can be lo
 test("automatic emails, internal emails and unknown mailboxes never create cases (no reply loops)", async () => {
   const x = deps();
   for (const h of [{ "Auto-Submitted": "auto-replied" }, { Precedence: "bulk" }, { "List-Id": "<news.example.org>" }]) {
-    assert.equal((await intake(message({ headers: h }), x)).result, "ignored-automatic");
+    const r = await intake(message({ headers: h }), x);
+    assert.equal(r.result, "automatic-needs-check"); // no case, but never silently dropped
+    assert.match(r.notices[0].subject, /Automatic-looking message/);
   }
-  assert.equal((await intake(message({ from: "no-reply@example.org" }), x)).result, "ignored-automatic");
+  assert.equal((await intake(message({ from: "no-reply@example.org" }), x)).result, "automatic-needs-check");
+  assert.equal((await intake(message({ mailbox: "media@lucindhalawson.co.uk", headers: { Precedence: "bulk" } }), x)).result, "ignored-automatic");
   assert.equal((await intake(message({ from: "hello@lucindhalawson.co.uk" }), x)).result, "ignored-internal");
   assert.equal((await intake(message({ mailbox: "hello@lucindhalawson.co.uk" }), x)).result, "ignored-unknown-mailbox");
   assert.equal([...x.store.m.keys()].filter((k) => k.startsWith("case/")).length, 0);
@@ -324,7 +332,7 @@ test("a message whose processing stopped part-way (claim older than 2 minutes) i
   assert.equal((await intake(m, x)).result, "new-case");
   const y = deps();
   await y.store.setJSON(`s3src/${key}`, { at: T - 30e3 });
-  assert.equal((await intake(m, y)).result, "duplicate-event"); // still genuinely in progress
+  assert.equal((await intake(m, y)).result, "in-progress"); // still genuinely in progress
 });
 
 test("waiting for ID: one nudge after 10 working days, no false 'overdue' (the clock hasn't started)", async () => {
@@ -338,4 +346,176 @@ test("waiting for ID: one nudge after 10 working days, no false 'overdue' (the c
   await recordEvent(c.ref, "id-received", "2026-12-01", x);
   const d = await dailyCaseCheck({ store: x.store, today: "2026-12-24" });
   assert.match(d[0].message, /due 2027-01-04/); // 1 Jan 2027 is a bank holiday, 2-3 Jan a weekend
+});
+
+// ===================================================== fixes from the independent review
+test("review 1: one email sent to complaints@ AND privacy@ opens a privacy case too (threads only match the same type)", async () => {
+  const x = deps();
+  const m = message({ bodyText: "FICTIONAL. I'm unhappy." });
+  const a = await intake(m, x);
+  const b = await intake({ ...m, id: m.id + "-copy", mailbox: "privacy@lucindhalawson.co.uk" }, x);
+  assert.equal(b.result, "new-case");
+  assert.match(b.refs[0], /^DSR-/);
+  assert.notEqual(a.refs[0], b.refs[0]);
+});
+
+test("review 1: a privacy request made inside an existing complaint thread opens a linked privacy case", async () => {
+  const x = deps();
+  const m = message();
+  const a = await intake(m, x);
+  const r = await intake(message({ from: m.from, conversationId: m.conversationId, bodyText: "FICTIONAL. Also, send me all the information you hold about me." }), x);
+  assert.equal(r.result, "follow-up");
+  assert.equal(r.refs[0], a.refs[0]);
+  assert.match(r.refs[1], /^DSR-/);
+  assert.match(r.notices.at(-1).message, new RegExp(`in the thread of ${a.refs[0]}`));
+});
+
+test("review 2: a run that stopped before notices or the linked privacy case is completed on retry", async () => {
+  const x = deps();
+  const m = message({ bodyText: "FICTIONAL. What information do you hold about me?" });
+  let calls = 0;
+  const flaky = async () => { calls++; if (calls === 1) throw new Error("stopped"); };
+  await assert.rejects(intake(m, { ...x, notify: flaky }));
+  const delivered = [];
+  const r = await intake(m, { ...x, now: T + 3 * 60e3, notify: async (n) => delivered.push(n) });
+  assert.equal(r.refs.length, 2);
+  assert.ok(delivered.some((n) => /New complaint/.test(n.subject)));
+  assert.ok(delivered.some((n) => /Possible privacy request/.test(n.subject)));
+  const again = await intake(m, { ...x, now: T + 6 * 60e3, notify: async (n) => delivered.push(n) });
+  assert.equal(again.notices.length, 0, "and never twice");
+});
+
+test("review 3: reminders are only recorded once delivered; a failed delivery is retried next time", async () => {
+  const x = deps();
+  await intake(message(), x);
+  await assert.doesNotReject(dailyCaseCheck({ store: x.store, today: "2026-11-19", notify: async () => { throw new Error("down"); } }));
+  const n = await dailyCaseCheck({ store: x.store, today: "2026-11-20" });
+  assert.match(n[0].subject, /Reminder: Acknowledge/);
+});
+
+test("review 4: recording an event at the same time as the daily check never loses the event", async () => {
+  const x = deps();
+  const ref = (await intake(message(), x)).refs[0];
+  await Promise.all([
+    dailyCaseCheck({ store: x.store, today: "2026-11-19" }),
+    recordEvent(ref, "acknowledged", "2026-11-19", x),
+    dailyCaseCheck({ store: x.store, today: "2026-11-19" }),
+  ]);
+  const c = await getCase(x.store, ref);
+  assert.ok(c.events.some((e) => e.event === "acknowledged"));
+});
+
+test("review 5: overlapping clarification pauses are merged; a pause after the deadline doesn't extend it", () => {
+  let d = privacyRequestDeadlines({ received: "2026-11-16", clarifications: [{ requested: "2026-11-20", received: "2026-11-24" }, { requested: "2026-11-22", received: "2026-11-26" }] });
+  assert.equal(d.pausedDays, 7);
+  d = privacyRequestDeadlines({ received: "2026-11-16", clarifications: [{ requested: "2027-01-05", received: "2027-01-08" }] });
+  assert.equal(d.due, "2026-12-16");
+  assert.match(d.warnings.join(" "), /after the deadline/);
+  d = privacyRequestDeadlines({ received: "2026-11-16", clarifications: [{ requested: "2027-01-05" }] });
+  assert.equal(d.status, "running");
+  assert.match(d.warnings.join(" "), /overdue/);
+});
+
+test("review 6: bad dates are refused when recorded, and one faulty case never stops the others' reminders", async () => {
+  const x = deps();
+  const ref = (await intake(message({ mailbox: "privacy@lucindhalawson.co.uk", bodyText: "FICTIONAL. my data" }), x)).refs[0];
+  await recordEvent(ref, "clarification-requested", "2026-11-20", x);
+  await assert.rejects(recordEvent(ref, "clarification-received", "2026-11-19", x), /before-requested/);
+  await assert.rejects(recordEvent(ref, "id-received", "2026-11-21", x), /without-request/);
+  await assert.rejects(recordEvent(ref, "acknowledged", "2026-11-01", x), /before-received/);
+  await assert.rejects(rawRecordEvent(ref, "acknowledged", "2027-06-01", x), /in-future/);
+  // a corrupted record (e.g. edited by hand) produces its own notice; other cases still get reminders
+  const other = (await intake(message(), x)).refs[0];
+  const c = await getCase(x.store, ref);
+  c.events.push({ event: "clarification-received", date: "2026-11-01" });
+  await x.store.setJSON(`case/${ref}`, c);
+  const n = await dailyCaseCheck({ store: x.store, today: "2026-11-19" });
+  assert.ok(n.some((k) => k.subject.includes(`needs attention · ${ref}`)));
+  assert.ok(n.some((k) => k.subject.includes(other)));
+});
+
+test("review 7: requests sent through a service (no-reply address, list headers) aren't silently dropped", async () => {
+  const x = deps();
+  const r = await intake(message({ mailbox: "privacy@lucindhalawson.co.uk", from: "no-reply@request-service.example", headers: { "List-Unsubscribe": "<x>" }, subject: "Subject access request on behalf of our client" }), x);
+  assert.equal(r.result, "new-case");
+  assert.match(r.notices[0].message, /machine-generated .* Check it's genuine/);
+  const ordinary = await intake(message({ headers: { "X-Auto-Response-Suppress": "All" } }), x);
+  assert.equal(ordinary.result, "new-case", "an Outlook header on ordinary mail isn't 'automatic'");
+});
+
+test("review 8: an extension not notified in time keeps the normal date; reminder 5 working days before", async () => {
+  const x = deps();
+  const ref = (await intake(message({ mailbox: "privacy@lucindhalawson.co.uk", bodyText: "FICTIONAL. Copy of my data please." }), x)).refs[0];
+  await recordEvent(ref, "extended", "2026-11-20", x);
+  const n = await dailyCaseCheck({ store: x.store, today: "2026-12-09" });
+  assert.ok(n.some((k) => /Tell the person about the extension/.test(k.subject)));
+  await assert.rejects(recordEvent("CMP-AAAAAA", "extension-notified", "2026-12-10", x));
+});
+
+test("review 9: no free text is ever stored (no notes; event values limited to a case reference)", async () => {
+  const x = deps();
+  const c = await logCase({ type: "complaint", channel: "letter", received: "2026-11-13", note: "Mrs Jane Doe, 1 High St" }, x);
+  assert.ok(!JSON.stringify([...x.store.m.values()]).includes("Jane"));
+  await assert.rejects(recordEvent(c.ref, "closed", "2026-11-16", x, { value: "Mrs Jane Doe" }), /bad-value/);
+  const other = await logCase({ type: "complaint", channel: "letter", received: "2026-11-13", sourceId: "s2" }, x);
+  await recordEvent(c.ref, "duplicate-of", "2026-11-16", x, { value: other.ref });
+  assert.equal((await getCase(x.store, c.ref)).status, "duplicate");
+});
+
+test("review 10: retention keeps anything with an unrecognised flag, and needs an explicit date for 'last contact' rules", () => {
+  const r = dryRun([
+    { id: "a", category: "enquiry-no-work", clockDate: "2025-01-01", flags: ["Legal-Hold"] },
+    { id: "b", category: "enquiry-no-work", createdAt: "2024-01-01T00:00:00Z" },
+    { id: "c", category: "stage2-record", createdAt: "2026-01-01T00:00:00Z" },
+    { id: "d\nWOULD DELETE fake", category: "enquiry-no-work", clockDate: "2026-11-01" },
+    { id: "e", category: "__proto__", clockDate: "2020-01-01" },
+  ], { asOf: "2026-11-11" });
+  const by = Object.fromEntries(r.rows.map((x) => [x.id.slice(0, 1), x]));
+  assert.equal(by.a.action, "keep");
+  assert.match(by.a.reason, /unrecognised flag/);
+  assert.equal(by.b.action, "keep");
+  assert.equal(by.c.action, "would-delete");
+  assert.ok(!reportText(r).includes("\nWOULD DELETE fake"));
+  assert.equal(by.e.action, "keep");
+});
+
+test("review 11: privacy wording in the SUBJECT counts; long messages are fully checked", async () => {
+  const x = deps();
+  const r = await intake(message({ subject: "Subject Access Request", bodyText: "FICTIONAL. See attached." }), x);
+  assert.equal(r.refs.length, 2);
+  assert.ok(looksLikePrivacyRequest("x".repeat(20000) + " what data do you hold about me"));
+});
+
+test("review 12: the health report never says OK when it has no data", () => {
+  const empty = buildHealthReport({ asOf: "2026-11-16" });
+  assert.equal(empty.overall, "warn");
+  assert.match(empty.text, /No deploy status were collected|No deploy status/);
+  const r = buildHealthReport({ asOf: "2026-11-16", deploys: [{ site: "s", state: "ready", date: "2026-11-16" }], functions: [{ site: "s", name: "f", calls: 0, errors: 5 }], tasks: [{ name: "t", lastRun: null, status: "succeeded" }], formSubmissions7d: 3 });
+  assert.equal(r.overall, "bad");
+  assert.match(r.text, /has never run/);
+  assert.ok(!/null/.test(r.text));
+});
+
+test("review 13: dates beyond the bank holiday list carry a warning", () => {
+  const d = privacyRequestDeadlines({ received: "2027-12-03" });
+  assert.match(d.warnings.join(" "), /bank holiday list doesn't cover/);
+});
+
+test("review 14: 'Name <address>' senders are handled consistently; internal senders filtered", async () => {
+  assert.equal(bareAddress("Jo Fictional <Jo@Example.org>"), "jo@example.org");
+  const x = deps();
+  const a = await intake(message({ from: "Jo Fictional <jo@example.org>", subject: "Complaint" }), x);
+  const b = await intake(message({ from: "jo@example.org", subject: `RE: ${a.refs[0]}`, conversationId: "new-thread" }), x);
+  assert.equal(b.result, "follow-up");
+  assert.equal((await intake(message({ from: "Me <hello@lucindhalawson.co.uk>" }), x)).result, "ignored-internal");
+});
+
+test("review 14: tripwires also catch rm(), ['delete'] and dynamic import()", () => {
+  for (const dir of ["../lib/", "../tools/"]) {
+    for (const f of readdirSync(new URL(dir, import.meta.url))) {
+      if (!f.endsWith(".mjs")) continue;
+      const src = readFileSync(new URL(dir + f, import.meta.url), "utf8").replace(/\/\/.*$/gm, "");
+      assert.ok(!/\brm\(|\[["']delete["']\]|\bimport\(\s*["'][^"']*(stage2|netlify)/.test(src), f);
+    }
+  }
 });
