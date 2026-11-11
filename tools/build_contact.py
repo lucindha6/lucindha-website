@@ -5,6 +5,7 @@ Run:  python3 tools/build_contact.py"""
 import sys, pathlib, html, re
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from page_shell import page, ROOT
+from social import social_named
 e = lambda s: html.escape(s, quote=True)
 
 ACC_SERVICES = ["Bookkeeping", "VAT returns", "Personal tax", "Year-end accounts", "Corporation tax returns",
@@ -39,6 +40,12 @@ body = f'''
 <p>Weekday evenings and Saturdays, by video call or in person, by arrangement.</p>
 </div>
 
+<div class="card">
+<h2>Prefer email?</h2>
+<p><a href="mailto:hello@lucindhalawson.co.uk" class="link">hello@lucindhalawson.co.uk</a></p>
+<p>Based in London, working with clients across the UK. BSL interpreters can be arranged where required.</p>
+</div>
+
 <div class="card wa-card">
 <h2>WhatsApp</h2>
 <p><a href="https://wa.me/447708996817" class="link" target="_blank" rel="noopener">Message me on WhatsApp<span class="sr"> (opens WhatsApp in a new tab)</span></a></p>
@@ -47,10 +54,11 @@ body = f'''
 <p class="wa-note"><strong>Please don't send financial documents, bank details, ID or other confidential information by WhatsApp.</strong> I'll never ask for them there, and identity checks aren't done over WhatsApp. If we work together, I'll give you a secure way to share documents. <a href="privacy.html#whatsapp">How WhatsApp messages are handled</a>.</p>
 </div>
 
-<div class="card">
-<h2>Prefer email?</h2>
-<p><a href="mailto:hello@lucindhalawson.co.uk" class="link">hello@lucindhalawson.co.uk</a></p>
-<p>Based in London, working with clients across the UK. BSL interpreters can be arranged where required.</p>
+<div class="card follow-card">
+<h2>Follow us</h2>
+<p>News and updates from LUCINDHA LAWSON LTD.</p>
+{social_named()}
+<p class="small">For enquiries, please use the form, email or WhatsApp rather than social media messages.</p>
 </div>
 </div>
 

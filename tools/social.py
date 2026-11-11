@@ -1,7 +1,8 @@
 """Social media links.
 BUSINESS = LUCINDHA LAWSON LTD accounts -> footer of every page (via home.html).
 PERSONAL = Lucindha's own accounts, all @lucindha6 -> Media & press page only.
-Add the business Facebook Page to BUSINESS when it exists."""
+The footer list is pasted into site/home.html (copied to every page): after changing BUSINESS,
+replace the <ul class="social"> in home.html with social_links(BUSINESS, "LUCINDHA LAWSON LTD on social media")."""
 ICONS = {
     "LinkedIn": '<rect x="3" y="3" width="18" height="18" rx="3"></rect><path d="M8 10.5V16M8 7.8v.01M11.5 16v-5.5M11.5 13a2.5 2.5 0 0 1 5 0v3"></path>',
     "Instagram": '<rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="0.6" fill="currentColor"></circle>',
@@ -13,6 +14,7 @@ ICONS = {
 BUSINESS = [
     ("LinkedIn", "https://www.linkedin.com/company/lucindhalawson"),
     ("Instagram", "https://www.instagram.com/lucindhalawson/"),
+    ("Facebook", "https://www.facebook.com/share/1CdW91zivW/?mibextid=wwXIfr"),
 ]
 PERSONAL = [
     ("LinkedIn", "https://www.linkedin.com/in/lucindha6/"),
@@ -30,3 +32,14 @@ def social_links(accounts=None, label="Social media", cls="social"):
         f'<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">{ICONS[n]}</svg></a></li>'
         for n, u in accounts)
     return f'<ul class="{cls}" aria-label="{label}">{items}</ul>'
+
+
+def social_named(accounts=None, label="Follow LUCINDHA LAWSON LTD"):
+    """Icon plus the platform name as visible text (Contact page) - clearer than icons alone."""
+    accounts = BUSINESS if accounts is None else accounts
+    items = "".join(
+        f'<li><a href="{u}" target="_blank" rel="noopener">'
+        f'<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">{ICONS[n]}</svg>'
+        f'<span>{n}</span><span class="sr"> (opens in a new tab)</span></a></li>'
+        for n, u in accounts)
+    return f'<ul class="social-named" aria-label="{label}">{items}</ul>'

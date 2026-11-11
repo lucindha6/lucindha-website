@@ -634,3 +634,12 @@ body:has(.menu-open) .wa-float{display:none}
 
 /* WhatsApp card on the Contact page */
 .wa-card .wa-note{border-left:3px solid var(--gold);padding-left:14px;font-size:1rem}
+
+/* Contact page "Follow us": icon plus visible platform name, 48px tall targets */
+.social-named{list-style:none;margin:6px 0 12px;padding:0;display:flex;flex-wrap:wrap;gap:10px}
+.social-named a{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:8px 16px 8px 12px;border-radius:999px;border:1px solid var(--line);color:var(--cream);font-weight:600;text-decoration:none;transition:background .2s ease}
+.social-named a svg{flex:none;color:var(--gold-text)}
+.social-named a:hover{background:rgba(203,171,116,.14)}
+.social-named a:focus-visible{outline:3px solid var(--gold-text);outline-offset:3px;border-radius:999px}
+html[data-theme="yellow"] .social-named a,html[data-theme="yellow"] .social-named a svg{color:#111;border-color:#111}
+@media (prefers-reduced-motion:reduce){.social-named a{transition:none}}
