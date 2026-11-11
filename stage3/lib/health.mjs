@@ -2,6 +2,7 @@
 // Inputs are counts and dates only: deploy states, function call and error counts, scheduled task
 // results and expiry dates. It never receives or prints enquiry content, names or addresses.
 import { assertDate, daysBetween, HOLIDAYS_VALID_UNTIL } from "./calendar.mjs";
+import { manualReviewStatus } from "./reviews.mjs";
 
 const LEVEL = { ok: "OK", warn: "CHECK", bad: "ACTION" };
 
@@ -87,6 +88,9 @@ export function buildHealthReport(facts) {
     if (!Array.isArray(facts[k]) || facts[k].length === 0) add("bad", `No ${label} were collected this week, so health CAN'T be confirmed: the check itself may have failed.`);
   }
   if (!rm || ![rm.attempted, rm.confirmed].every(Number.isInteger)) add("bad", "Reminder delivery figures weren't collected, so health CAN'T be confirmed.");
+  // Manual safeguards (weekly review, monthly sample) are required facts too.
+  if (!facts.manualReviews || typeof facts.manualReviews !== "object") add("bad", "Manual review dates weren't recorded, so health CAN'T be confirmed.");
+  else for (const r of manualReviewStatus({ asOf, ...facts.manualReviews })) add(r.level, r.text);
   if (facts.formSubmissions7d == null) add("warn", "Website enquiry count wasn't collected this week.");
 
   const worst = items.some((i) => i.level === "bad") ? "bad" : items.some((i) => i.level === "warn") ? "warn" : "ok";

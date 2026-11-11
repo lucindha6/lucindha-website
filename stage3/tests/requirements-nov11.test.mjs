@@ -98,12 +98,14 @@ test("a fee only for manifestly unfounded or excessive requests; the clock start
 test("data protection complaints: acknowledge within 30 days (DPA 2018 s.164A), then keep the person updated", () => {
   let d = privacyRequestDeadlines({ received: "2026-11-16", rights: ["dp-complaint"] });
   assert.equal(d.status, "complaint-only");
-  assert.equal(d.dpComplaintAckDue, "2026-12-16");
+  assert.equal(d.dpComplaintAckLegal, "2026-12-16");
+  assert.equal(d.dpComplaintAckDue, "2026-11-23"); // your 5-working-day policy applies first
   d = privacyRequestDeadlines({ received: "2026-11-19", rights: ["dp-complaint"] });
-  assert.equal(d.dpComplaintAckDue, "2026-12-18"); // 19 Dec is a Saturday: aim for the Friday before
+  assert.equal(d.dpComplaintAckLegal, "2026-12-19");
+  assert.equal(d.dpComplaintAckDue, "2026-11-26");
   d = privacyRequestDeadlines({ received: "2026-11-16", rights: ["dp-complaint", "erasure"] });
   assert.equal(d.due, "2026-12-16");
-  assert.equal(d.dpComplaintAckDue, "2026-12-16");
+  assert.equal(d.dpComplaintAckLegal, "2026-12-16");
 });
 
 test("objection to direct marketing and consent withdrawal: act straight away", () => {
@@ -172,7 +174,8 @@ test("a reply that raises another right is flagged in the follow-up notice", asy
 // ------------------------------------------------------------------ complaints
 test("complaints: published timescales kept; approaching, due-today, overdue and escalation every 3 working days", async () => {
   const x = deps();
-  await intake(message(), x); // received Mon 16 Nov: ack due Mon 23 Nov
+  const r0 = await intake(message(), x); // received Mon 16 Nov: ack due Mon 23 Nov
+  await recordEvent(r0.refs[0], "privacy-check-done", "2026-11-16", { ...x, value: "none-found" });
   const at = async (today) => (await dailyCaseCheck({ ...x, today })).map((m) => m.subject.split(" · ")[0]);
   assert.deepEqual(await at("2026-11-19"), ["[Stage 3] Reminder: Acknowledge in writing"]);
   assert.deepEqual(await at("2026-11-23"), ["[Stage 3] DUE TODAY: Acknowledge in writing"]);
@@ -185,7 +188,8 @@ test("complaints: published timescales kept; approaching, due-today, overdue and
 
 test("reminders count as delivered only when delivery is CONFIRMED; otherwise retried and reported", async () => {
   const x = deps();
-  await intake(message(), x);
+  const r0 = await intake(message(), x);
+  await recordEvent(r0.refs[0], "privacy-check-done", "2026-11-16", { ...x, value: "none-found" });
   for (const bad of [async () => {}, async () => true, async () => "sent", async () => ({ delivered: "yes" }), async () => { throw new Error("down"); }]) {
     const n = await dailyCaseCheck({ store: x.store, today: "2026-11-19", notify: bad });
     assert.equal(n.length, 0);
@@ -263,12 +267,13 @@ const healthy = {
   reconciliation: [{ stage: "Stage 1", received: 10, processed: 10, failed: 0 }],
   reminders: { attempted: 3, confirmed: 3, undelivered: 0, caseErrors: 0 },
   credentials: [{ what: "Stage 2 client secret", expires: "2027-05-10" }],
+  manualReviews: { weeklyLastDone: "2026-11-13", monthlySampleLastDone: "2026-11-02" },
   formSubmissions7d: 10,
 };
 
 test("health: OK only when every required figure is present and fine", () => {
   assert.equal(buildHealthReport(healthy).overall, "ok");
-  for (const k of ["deploys", "functions", "tasks", "reconciliation", "reminders", "credentials"]) {
+  for (const k of ["deploys", "functions", "tasks", "reconciliation", "reminders", "credentials", "manualReviews"]) {
     const f = { ...healthy }; delete f[k];
     assert.equal(buildHealthReport(f).overall, "bad", `missing ${k}`);
   }
@@ -330,7 +335,9 @@ test("review 2-H3: a clarification pause never delays the non-access parts of a 
 
 test("review 2-H3: extension uses the earlier reading; weekend deadline handled for late clarification", () => {
   const d = privacyRequestDeadlines({ received: "2026-01-31", rights: ["access"], extended: true, extensionNotified: "2026-02-10" });
-  assert.equal(d.due, "2026-04-28"); // 28 Feb + 2 months (earlier than 30 Apr)
+  assert.equal(d.due, "2026-04-30"); // ICO: three calendar months from the start
+  assert.equal(d.internalTarget, "2026-04-28"); // the other reading is earlier: internal target + manual review
+  assert.match(d.uncertain.join(" "), /Manual review/);
   // Deadline 13 Dec 2026 is a Sunday -> Mon 14 Dec; a clarification asked on Mon 14 Dec still counts
   const c = privacyRequestDeadlines({ received: "2026-11-13", rights: ["access"], clarifications: [{ requested: "2026-12-14", received: "2026-12-15", reason: "large-volume" }] });
   assert.equal(c.adjustments.length, 1);

@@ -46,6 +46,7 @@ out.push("=== Weekly health report (fictional facts)", buildHealthReport({
   expiries: [{ what: "Netlify plan review (switch to Free)", date: "2027-01-04" }],
   reconciliation: [{ stage: "Stage 1 acknowledgements", received: 14, processed: 13, failed: 0 }, { stage: "Stage 2 drafts (test)", received: 15, processed: 15, failed: 0 }],
   reminders: { attempted: 4, confirmed: 4, undelivered: 0, caseErrors: 0 },
+  manualReviews: { weeklyLastDone: "2026-11-13", monthlySampleLastDone: "2026-11-02" },
   credentials: [{ what: "Stage 2 client secret", expires: "2027-05-10" }],
   formSubmissions7d: 14,
 }).text);

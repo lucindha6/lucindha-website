@@ -206,6 +206,7 @@ test("privacy follow-up while waiting for ID tells you to record the ID if it's 
 test("complaint reminders: one before the acknowledgement is due, one if overdue, never repeated", async () => {
   const x = deps();
   const ref = (await intake(message(), x)).refs[0];
+  await recordEvent(ref, "privacy-check-done", "2026-11-16", { ...x, value: "none-found" });
   assert.equal((await dailyCaseCheck({ notify: ok, store: x.store, today: "2026-11-18" })).length, 0);
   let n = await dailyCaseCheck({ notify: ok, store: x.store, today: "2026-11-19" });
   assert.match(n[0].subject, /Reminder: Acknowledge in writing/);
@@ -348,7 +349,8 @@ test("waiting for ID: one nudge after 10 working days, no false 'overdue' (the c
   assert.equal((await dailyCaseCheck({ notify: ok, store: x.store, today: "2026-12-30" })).length, 0);
   await recordEvent(c.ref, "id-received", "2026-12-01", x);
   const d = await dailyCaseCheck({ notify: ok, store: x.store, today: "2026-12-24" });
-  assert.match(d[0].message, /due 2027-01-04/); // 1 Jan 2027 is a bank holiday, 2-3 Jan a weekend
+  assert.match(d[0].message, /due 2026-12-31/); // internal target: the working day before 1 Jan (a bank holiday)
+  assert.match(d[0].message, /Legal deadline 2027-01-04/); // legal: next working day after 1-3 Jan
 });
 
 // ===================================================== fixes from the independent review

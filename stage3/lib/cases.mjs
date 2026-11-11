@@ -22,7 +22,7 @@
 //   - One faulty case never stops reminders for the others.
 import { clean, keyedHash, referenceCandidates, REF_PATTERN, sha256Hex } from "./util.mjs";
 import { complaintDeadlines, privacyRequestDeadlines, mediaDeadlines } from "./deadlines.mjs";
-import { ukDateOf, assertDate, addWorkingDays, subtractWorkingDays } from "./calendar.mjs";
+import { ukDateOf, assertDate, addDays, addWorkingDays, subtractWorkingDays } from "./calendar.mjs";
 import { classifyRights, RIGHTS, RIGHT_KEYS, REVIEW_LABEL } from "./rights.mjs";
 import { ID_REASONS, CLARIFICATION_REASONS, FEE_REASONS } from "./deadlines.mjs";
 
@@ -32,8 +32,8 @@ export const MAILBOX_TYPES = {
   "media@lucindhalawson.co.uk": "media",
 };
 export const PREFIX = { complaint: "CMP", privacy: "DSR", media: "MED" };
-export const CHANNELS = ["email", "letter", "phone-or-video", "in-person", "social-media", "website-form", "other-mailbox", "other"];
-export const EVENTS = ["acknowledged", "id-requested", "id-received", "clarification-requested", "clarification-received", "fee-requested", "fee-paid", "extended", "extension-notified", "rights-set", "review-done", "progress-update-sent", "refused", "responded", "closed", "duplicate-of"];
+export const CHANNELS = ["email", "whatsapp", "letter", "phone-or-video", "in-person", "social-media", "website-form", "other-mailbox", "other"];
+export const EVENTS = ["acknowledged", "id-requested", "id-received", "clarification-requested", "clarification-received", "fee-requested", "fee-paid", "extended", "extension-notified", "rights-set", "review-done", "progress-update-sent", "part-answered", "privacy-check-done", "deadline-checked", "refused", "responded", "closed", "duplicate-of"];
 /** Which events take a value, and what it may be. Values are codes, never free text. */
 const EVENT_VALUES = {
   "duplicate-of": (v) => typeof v === "string" && v.match(REF_PATTERN)?.[0] === v,
@@ -41,9 +41,11 @@ const EVENT_VALUES = {
   "clarification-requested": (v) => Object.hasOwn(CLARIFICATION_REASONS, v),
   "fee-requested": (v) => Object.hasOwn(FEE_REASONS, v),
   refused: (v) => Object.hasOwn(FEE_REASONS, v),
+  "part-answered": (v) => RIGHT_KEYS.includes(v),
+  "privacy-check-done": (v) => ["none-found", "privacy-case-logged"].includes(v),
   "rights-set": (v) => typeof v === "string" && v.split(",").length <= RIGHT_KEYS.length && v.split(",").every((k) => RIGHT_KEYS.includes(k)),
 };
-const VALUE_REQUIRED = new Set(["duplicate-of", "id-requested", "fee-requested", "refused", "rights-set"]);
+const VALUE_REQUIRED = new Set(["duplicate-of", "id-requested", "fee-requested", "refused", "rights-set", "part-answered", "privacy-check-done"]);
 /** A notice counts as sent only when delivery is confirmed. */
 export const confirmed = (r) => r !== null && typeof r === "object" && Object.hasOwn(r, "delivered") && r.delivered === true;
 const CLOSED = new Set(["responded", "closed", "duplicate"]);
@@ -367,6 +369,14 @@ export async function recordEvent(ref, event, date, { store, value = null, now =
     if (event === "fee-paid" && !c.events.some((e) => e.event === "fee-requested")) throw new Error("fee-not-requested");
     if (["id-requested", "id-received", "clarification-requested", "clarification-received", "fee-requested", "fee-paid", "extended", "extension-notified", "rights-set", "refused"].includes(event) && c.type !== "privacy") throw new Error("privacy-only-event");
     if (event === "clarification-requested" && value && !(c.rights || []).includes("access")) throw new Error("clarification-pause-is-for-subject-access-only");
+    if (["part-answered", "deadline-checked"].includes(event) && c.type !== "privacy") throw new Error("privacy-only-event");
+    if (event === "part-answered" && !(c.rights || []).includes(value)) throw new Error("right-not-on-this-case");
+    if (event === "part-answered" && answeredParts(c).includes(value)) throw new Error("part-already-answered");
+    if (event === "privacy-check-done" && !["complaint", "media"].includes(c.type)) throw new Error("privacy-check-is-for-complaint-and-media-cases");
+    if (event === "responded" && c.type === "privacy" && (c.rights || []).length > 1) {
+      const open = c.rights.filter((r) => !answeredParts(c).includes(r));
+      if (open.length) throw new Error(`answer-each-part-first:${open.join(",")}`);
+    }
     c.events.push({ event, date, ...(value ? { value } : {}) });
     if (event === "responded") c.status = "responded";
     if (event === "closed") c.status = "closed";
@@ -382,6 +392,7 @@ const lastDate = (c, e) => [...c.events].reverse().find((x) => x.event === e)?.d
 const firstDate = (c, e) => c.events.find((x) => x.event === e)?.date || null;
 const needsId = (c) => c.idNeeded && !lastDate(c, "id-received");
 const openClarification = (c) => clarificationPairs(c).some((p) => !p.received);
+const answeredParts = (c) => c.events.filter((e) => e.event === "part-answered").map((e) => e.value);
 const waitingFee = (c) => c.events.some((e) => e.event === "fee-requested") && !c.events.some((e) => e.event === "fee-paid");
 function clarificationPairs(c) {
   const req = c.events.filter((e) => e.event === "clarification-requested").sort((a, b) => (a.date < b.date ? -1 : 1));
@@ -394,6 +405,7 @@ export function deadlinesFor(c) {
   if (c.type === "media") return mediaDeadlines({ received: c.received });
   const feeReq = c.events.find((e) => e.event === "fee-requested");
   return privacyRequestDeadlines({
+    answered: answeredParts(c),
     received: c.received,
     rights: Array.isArray(c.rights) && c.rights.length ? c.rights : ["unclear"],
     idNeeded: Boolean(c.idNeeded),
@@ -414,7 +426,8 @@ function milestonesFor(c, d) {
     if (!lastDate(c, "acknowledged")) m.push(["acknowledge", d.ackRemind, d.ackDue]);
     else m.push(["respond", d.responseRemind, d.responseDue]);
   } else if (c.type === "privacy") {
-    if (d.status === "running") m.push(["respond", d.remind, d.due]);
+    if (d.status === "running") m.push(["respond", d.remind, d.internalTarget || d.due]);
+    if ((d.uncertain || []).length && !done("deadline-checked")) m.push(["check-deadline", c.received, addWorkingDays(c.received, 2)]);
     if (d.status === "waiting-for-id" && firstDate(c, "id-requested")) {
       const chase = addWorkingDays(firstDate(c, "id-requested"), 10);
       m.push(["chase-id", chase, chase, { noOverdue: true }]);
@@ -425,11 +438,18 @@ function milestonesFor(c, d) {
     }
     if (d.extensionNoticeRemind) m.push(["notify-extension", d.extensionNoticeRemind, d.extensionNoticeBy]);
     if (d.dpComplaintAckDue && !done("acknowledged")) m.push(["acknowledge-dp-complaint", d.dpComplaintAckRemind, d.dpComplaintAckDue]);
-    if (d.dpComplaintUpdateBy && !done("progress-update-sent")) m.push(["update-dp-complaint", subtractWorkingDays(d.dpComplaintUpdateBy, 3), d.dpComplaintUpdateBy]);
+    if (d.dpComplaintAckDue && done("acknowledged") && !answeredParts(c).includes("dp-complaint")) {
+      // 4 weeks from the acknowledgement (or from the last progress update): outcome, or a progress update.
+      const base = [lastDate(c, "progress-update-sent"), lastDate(c, "acknowledged")].filter(Boolean).sort().at(-1);
+      const due = addDays(base, 28);
+      m.push(["respond-dp-complaint", subtractWorkingDays(due, 3), due]);
+    }
     if ((c.review || []).length && !c.reviewDone) m.push(["manual-review", c.received, addWorkingDays(c.received, 2)]);
   } else {
     m.push(["reply", d.replyBy, d.replyBy]);
   }
+  // Every new complaint and media case gets a manual privacy check (wording rules can miss a request).
+  if (["complaint", "media"].includes(c.type) && !done("privacy-check-done")) m.push(["privacy-check", c.received, addWorkingDays(c.received, 2)]);
   return m;
 }
 
@@ -484,8 +504,11 @@ const TYPE_LABEL = { complaint: "complaint", privacy: "privacy request", media: 
 const WHAT_LABEL = {
   acknowledge: "Acknowledge in writing", respond: "Send the full response", "notify-extension": "Tell the person about the extension (with reasons)",
   "chase-id": "Still waiting for ID: decide whether to chase", "chase-clarification": "Still waiting for clarification: decide whether to chase",
-  "acknowledge-dp-complaint": "Acknowledge the data protection complaint (30-day legal limit)", "update-dp-complaint": "Update the person on progress with their data protection complaint",
+  "acknowledge-dp-complaint": "Acknowledge the data protection complaint (your 5-working-day policy; 30-day legal limit)", "update-dp-complaint": "Update the person on progress with their data protection complaint",
   "manual-review": "Read this request yourself and record its rights", reply: "Reply",
+  "privacy-check": "Privacy check: read it yourself for any request about personal data",
+  "check-deadline": "Check the deadline calculation yourself (two readings differ)",
+  "respond-dp-complaint": "Send the outcome of the data protection complaint, or a progress update",
 };
 
 /** Notice text: reference, type, dates and what to do. Never names, addresses, message text or links. */
@@ -494,7 +517,7 @@ export function noticeFor(kind, c, { what = "", due = "", extra = "", today = ""
   const d = deadlinesFor(c);
   const firstDue = c.type === "complaint" ? `Acknowledge by ${d.ackDue}; full response by ${d.responseDue}.`
     : c.type === "media" ? `Reply target ${d.replyBy}.`
-    : d.status === "running" ? `Respond by ${d.due} (original deadline ${d.original}).` : d.status === "paused" ? "Clock paused for clarification." : d.status === "complaint-only" ? `Acknowledge by ${d.dpComplaintAckDue}; outcome without undue delay.` : d.status === "waiting-for-fee" ? "Clock not started: waiting for the fee." : "Clock not started: waiting for ID.";
+    : d.status === "running" ? `Legal deadline ${d.due} (original ${d.original}). Internal target ${d.internalTarget}.` : d.status === "all-parts-answered" ? "Every part has been answered: record closed when you're ready." : d.status === "paused" ? "Clock paused for clarification." : d.status === "complaint-only" ? `Acknowledge by ${d.dpComplaintAckDue} (your 5-working-day policy; legal limit ${d.dpComplaintAckLegal}). Outcome within 4 weeks of acknowledging, with progress updates; tell them they can complain to the ICO.` : d.status === "waiting-for-fee" ? "Clock not started: waiting for the fee." : "Clock not started: waiting for ID.";
   const titles = {
     "new-case": `New ${t}`,
     "follow-up": `Follow-up on ${t}`,
@@ -504,12 +527,17 @@ export function noticeFor(kind, c, { what = "", due = "", extra = "", today = ""
     overdue: `OVERDUE: ${WHAT_LABEL[what] || what}`,
     "still-overdue": `STILL OVERDUE: ${WHAT_LABEL[what] || what}`,
   };
+  const privacyCheck = ["complaint", "media"].includes(c.type) && kind === "new-case"
+    ? "PRIVACY CHECK NEEDED: read the message yourself. Does it also ask about personal data (a copy, a correction, deletion, stopping use)? If so, log a privacy case dated from when this message arrived, then record privacy-check-done."
+    : null;
   const complaintTips = c.type === "complaint" && kind === "new-case"
     ? "AAT Client Care: acknowledge promptly in writing, restating your understanding of the complaint; tell the client they can refer an unresolved complaint to AAT; check whether your PII insurer needs to be told."
     : null;
   const rightsLines = c.type === "privacy" ? [
     `Seems to be: ${(c.rights || ["unclear"]).map((r) => `${RIGHTS[r]?.label || r} (${RIGHTS[r]?.article || "-"})`).join("; ")}. This is a label, not a decision.`,
     ...(d.adjustments || []).map((a) => `Deadline adjustment: ${a.change}. Legal basis: ${a.basis}.`),
+    ...(d.perRight && Object.keys(d.perRight).length > 1 ? [`Each part: ${Object.entries(d.perRight).map(([r, v]) => `${r} ${v}`).join("; ")}.`] : []),
+    ...(d.uncertain || []).map((u) => `UNCERTAIN: ${u}`),
     ...((c.review || []).length && !c.reviewDone ? [`MANUAL REVIEW NEEDED: ${c.review.map((k) => REVIEW_LABEL[k] || k).join("; ")}.`] : []),
     ...(kind === "new-case" ? (c.rights || []).flatMap((r) => RIGHTS[r] ? [`Consider (${r}): ${RIGHTS[r].exemptions.join("; ")}.`] : []) : []),
   ] : [];
@@ -517,11 +545,12 @@ export function noticeFor(kind, c, { what = "", due = "", extra = "", today = ""
     `${titles[kind]} · ${c.ref}`,
     "",
     `Received ${c.received} via ${c.channel}${c.viaOtherChannel ? " (other channel)" : ""}.`,
-    kind === "reminder" || kind === "overdue" ? `${WHAT_LABEL[what] || what}: due ${due}.` : firstDue,
+    ["reminder", "overdue", "due-today", "still-overdue"].includes(kind) ? `${WHAT_LABEL[what] || what}: due ${due}.${c.type === "privacy" && what === "respond" && d.due && d.due !== due ? ` (internal target; Legal deadline ${d.due})` : ""}` : firstDue,
     kind === "still-overdue" ? `Overdue since ${due}. You'll be reminded every ${ESCALATE_EVERY_WORKING_DAYS} working days until you record what you've done.` : null,
     ...rightsLines,
     ...(d.warnings || []),
     complaintTips,
+    privacyCheck,
     extra || null,
     "",
     "Your judgement decides this case. The response and outcome are yours to write and send. Nothing has been sent.",

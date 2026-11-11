@@ -140,3 +140,15 @@ All fictional data, still on this branch only. 80 tests pass (50 earlier + 30 in
 - **Delivery confirmation**: a notice counts as sent only when the sender returns `{ delivered: true }`; anything else is retried and counted as undelivered for the health report.
 - **Retention**: manual monthly review (`tools/monthly-review.mjs`). It shows what's potentially due for deletion, what's kept and why (disputes, claims, preservation notices, insurer, HMRC, AML records, investigations, open privacy requests) and what needs your decision, plus a checklist of places **outside Netlify** (Outlook, OneDrive, software, devices, messages, paper, backups, GitHub). The audit entry holds ids and counts only. Complaint and privacy-request periods stay unapproved. No deletion code, no Netlify token.
 - **Health**: received vs processed is reconciled; undelivered reminders, case errors and credential expiry are flagged; missing figures are ACTION, never OK; addresses are stripped.
+
+## 11 November 2026, second set (approved for fictional-data development)
+
+91 tests pass (11 new in `tests/safeguards-nov11b.test.mjs`).
+
+- **Manual privacy check** on every new complaint and media case: the notice asks you to read it for any request about personal data, with a reminder until you record `privacy-check-done` (`none-found` or `privacy-case-logged`). A request you find is logged with its original receipt date.
+- **Weekly manual review checklist** (`lib/reviews.mjs`) covering hello@, WhatsApp Business, social media, post, call notes and other mailboxes. It is a backstop only, never a substitute for checking messages promptly. The health report needs its date, and is ACTION if it's more than 7 days old.
+- **Monthly sample** of 3 closed complaint and media cases, chosen by a fixed scramble.
+- **Part answered**: each right keeps its own deadline and status. `responded` is refused on a multi-right case until every part is answered.
+- **Legal deadline and internal target**: the legal date follows ICO's published rules (corresponding date or last day of the month, next working day if a weekend or bank holiday, three calendar months if validly extended). The internal target is never later than the calendar date. Where another reading of the extension gives an earlier date, that date is the target and the case is flagged for you to check (`deadline-checked`).
+- **Data protection complaints** follow your 5-working-day acknowledgement (the legal limit is 30 days) and the 4-week response, with a progress-update reminder every 4 weeks until the outcome is recorded (`part-answered` = `dp-complaint`).
+- **WhatsApp** added as a channel for manual logging.

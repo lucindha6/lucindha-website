@@ -86,7 +86,7 @@ export const FEE_REASONS = {
  * @param {boolean} [p.extended]         you have decided to extend (complex or numerous)
  * @param {string|null} [p.extensionNotified] date you told the person about the extension
  */
-export function privacyRequestDeadlines({ received, rights = ["unclear"], idNeeded = false, idReason = null, idRequested = null, idReceived = null, clarifications = [], fee = null, extended = false, extensionNotified = null }) {
+export function privacyRequestDeadlines({ answered = [], received, rights = ["unclear"], idNeeded = false, idReason = null, idRequested = null, idReceived = null, clarifications = [], fee = null, extended = false, extensionNotified = null }) {
   assertDate(received);
   const notes = [];
   const warnings = [];
@@ -161,13 +161,17 @@ export function privacyRequestDeadlines({ received, rights = ["unclear"], idNeed
   if (onlyComplaint) return out({ status: "complaint-only", clockStarts: start, due: null, pausedDays: 0, notes: [...notes, "Data protection complaint: no one-month deadline, but acknowledge within 30 days and give the outcome without undue delay."] });
 
   // 3. One calendar month (or the extended period, if VALIDLY extended), rolled to a working day.
-  //    Extension: the earlier of "start + 3 months" and "end of first month + 2 months" (cautious reading).
+  //    Legal date (ICO "Time limits for responding" page, checked 11 Nov 2026): the month ends on the
+  //    corresponding date, or the last day of the month; a weekend or bank holiday moves it to the
+  //    next working day; an extended period is three calendar months from the start.
+  //    INTERNAL TARGET: never later than the calendar date (the working day on or before it), and where
+  //    another reading of the extension gives an earlier date, that earlier date, flagged for review.
   const part = (p) => {
     const oneMonth = addDays(addCalendarMonths(start, 1), p);
     const normal = onOrNextWorkingDay(oneMonth);
     const a = addDays(addCalendarMonths(start, 3), p);
     const b = addCalendarMonths(oneMonth, 2);
-    return { oneMonth, normal, three: onOrNextWorkingDay(a < b ? a : b) };
+    return { oneMonth, normal, threeCal: a, three: onOrNextWorkingDay(a), altThree: b };
   };
   const access = rightsList.includes("access") ? part(paused) : null;
   const other = otherRights.length ? part(0) : null;
@@ -187,11 +191,24 @@ export function privacyRequestDeadlines({ received, rights = ["unclear"], idNeed
       extensionNoticeRemind = subtractWorkingDays(normalDue, 5);
     }
   }
+  const done = new Set(answered);
   const perRight = {};
-  if (access) perRight.access = pendingLive ? "paused" : validExt ? access.three : access.normal;
-  for (const r of otherRights) perRight[r] = validExt ? other.three : other.normal;
-  const dated = Object.values(perRight).filter((d) => d !== "paused").sort();
-  const due = dated[0];
+  const internal = {};
+  const uncertain = [];
+  const target = (x) => {
+    if (!validExt) return onOrBefore(x.oneMonth);
+    if (x.altThree < x.threeCal) {
+      uncertain.push(`Extended deadline: ICO counts three calendar months from the start (${x.three}); the Act's wording could be read as two months after the first month ends (${x.altThree}). Manual review: aim for the earlier date.`);
+      return onOrBefore(x.altThree);
+    }
+    return onOrBefore(x.threeCal);
+  };
+  if (access) { perRight.access = done.has("access") ? "answered" : pendingLive ? "paused" : validExt ? access.three : access.normal; if (!done.has("access") && !pendingLive) internal.access = target(access); }
+  for (const r of otherRights) { perRight[r] = done.has(r) ? "answered" : validExt ? other.three : other.normal; if (!done.has(r)) internal[r] = target(other); }
+  const dated = Object.values(perRight).filter((d) => d !== "paused" && d !== "answered").sort();
+  const due = dated[0] ?? null;
+  const internalTarget = Object.values(internal).sort()[0] ?? null;
+  if (!due) return out({ status: perRight.access === "paused" ? "paused" : "all-parts-answered", clockStarts: start, due: null, perRight, pausedDays: paused, internalTarget: null, uncertain });
   if (validExt) notes.push(`Extended by two months (complex or numerous request), notified ${extensionNotified}: due ${due}.`);
   if (Object.keys(perRight).length > 1) notes.push(`Each part has its own deadline: ${Object.entries(perRight).map(([r, d]) => `${r} ${d}`).join("; ")}. The earliest is shown as the deadline.`);
   if (rightsList.some((r) => r === "direct-marketing-objection" || r === "consent-withdrawal")) warnings.push("Act on this straight away (stop the marketing or the consent-based processing); the one month is only for confirming what you've done.");
@@ -204,17 +221,27 @@ export function privacyRequestDeadlines({ received, rights = ["unclear"], idNeed
     perRight,
     extensionNoticeBy: normalDue,
     extensionNoticeRemind,
-    remind: subtractWorkingDays(due, 5),
+    internalTarget,
+    uncertain: [...new Set(uncertain)],
+    remind: subtractWorkingDays(internalTarget || due, 5),
     calendarCovered: holidaysCover(due),
   });
 }
 
-/** Data protection complaint part (DPA 2018 s.164A): acknowledgement within 30 days of receipt. */
+/** The working day on or before a date (internal targets are never later than the calendar date). */
+function onOrBefore(d) { return onWorkday(d) ? d : subtractWorkingDays(d, 1); }
+
+/**
+ * Data protection complaint part. Legal limit (DPA 2018 s.164A): acknowledge within 30 days of
+ * receipt. Your complaints policy (agreed in principle 11 Nov 2026) is stricter and applies first:
+ * acknowledge within 5 working days, full response within 4 weeks of the acknowledgement, with
+ * progress updates if it takes longer.
+ */
 function complaintPart(received, rights) {
   if (!rights.includes("dp-complaint")) return {};
-  const ack = addDays(received, 30);
-  const ackAim = onWorkday(ack) ? ack : subtractWorkingDays(ack, 1);
-  return { dpComplaintAckDue: ackAim, dpComplaintAckRemind: subtractWorkingDays(ackAim, 5), dpComplaintUpdateBy: addDays(ackAim, 28) };
+  const legal = addDays(received, 30);
+  const policy = addWorkingDays(received, COMPLAINT_ACK_WORKING_DAYS);
+  return { dpComplaintAckLegal: legal, dpComplaintAckDue: policy < legal ? policy : onOrBefore(legal), dpComplaintAckRemind: subtractWorkingDays(policy < legal ? policy : onOrBefore(legal), 2) };
 }
 
 /** Media enquiries have no legal deadline: your usual 2-working-day reply target. */
