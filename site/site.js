@@ -210,3 +210,18 @@
   });
   panel.querySelector('.display-close').addEventListener('click', function () { if (matchMedia('(max-width:900px)').matches) b.setAttribute('aria-expanded', 'false'); });
 })();
+
+/* WhatsApp button: if the element that receives keyboard focus sits under the floating button, scroll it clear. */
+(function () {
+  var wa = document.querySelector('.wa-float');
+  if (!wa) return;
+  document.addEventListener('focusin', function (e) {
+    if (e.target === wa || getComputedStyle(wa).display === 'none') return;
+    var t = e.target;
+    // wait until the browser has finished its own scroll for the newly focused element
+    requestAnimationFrame(function () {
+      var a = t.getBoundingClientRect(), b = wa.getBoundingClientRect();
+      if (a.bottom > b.top && a.top < b.bottom && a.right > b.left && a.left < b.right) window.scrollBy({ top: a.bottom - b.top + 16, behavior: 'instant' });
+    });
+  });
+})();

@@ -46,10 +46,12 @@ dict(slug="privacy", title="Privacy notice", h1='Privacy <em>notice.</em>', upda
 <p>Information about access needs or health can be “special category” information, which the law protects more carefully. I only use it with your explicit consent, and only to make my communication and services accessible and safe for you – for example to book a BSL interpreter.</p>
 <p>You never have to share it, and you can withdraw your consent at any time by emailing me.</p>"""),
  ("whatsapp", "WhatsApp messages", f"""
-<p>I use WhatsApp Business on 07708 996817 for written enquiries and for arranging appointments. I use what you send to reply to you and to arrange our meetings, because you've asked me to, before entering into a contract, or because it's in my legitimate interests to reply to people who contact me.</p>
-<p><strong>Please don't send financial documents, bank details, ID or other confidential information by WhatsApp.</strong> I don't carry out identity checks over WhatsApp and I'll never ask you to send these things there. Clients are given a secure way to share documents. If you send something confidential by WhatsApp anyway, I'll move it to my secure business systems and delete it from WhatsApp.</p>
-<p>WhatsApp messages are end-to-end encrypted, so WhatsApp can't read them. WhatsApp (part of Meta) does handle information such as your phone number and when messages are sent, under {WA_PRIVACY}. Messages are kept on a password-protected device.</p>
-<p>Messaging me on WhatsApp is always optional. You can contact me by email or through the <a href="contact.html">enquiry form</a> instead.</p>"""),
+<p>I use the WhatsApp Business app on 07708 996817 for written enquiries and for arranging appointments. I use what you send to reply to you and to arrange our meetings, either because you've asked me to before entering into a contract, or because it's in my legitimate interests to reply to people who contact me. Messaging me on WhatsApp is always optional: you can use email or the <a href="contact.html">enquiry form</a> instead.</p>
+<p><strong>Please don't send financial documents, bank details, ID or other confidential information by WhatsApp.</strong> I don't carry out identity checks over WhatsApp and I'll never ask you to send these things there. Clients are given a secure way to share documents. If you send something confidential by WhatsApp anyway, I'll save it to my secure business systems if I need it for your work, and delete it from WhatsApp on my devices.</p>
+<p><strong>Where messages are stored.</strong> Messages are stored on my phone, which is protected by a passcode. If I use WhatsApp on a linked device, such as my computer, messages are also stored there. Linked devices are used only by me and are password-protected, and messages reach them with the same end-to-end encryption.</p>
+<p><strong>Backups.</strong> If WhatsApp chat backup is switched on, a copy of my chats is stored in my Apple iCloud account. Apple provides iCloud. Where WhatsApp's end-to-end encrypted backup is used, neither Apple nor WhatsApp can read the backup.</p>
+<p><strong>WhatsApp and Meta.</strong> Messages are end-to-end encrypted, so WhatsApp can't read them. WhatsApp is provided in the UK by WhatsApp LLC, a Meta company based in the United States. WhatsApp handles information such as phone numbers, profile details and when messages are sent, as a separate organisation under {WA_PRIVACY}, which applies to you as a WhatsApp user. This information is transferred to and processed in the United States and other countries.</p>
+<p><strong>How long I keep messages.</strong> WhatsApp messages from enquiries that don't lead to work are deleted from my phone and linked devices within 12 months of our last contact. If you become a client, I keep what's needed for your work in your client records, for the periods set out under <a href="#keep">How long I keep it</a>. A deleted message can stay in an existing backup until that backup is replaced by a newer one, so I can't promise it's removed from backups straight away. Deleting messages on my side doesn't remove them from your own phone or your own backups.</p>"""),
  ("why", "Why I use it, and the legal reasons", """
 <ul><li><strong>To reply to your enquiry and prepare a quote</strong> – because you've asked me to, before entering into a contract.</li>
 <li><strong>To provide the services you've engaged me for</strong> – to perform my contract with you.</li>
@@ -61,7 +63,8 @@ dict(slug="privacy", title="Privacy notice", h1='Privacy <em>notice.</em>', upda
 <p>I never sell your information. I only share it where I need to, with:</p>
 <ul><li><strong>My website hosting provider</strong>, which hosts this website and receives the enquiry form.</li>
 <li><strong>Microsoft</strong> (Microsoft 365), which provides my email and secure file storage.</li>
-<li><strong>WhatsApp</strong> (part of Meta), which provides WhatsApp Business, if you choose to message me there.</li>
+<li><strong>WhatsApp LLC</strong> (part of Meta), if you choose to message me on WhatsApp. See <a href="#whatsapp">WhatsApp messages</a>.</li>
+<li><strong>Apple</strong>, which provides iCloud storage, where WhatsApp chat backups are switched on.</li>
 <li><strong>Google Fonts</strong>, which delivers the fonts used on this website. Your browser connects to Google to download them, so Google receives your IP address.</li>
 <li><strong>The accounting and tax software I use</strong> to deliver your work.</li>
 <li><strong>HMRC, Companies House and other government bodies</strong>, when I act for you.</li>
@@ -69,9 +72,9 @@ dict(slug="privacy", title="Privacy notice", h1='Privacy <em>notice.</em>', upda
 <li><strong>The Association of Accounting Technicians (AAT)</strong>, my professional body and anti-money laundering supervisor, when it monitors or inspects my practice.</li>
 <li><strong>My insurers and professional advisers</strong>, if needed to manage a claim or a complaint.</li>
 <li><strong>The National Crime Agency or other authorities</strong>, where the law requires it. In some cases the law doesn't allow me to tell you.</li></ul>
-<p>My hosting provider, Microsoft, Google, WhatsApp and some software providers may store or process data outside the UK, including in the United States. Where that happens, the safeguards UK data protection law requires are in place, such as an adequacy decision or approved contract clauses.</p>"""),
+<p>My hosting provider, Microsoft, Google, Apple and some software providers may store or process data outside the UK, including in the United States. Where that happens, the safeguards UK data protection law requires are in place, such as an adequacy decision or approved contract clauses.</p>"""),
  ("keep", "How long I keep it", """
-<ul><li><strong>Enquiries</strong> that don't lead to work, including WhatsApp messages: up to 12 months after our last contact.</li>
+<ul><li><strong>Enquiries</strong> that don't lead to work, including WhatsApp messages: up to 12 months after our last contact. See <a href="#whatsapp">WhatsApp messages</a> about backups.</li>
 <li><strong>Client identity and due diligence records</strong>: 5 years after our business relationship ends, as anti-money laundering law requires.</li>
 <li><strong>Client accounting and tax records</strong>: generally 6 years after the end of the tax year or accounting period they relate to, or longer where the law, my insurer or my professional body requires it.</li>
 <li><strong>Coaching, talk and workshop bookings</strong>: as long as needed to deliver the session and follow up, and longer only where the law or insurance requires it (for example an accident record).</li></ul>
