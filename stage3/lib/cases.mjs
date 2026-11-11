@@ -14,12 +14,17 @@
 //   - When unsure, open a case (or send a "check this" notice). Never silently drop a message.
 //   - Privacy wording is checked in EVERY message (new or follow-up, subject and body), because a
 //     privacy request can arrive anywhere, including in an existing complaint thread.
-//   - Reminders are recorded as sent only after they've been delivered.
+//   - Notices and reminders are recorded as sent only when the sender CONFIRMS delivery
+//     (notify must return { delivered: true }); anything else is retried on the next run.
+//   - Each privacy case records which right(s) it seems to exercise (lib/rights.mjs). Anything
+//     ambiguous or complex is flagged for your manual review. Labels never decide anything.
 //   - Updates use a version check, so two updates at once can't wipe each other's events.
 //   - One faulty case never stops reminders for the others.
 import { clean, keyedHash, referenceCandidates, REF_PATTERN, sha256Hex } from "./util.mjs";
 import { complaintDeadlines, privacyRequestDeadlines, mediaDeadlines } from "./deadlines.mjs";
-import { ukDateOf, assertDate, addWorkingDays } from "./calendar.mjs";
+import { ukDateOf, assertDate, addWorkingDays, subtractWorkingDays } from "./calendar.mjs";
+import { classifyRights, RIGHTS, RIGHT_KEYS, REVIEW_LABEL } from "./rights.mjs";
+import { ID_REASONS, CLARIFICATION_REASONS, FEE_REASONS } from "./deadlines.mjs";
 
 export const MAILBOX_TYPES = {
   "complaints@lucindhalawson.co.uk": "complaint",
@@ -28,7 +33,19 @@ export const MAILBOX_TYPES = {
 };
 export const PREFIX = { complaint: "CMP", privacy: "DSR", media: "MED" };
 export const CHANNELS = ["email", "letter", "phone-or-video", "in-person", "social-media", "website-form", "other-mailbox", "other"];
-export const EVENTS = ["acknowledged", "id-requested", "id-received", "clarification-requested", "clarification-received", "extended", "extension-notified", "responded", "closed", "duplicate-of"];
+export const EVENTS = ["acknowledged", "id-requested", "id-received", "clarification-requested", "clarification-received", "fee-requested", "fee-paid", "extended", "extension-notified", "rights-set", "review-done", "progress-update-sent", "refused", "responded", "closed", "duplicate-of"];
+/** Which events take a value, and what it may be. Values are codes, never free text. */
+const EVENT_VALUES = {
+  "duplicate-of": (v) => typeof v === "string" && v.match(REF_PATTERN)?.[0] === v,
+  "id-requested": (v) => Object.hasOwn(ID_REASONS, v),
+  "clarification-requested": (v) => Object.hasOwn(CLARIFICATION_REASONS, v),
+  "fee-requested": (v) => Object.hasOwn(FEE_REASONS, v),
+  refused: (v) => Object.hasOwn(FEE_REASONS, v),
+  "rights-set": (v) => typeof v === "string" && v.split(",").length <= RIGHT_KEYS.length && v.split(",").every((k) => RIGHT_KEYS.includes(k)),
+};
+const VALUE_REQUIRED = new Set(["duplicate-of", "id-requested", "fee-requested", "refused", "rights-set"]);
+/** A notice counts as sent only when delivery is confirmed. */
+export const confirmed = (r) => r !== null && typeof r === "object" && r.delivered === true;
 const CLOSED = new Set(["responded", "closed", "duplicate"]);
 const STALE_CLAIM_MS = 2 * 60 * 1000;
 
@@ -60,7 +77,7 @@ export function newText(body) {
   const lines = clean(body, 50000).split(/\r?\n/);
   const out = [];
   for (const line of lines) {
-    if (/^\s*(-- ?|_{5,}|-{5,}\s*original message|from:\s.+|on .+ wrote:|sent from my )/i.test(line)) break; // signature or quoted history starts
+    if (/^\s*(-- ?$|-- |_{5,}|-{5,}\s*original message|from:\s.+|on .+ wrote:|sent from my |get outlook for |kind regards|best regards|many thanks|regards,?$|thanks,?$|disclaimer|confidentiality notice|this (e-?mail|message)( and any attachments)? (is|are|may be|contains?) (confidential|intended|private|privileged)|privacy notice:|how we use your (personal )?(data|information)|to unsubscribe|registered (office|in england))/i.test(line)) break; // signature, disclaimer or quoted history starts
     if (/^\s*>/.test(line)) continue;
     out.push(line);
   }
@@ -69,7 +86,14 @@ export function newText(body) {
 
 export function looksLikePrivacyRequest(subject = "", body = "") {
   const t = `${clean(subject, 500)}\n${newText(body)}`;
-  return PRIVACY_WORDING.test(t) || PRIVACY_ABOUT_ME.test(t);
+  return PRIVACY_WORDING.test(t) || PRIVACY_ABOUT_ME.test(t) || classifyRights(t).rights.length > 0;
+}
+
+/** Rights and review flags for a privacy case, from the person's own words only. */
+export function privacyLabels(subject = "", body = "") {
+  const { rights, review } = classifyRights(`${clean(subject, 500)}\n${newText(body)}`);
+  if (!rights.length) return { rights: ["unclear"], review: [...review, "no-right-identified"] };
+  return { rights, review };
 }
 
 // ------------------------------------------------------------------ storage with version checks
@@ -146,7 +170,7 @@ const markNotified = (store, srcKey, source) => store.setJSON(srcKey, { ...sourc
  * deps: { store, secret, now, notify(notice) }  Notices are delivered first, then recorded as sent.
  * Returns { result, refs, notices }. Subject and body are read here only, never stored.
  */
-export async function intake(msg, { store, secret, now = Date.now(), notify = async () => {} }) {
+export async function intake(msg, { store, secret, now = Date.now(), notify }) {
   const mailbox = clean(msg.mailbox, 254).toLowerCase();
   const type = MAILBOX_TYPES[mailbox];
   if (!type) return { result: "ignored-unknown-mailbox", refs: [], notices: [] };
@@ -158,7 +182,13 @@ export async function intake(msg, { store, secret, now = Date.now(), notify = as
     // Never silently dropped: a "check this" notice (once per message where it has an id).
     const k = `s3odd/${sha256Hex(`odd:${msg.id || `${mailbox}:${from}:${msg.receivedAt}`}`)}`;
     const n = { subject: `[Stage 3] Message at ${mailbox} needs checking`, message: `A message arrived at ${mailbox} that Stage 3 couldn't read properly (${okSender ? "missing date or id" : "unusual sender address"}), so no case was opened.\n\nPlease look at it in the mailbox and log it as a case if it's a complaint or request.\n\nNothing has been sent.` };
-    if ((await store.setJSON(k, { at: now }, { onlyIfNew: true }))?.modified === true) { await notify(n); return { result: "needs-check", refs: [], notices: [n] }; }
+    if (typeof notify !== "function") throw new Error("notify-required");
+    await store.setJSON(k, { at: now }, { onlyIfNew: true });
+    if (!(await store.get(k, { type: "json" }))?.notified) {
+      if (!confirmed(await notify(n))) throw new Error("notice-not-confirmed");
+      await store.setJSON(k, { at: now, notified: true });
+      return { result: "needs-check", refs: [], notices: [n] };
+    }
     return { result: "needs-check", refs: [], notices: [] };
   }
 
@@ -167,10 +197,12 @@ export async function intake(msg, { store, secret, now = Date.now(), notify = as
   const received = ukDateOf(msg.receivedAt);
   const subject = clean(msg.subject, 500);
   const privacyWording = looksLikePrivacyRequest(subject, msg.bodyText);
+  const labels = privacyLabels(subject, msg.bodyText);
   const automatic = isAutomatic(msg);
   const notices = [];
   const refs = [];
-  const send = async (n) => { await notify(n); notices.push(n); };
+  if (typeof notify !== "function") throw new Error("notify-required");
+  const send = async (n) => { const r = await notify(n); if (!confirmed(r)) throw new Error("notice-not-confirmed"); notices.push(n); };
 
   // Automatic-looking mail: media@ is ignored unless it has request wording (no legal deadline);
   // complaints@ gets a "check this" notice; privacy@ ALWAYS opens a case, because a request sent
@@ -193,8 +225,12 @@ export async function intake(msg, { store, secret, now = Date.now(), notify = as
     await store.setJSON(followKey, { at: now }, { onlyIfNew: true });
     if (!(await store.get(followKey, { type: "json" }))?.notified) {
       await updateCase(store, existing.ref, (c) => { if (c.lastContact === received) return false; c.lastContact = received; });
-      const waiting = existing.type === "privacy" && (needsId(existing) || openClarification(existing));
-      await send(noticeFor("follow-up", existing, { extra: waiting ? "The person has replied while the deadline is paused or waiting for ID. If this reply contains the ID or clarification, record it to restart the clock." : "No new case created." }));
+      const waiting = existing.type === "privacy" && (needsId(existing) || openClarification(existing) || waitingFee(existing));
+      const newRights = existing.type === "privacy" && privacyWording ? labels.rights.filter((r) => r !== "unclear" && !(existing.rights || []).includes(r)) : [];
+      await send(noticeFor("follow-up", existing, { extra: [
+        waiting ? "The person has replied while the deadline is paused or waiting for ID or a fee. If this reply contains what you asked for, record it to restart the clock." : "No new case created.",
+        newRights.length ? `This reply seems to raise another right (${newRights.map((r) => RIGHTS[r].label).join("; ")}). Check it and record the rights for this case. Manual review needed.` : "",
+      ].filter(Boolean).join(" ") }));
       await store.setJSON(followKey, { at: now, notified: true });
     }
     refs.push(existing.ref);
@@ -214,7 +250,7 @@ export async function intake(msg, { store, secret, now = Date.now(), notify = as
     const sameSender = open.find((c) => c.type === type && c.fromHash === fromHash);
     const made = await claimCase(store, {
       type, sourceKey: `msg:${msg.id}`,
-      fields: { channel: "email", mailbox, received, fromHash, threads: threadHash ? [threadHash] : [], linkedTo: sameSender?.ref || null, viaOtherChannel: false, arrivedAsAutomatic: automatic },
+      fields: { channel: "email", mailbox, received, fromHash, threads: threadHash ? [threadHash] : [], linkedTo: sameSender?.ref || null, viaOtherChannel: false, arrivedAsAutomatic: automatic, ...(type === "privacy" ? labels : {}) },
     }, now);
     if (made.busy) return { result: "in-progress", refs: [], notices: [] };
     refs.push(made.case.ref);
@@ -243,7 +279,7 @@ export async function intake(msg, { store, secret, now = Date.now(), notify = as
   } else if (privacyWording && type !== "privacy") {
     const p = await claimCase(store, {
       type: "privacy", sourceKey: `msg:${msg.id}:privacy`,
-      fields: { channel: "email", mailbox, received, fromHash, threads: threadHash ? [threadHash] : [], linkedTo: refs[0] || null, viaOtherChannel: true },
+      fields: { channel: "email", mailbox, received, fromHash, threads: threadHash ? [threadHash] : [], linkedTo: refs[0] || null, viaOtherChannel: true, ...labels },
     }, now);
     if (!p.busy) {
       refs.push(p.case.ref);
@@ -260,14 +296,15 @@ export async function intake(msg, { store, secret, now = Date.now(), notify = as
  * For requests made by phone, video, letter, in person, social media, the website form or any other
  * mailbox (e.g. hello@). No free-text notes are kept: record details in your own case file.
  */
-export async function logCase({ type, channel, received, sourceId }, { store, now = Date.now() }) {
-  if (!PREFIX[type]) throw new Error("bad-type");
+export async function logCase({ type, channel, received, sourceId, rights = null }, { store, now = Date.now() }) {
+  if (!Object.hasOwn(PREFIX, type)) throw new Error("bad-type");
+  if (rights !== null && (type !== "privacy" || !Array.isArray(rights) || !rights.length || !rights.every((r) => RIGHT_KEYS.includes(r)))) throw new Error("bad-rights");
   if (!CHANNELS.includes(channel)) throw new Error("bad-channel");
   assertDate(received);
   if (received > ukDateOf(now)) throw new Error("received-in-future");
   const made = await claimCase(store, {
     type, sourceKey: `manual:${sourceId || `${now}:${Math.random()}`}`,
-    fields: { channel, mailbox: null, received, fromHash: null, linkedTo: null, viaOtherChannel: channel !== "email" },
+    fields: { channel, mailbox: null, received, fromHash: null, linkedTo: null, viaOtherChannel: channel !== "email", ...(type === "privacy" ? (rights ? { rights, review: rights.includes("unclear") ? ["recorded-unclear"] : [] } : { rights: ["unclear"], review: ["no-right-identified"] }) : {}) },
   }, now);
   if (made.busy) throw new Error("in-progress");
   return made.case;
@@ -278,9 +315,8 @@ export async function recordEvent(ref, event, date, { store, value = null, now =
   if (!EVENTS.includes(event)) throw new Error("bad-event");
   assertDate(date);
   if (date > ukDateOf(now)) throw new Error("date-in-future");
-  if (value !== null) {
-    if (event !== "duplicate-of" || typeof value !== "string" || value.match(REF_PATTERN)?.[0] !== value) throw new Error("bad-value");
-  }
+  if (VALUE_REQUIRED.has(event) && value === null) throw new Error(`value-required-for-${event}`);
+  if (value !== null && !(Object.hasOwn(EVENT_VALUES, event) && EVENT_VALUES[event](value))) throw new Error("bad-value");
   return updateCase(store, ref, (c) => {
     if (date < c.received) throw new Error("date-before-received");
     if (event === "id-received" && !(firstDate(c, "id-requested") && date >= firstDate(c, "id-requested"))) throw new Error("id-received-without-request");
@@ -289,11 +325,17 @@ export async function recordEvent(ref, event, date, { store, value = null, now =
       if (!pending || date < pending.requested) throw new Error("clarification-received-before-requested");
     }
     if (event === "extension-notified" && !c.events.some((e) => e.event === "extended")) throw new Error("extension-not-recorded");
+    if (event === "fee-paid" && !c.events.some((e) => e.event === "fee-requested")) throw new Error("fee-not-requested");
+    if (["id-requested", "id-received", "clarification-requested", "clarification-received", "fee-requested", "fee-paid", "extended", "extension-notified", "rights-set", "refused"].includes(event) && c.type !== "privacy") throw new Error("privacy-only-event");
+    if (event === "clarification-requested" && value && !(c.rights || []).includes("access")) throw new Error("clarification-pause-is-for-subject-access-only");
     c.events.push({ event, date, ...(value ? { value } : {}) });
     if (event === "responded") c.status = "responded";
     if (event === "closed") c.status = "closed";
     if (event === "duplicate-of") c.status = "duplicate";
-    if (event === "id-requested") c.idNeeded = true;
+    if (event === "id-requested") { c.idNeeded = true; c.idReason = value; }
+    if (event === "rights-set") { c.rights = value.split(","); c.review = c.rights.includes("unclear") ? ["recorded-unclear"] : []; c.reviewDone = false; }
+    if (event === "review-done") c.reviewDone = true;
+    if (event === "refused") c.status = "responded";
   });
 }
 
@@ -301,18 +343,23 @@ const lastDate = (c, e) => [...c.events].reverse().find((x) => x.event === e)?.d
 const firstDate = (c, e) => c.events.find((x) => x.event === e)?.date || null;
 const needsId = (c) => c.idNeeded && !lastDate(c, "id-received");
 const openClarification = (c) => clarificationPairs(c).some((p) => !p.received);
+const waitingFee = (c) => c.events.some((e) => e.event === "fee-requested") && !c.events.some((e) => e.event === "fee-paid");
 function clarificationPairs(c) {
-  const req = c.events.filter((e) => e.event === "clarification-requested").map((e) => e.date).sort();
+  const req = c.events.filter((e) => e.event === "clarification-requested").sort((a, b) => (a.date < b.date ? -1 : 1));
   const rec = c.events.filter((e) => e.event === "clarification-received").map((e) => e.date).sort();
-  return req.map((r, i) => ({ requested: r, received: rec[i] || null }));
+  return req.map((r, i) => ({ requested: r.date, received: rec[i] || null, reason: r.value || null }));
 }
 
 export function deadlinesFor(c) {
   if (c.type === "complaint") return complaintDeadlines({ received: c.received, acknowledged: lastDate(c, "acknowledged") });
   if (c.type === "media") return mediaDeadlines({ received: c.received });
+  const feeReq = c.events.find((e) => e.event === "fee-requested");
   return privacyRequestDeadlines({
     received: c.received,
+    rights: Array.isArray(c.rights) && c.rights.length ? c.rights : ["unclear"],
     idNeeded: Boolean(c.idNeeded),
+    idReason: c.idReason || null,
+    fee: feeReq ? { requested: feeReq.date, reason: feeReq.value, paid: lastDate(c, "fee-paid") } : null,
     idRequested: firstDate(c, "id-requested"),
     idReceived: lastDate(c, "id-received"),
     clarifications: clarificationPairs(c),
@@ -323,83 +370,122 @@ export function deadlinesFor(c) {
 
 function milestonesFor(c, d) {
   const m = [];
+  const done = (e) => c.events.some((x) => x.event === e);
   if (c.type === "complaint") {
     if (!lastDate(c, "acknowledged")) m.push(["acknowledge", d.ackRemind, d.ackDue]);
     else m.push(["respond", d.responseRemind, d.responseDue]);
   } else if (c.type === "privacy") {
     if (d.status === "running") m.push(["respond", d.remind, d.due]);
-    if (d.status === "waiting-for-id") {
+    if (d.status === "waiting-for-id" && firstDate(c, "id-requested")) {
       const chase = addWorkingDays(firstDate(c, "id-requested"), 10);
       m.push(["chase-id", chase, chase, { noOverdue: true }]);
     }
+    if (d.status === "paused") {
+      const asked = clarificationPairs(c).find((p) => !p.received)?.requested;
+      if (asked) { const chase = addWorkingDays(asked, 10); m.push(["chase-clarification", chase, chase, { noOverdue: true }]); }
+    }
     if (d.extensionNoticeRemind) m.push(["notify-extension", d.extensionNoticeRemind, d.extensionNoticeBy]);
+    if (d.dpComplaintAckDue && !done("acknowledged")) m.push(["acknowledge-dp-complaint", d.dpComplaintAckRemind, d.dpComplaintAckDue]);
+    if (d.dpComplaintUpdateBy && !done("progress-update-sent")) m.push(["update-dp-complaint", subtractWorkingDays(d.dpComplaintUpdateBy, 3), d.dpComplaintUpdateBy]);
+    if ((c.review || []).length && !c.reviewDone) m.push(["manual-review", c.received, addWorkingDays(c.received, 2)]);
   } else {
     m.push(["reply", d.replyBy, d.replyBy]);
   }
   return m;
 }
 
+/** How often an overdue item is escalated again (working days). */
+export const ESCALATE_EVERY_WORKING_DAYS = 3;
+
 /**
  * Daily check (development: called by tests and the demo, not scheduled anywhere).
- * One reminder before each milestone and one "overdue" per milestone, recorded only once delivered.
+ * Per milestone: one reminder as it approaches, one on the day it's due, one when overdue, then a
+ * "still overdue" escalation every 3 working days until you record what you did. Each is recorded
+ * only once delivery is CONFIRMED; anything unconfirmed is retried next run and listed in
+ * `undelivered` (for the health report).
  */
-export async function dailyCaseCheck({ store, today, notify = async () => {} }) {
+export async function dailyCaseCheck({ store, today, notify }) {
   assertDate(today);
+  if (typeof notify !== "function") throw new Error("notify-required");
   const out = [];
+  out.undelivered = [];
+  out.errors = 0;
   for (const c of (await allCases(store)).filter((x) => !CLOSED.has(x.status))) {
     try {
       const d = deadlinesFor(c);
       for (const [what, remindOn, due, opts = {}] of milestonesFor(c, d)) {
         const key = `${what}:${due}`;
+        const r = c.reminded || {};
         let kind = null;
         let mark = null;
-        if (today > due && !opts.noOverdue && !c.reminded[`over:${key}`]) [kind, mark] = ["overdue", `over:${key}`];
-        else if (today >= remindOn && (today <= due || opts.noOverdue) && !c.reminded[key] && !c.reminded[`over:${key}`]) [kind, mark] = ["reminder", key];
+        if (today > due && !opts.noOverdue) {
+          if (!r[`over:${key}`]) [kind, mark] = ["overdue", `over:${key}`];
+          else if (today >= addWorkingDays(r[`esc:${key}`] || r[`over:${key}`], ESCALATE_EVERY_WORKING_DAYS)) [kind, mark] = ["still-overdue", `esc:${key}`];
+        } else if (today === due && !opts.noOverdue && !r[`today:${key}`]) [kind, mark] = ["due-today", `today:${key}`];
+        else if (today >= remindOn && (today < due || opts.noOverdue) && !r[key] && !r[`over:${key}`]) [kind, mark] = ["reminder", key];
         if (!kind) continue;
-        const n = noticeFor(kind, c, { what, due });
-        await notify(n); // if this fails, nothing is recorded and the next check tries again
-        c.reminded[mark] = today;
-        await updateCase(store, c.ref, (fresh) => { if (fresh.reminded[mark]) return false; fresh.reminded[mark] = today; });
+        const n = noticeFor(kind, c, { what, due, today });
+        let receipt = null;
+        try { receipt = await notify(n); } catch { receipt = null; }
+        if (!confirmed(receipt)) { out.undelivered.push({ ref: c.ref, kind, what }); continue; } // retried next run
+        c.reminded = { ...r, [mark]: today };
+        await updateCase(store, c.ref, (fresh) => { fresh.reminded = fresh.reminded || {}; if (fresh.reminded[mark] === today) return false; fresh.reminded[mark] = today; });
         out.push(n);
       }
     } catch (err) {
+      out.errors++;
       const n = { subject: `[Stage 3] Case needs attention · ${c.ref}`, message: `The daily check couldn't complete for ${c.ref} (${String(err?.message || "error").replace(/[^a-z0-9-]/gi, " ").slice(0, 60)}). Please check its recorded dates.\n\nOther cases were checked as normal. Nothing has been sent.` };
-      try { await notify(n); out.push(n); } catch { /* reported next run */ }
+      try { if (confirmed(await notify(n))) out.push(n); else out.undelivered.push({ ref: c.ref, kind: "error", what: "error" }); } catch { out.undelivered.push({ ref: c.ref, kind: "error", what: "error" }); }
     }
   }
   return out;
 }
 
 const TYPE_LABEL = { complaint: "complaint", privacy: "privacy request", media: "media enquiry" };
-const WHAT_LABEL = { acknowledge: "Acknowledge in writing", respond: "Send the full response", "notify-extension": "Tell the person about the extension (with reasons)", "chase-id": "Still waiting for ID: decide whether to chase", reply: "Reply" };
+const WHAT_LABEL = {
+  acknowledge: "Acknowledge in writing", respond: "Send the full response", "notify-extension": "Tell the person about the extension (with reasons)",
+  "chase-id": "Still waiting for ID: decide whether to chase", "chase-clarification": "Still waiting for clarification: decide whether to chase",
+  "acknowledge-dp-complaint": "Acknowledge the data protection complaint (30-day legal limit)", "update-dp-complaint": "Update the person on progress with their data protection complaint",
+  "manual-review": "Read this request yourself and record its rights", reply: "Reply",
+};
 
 /** Notice text: reference, type, dates and what to do. Never names, addresses, message text or links. */
-export function noticeFor(kind, c, { what = "", due = "", extra = "" } = {}) {
+export function noticeFor(kind, c, { what = "", due = "", extra = "", today = "" } = {}) {
   const t = TYPE_LABEL[c.type];
   const d = deadlinesFor(c);
   const firstDue = c.type === "complaint" ? `Acknowledge by ${d.ackDue}; full response by ${d.responseDue}.`
     : c.type === "media" ? `Reply target ${d.replyBy}.`
-    : d.status === "running" ? `Respond by ${d.due}.` : d.status === "paused" ? "Clock paused for clarification." : "Clock not started: waiting for ID.";
+    : d.status === "running" ? `Respond by ${d.due} (original deadline ${d.original}).` : d.status === "paused" ? "Clock paused for clarification." : d.status === "complaint-only" ? `Acknowledge by ${d.dpComplaintAckDue}; outcome without undue delay.` : d.status === "waiting-for-fee" ? "Clock not started: waiting for the fee." : "Clock not started: waiting for ID.";
   const titles = {
     "new-case": `New ${t}`,
     "follow-up": `Follow-up on ${t}`,
     "possible-privacy-request": "Possible privacy request (arrived outside privacy@ or in another case)",
     reminder: `Reminder: ${WHAT_LABEL[what] || what}`,
+    "due-today": `DUE TODAY: ${WHAT_LABEL[what] || what}`,
     overdue: `OVERDUE: ${WHAT_LABEL[what] || what}`,
+    "still-overdue": `STILL OVERDUE: ${WHAT_LABEL[what] || what}`,
   };
   const complaintTips = c.type === "complaint" && kind === "new-case"
     ? "AAT Client Care: acknowledge promptly in writing, restating your understanding of the complaint; tell the client they can refer an unresolved complaint to AAT; check whether your PII insurer needs to be told."
     : null;
+  const rightsLines = c.type === "privacy" ? [
+    `Seems to be: ${(c.rights || ["unclear"]).map((r) => `${RIGHTS[r]?.label || r} (${RIGHTS[r]?.article || "-"})`).join("; ")}. This is a label, not a decision.`,
+    ...(d.adjustments || []).map((a) => `Deadline adjustment: ${a.change}. Legal basis: ${a.basis}.`),
+    ...((c.review || []).length && !c.reviewDone ? [`MANUAL REVIEW NEEDED: ${c.review.map((k) => REVIEW_LABEL[k] || k).join("; ")}.`] : []),
+    ...(kind === "new-case" ? (c.rights || []).flatMap((r) => RIGHTS[r] ? [`Consider (${r}): ${RIGHTS[r].exemptions.join("; ")}.`] : []) : []),
+  ] : [];
   const lines = [
     `${titles[kind]} · ${c.ref}`,
     "",
     `Received ${c.received} via ${c.channel}${c.viaOtherChannel ? " (other channel)" : ""}.`,
     kind === "reminder" || kind === "overdue" ? `${WHAT_LABEL[what] || what}: due ${due}.` : firstDue,
+    kind === "still-overdue" ? `Overdue since ${due}. You'll be reminded every ${ESCALATE_EVERY_WORKING_DAYS} working days until you record what you've done.` : null,
+    ...rightsLines,
     ...(d.warnings || []),
     complaintTips,
     extra || null,
     "",
-    "Your judgement decides this case. Nothing has been sent.",
+    "Your judgement decides this case. The response and outcome are yours to write and send. Nothing has been sent.",
   ].filter((l) => l !== null);
   return { subject: `[Stage 3] ${titles[kind]} · ${c.ref}`, message: lines.join("\n") };
 }

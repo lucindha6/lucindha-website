@@ -128,3 +128,15 @@ subjects or message text, or deciding a complaint or privacy request.
 If two **new** messages in the same brand-new email thread are processed at exactly the same moment,
 both can open a case. This errs on the safe side: nothing is lost, and you'd record one as a
 duplicate.
+
+## 11 November 2026 update (your decisions and requirements)
+
+All fictional data, still on this branch only. 73 tests pass (50 earlier + 23 new in `tests/requirements-nov11.test.mjs`).
+
+- **Rights told apart** (`lib/rights.mjs`): subject access, rectification, erasure, restriction, portability, objection, objection to direct marketing (absolute), automated decisions, consent withdrawal and data protection complaints. Each has its article, time limit and the exemptions to consider. Unusual wording ("take me off your system", "what do you have on file about me") is recognised. Requests made on someone else's behalf, with legal context, asking for more than one thing, or with no clear right go to you for **manual review**, with a reminder until you record `review-done`. You can correct the rights with `rights-set`.
+- **Deadlines follow the Data (Use and Access) Act 2025 changes** (Art. 12A UK GDPR, in force 5 Feb 2026): ID moves the start only with a recorded reason (reasonable doubts, or someone acting for the person); a fee only for manifestly unfounded or excessive requests; the clarification pause applies to **subject access only**, with a recorded reason. Every deadline shows the **original date, each adjustment with its legal basis, and the resulting date**.
+- **Data protection complaints** (DPA 2018 s.164A, in force 19 June 2026): acknowledge within 30 days, then a progress-update reminder.
+- **Complaints**: your 5-working-day acknowledgement and 4-week response kept. Reminders now go as a deadline approaches, on the day, when overdue, and again every 3 working days until you act.
+- **Delivery confirmation**: a notice counts as sent only when the sender returns `{ delivered: true }`; anything else is retried and counted as undelivered for the health report.
+- **Retention**: manual monthly review (`tools/monthly-review.mjs`). It shows what's potentially due for deletion, what's kept and why (disputes, claims, preservation notices, insurer, HMRC, AML records, investigations, open privacy requests) and what needs your decision, plus a checklist of places **outside Netlify** (Outlook, OneDrive, software, devices, messages, paper, backups, GitHub). The audit entry holds ids and counts only. Complaint and privacy-request periods stay unapproved. No deletion code, no Netlify token.
+- **Health**: received vs processed is reconciled; undelivered reminders, case errors and credential expiry are flagged; missing figures are ACTION, never OK; addresses are stripped.

@@ -5,18 +5,27 @@
 //   - acknowledge in writing within 5 working days of receipt (the day it arrives doesn't count);
 //   - full written response within 4 weeks of the acknowledgement.
 //
-// PRIVACY / SUBJECT ACCESS REQUESTS (ICO right of access guidance, UK GDPR Art. 12(3)):
-//   - "without undue delay and at the latest within one month of receipt";
-//   - the clock does not start until any ID you reasonably asked for has been received;
-//   - it pauses on the day you ask for clarification of what's wanted and restarts the day after
-//     the answer arrives; the due date moves on by the number of days paused (counted in days);
+// PRIVACY REQUESTS (UK GDPR Art. 12(3) and Art. 12A, as amended by the Data (Use and Access) Act
+// 2025, in force 5 Feb 2026; see lib/rights.mjs for each right):
+//   - "without undue delay and at the latest within one month" of the RELEVANT TIME: the latest of
+//     receipt of the request, receipt of ID you asked for, and payment of any fee;
+//   - ID only moves the start where you have REASONABLE DOUBTS about identity (Art. 12(6)), or need
+//     evidence that someone acting for the person is authorised: the reason must be recorded,
+//     otherwise the deadline is NOT moved;
+//   - a fee only moves the start for a MANIFESTLY UNFOUNDED OR EXCESSIVE request (Art. 12(5));
+//   - the clarification pause applies ONLY to subject access (Art. 15) and only where you
+//     reasonably require the information to find what's wanted (Art. 12A(5)-(6)): the period from
+//     the day you ask to the day you receive the answer doesn't count;
 //   - one calendar month = the corresponding date in the next month, or the last day of that month
-//     if there's no corresponding date;
-//   - if the due date falls on a weekend or bank holiday, it moves to the next working day;
-//   - for complex or numerous requests it can be extended by up to two further months, but only
-//     if you tell the person, with reasons, within the first month (until then the normal date stands);
-//   - requests can arrive by ANY channel (verbal, letter, social media, any mailbox) and needn't use
-//     the words "subject access": the receipt date is when it reached you, however it came.
+//     if there's none; a weekend or bank holiday moves it to the next working day (ICO practice);
+//   - extension by two further months (complex or numerous requests) only if you tell the person,
+//     with reasons, within the first month;
+//   - DATA PROTECTION COMPLAINTS (DPA 2018 s.164A, in force 19 June 2026): acknowledge within 30
+//     days of receipt; outcome without undue delay, keeping the person informed.
+//   - requests can arrive by ANY channel and needn't name the right: the receipt date is when it
+//     reached you, however it came.
+// Every result records the ORIGINAL deadline, each ADJUSTMENT with its legal basis, and the
+// RESULTING deadline, so you can check the working.
 //
 // These are planning aids. Your professional and legal judgement decides each case.
 import { addCalendarMonths, addDays, addWorkingDays, assertDate, daysBetween, onOrNextWorkingDay, subtractWorkingDays, holidaysCover } from "./calendar.mjs";
@@ -50,33 +59,69 @@ export function complaintDeadlines({ received, acknowledged = null }) {
 }
 const onWorkday = (d) => onOrNextWorkingDay(d) === d;
 
+export const ID_REASONS = {
+  "reasonable-doubts": "reasonable doubts about the requester's identity (Art. 12(6))",
+  "third-party-authority": "evidence that the person acting for them is authorised",
+};
+export const CLARIFICATION_REASONS = {
+  "large-volume": "you hold a large amount of information about them and need to know what they want (Art. 12A(6))",
+  "unclear-scope": "you reasonably need more information to identify the information or processing they mean (Art. 12A(5))",
+};
+export const FEE_REASONS = {
+  "manifestly-unfounded": "manifestly unfounded request (Art. 12(5))",
+  "manifestly-excessive": "manifestly excessive request, e.g. repetitive (Art. 12(5))",
+};
+
 /**
  * @param {object} p
  * @param {string} p.received            date the request reached you (any channel)
- * @param {boolean} [p.idNeeded]         you have reasonable doubts about identity
+ * @param {string[]} [p.rights]          keys from lib/rights.mjs (default "unclear")
+ * @param {boolean} [p.idNeeded]         you asked for ID
+ * @param {string|null} [p.idReason]     why (ID_REASONS); without one the deadline isn't moved
  * @param {string|null} [p.idRequested]  date you asked for ID
  * @param {string|null} [p.idReceived]   date ID arrived
- * @param {{requested:string, received?:string|null}[]} [p.clarifications]
+ * @param {{requested:string, received?:string|null, reason?:string}[]} [p.clarifications]
+ * @param {{requested?:string|null, paid?:string|null, reason?:string|null}|null} [p.fee]
  * @param {boolean} [p.extended]         you have decided to extend (complex or numerous)
  * @param {string|null} [p.extensionNotified] date you told the person about the extension
  */
-export function privacyRequestDeadlines({ received, idNeeded = false, idRequested = null, idReceived = null, clarifications = [], extended = false, extensionNotified = null }) {
+export function privacyRequestDeadlines({ received, rights = ["unclear"], idNeeded = false, idReason = null, idRequested = null, idReceived = null, clarifications = [], fee = null, extended = false, extensionNotified = null }) {
   assertDate(received);
   const notes = [];
   const warnings = [];
+  const adjustments = [];
+  const original = onOrNextWorkingDay(addCalendarMonths(received, 1));
+  const rightsList = rights.length ? rights : ["unclear"];
+  const onlyComplaint = rightsList.every((r) => r === "dp-complaint");
+  const out = (o) => ({ type: "privacy", rights: rightsList, original, adjustments, notes, warnings, ...complaintPart(received, rightsList), ...o, resulting: o.due ?? null });
 
-  // 1. When does the clock start?
-  if (idNeeded && !idReceived) {
-    if (!idRequested) warnings.push("ID is needed but hasn't been requested: ask promptly. The one-month clock doesn't start until it arrives.");
-    return { type: "privacy", status: "waiting-for-id", clockStarts: null, due: null, notes: ["Waiting for ID: the clock hasn't started."], warnings };
+  // 1. When does the clock start? The latest of receipt, ID received (if validly requested), fee paid.
+  let start = received;
+  const idValid = idNeeded && Object.hasOwn(ID_REASONS, idReason || "");
+  if (idNeeded && !idValid) warnings.push("ID was asked for without a recorded reason (reasonable doubts about identity, or someone acting for them). It does NOT move the deadline. Only ask for ID where it's justified, and proportionately.");
+  if (idValid) {
+    if (!idRequested) warnings.push("ID is needed but the request date isn't recorded: ask promptly.");
+    if (idRequested && daysBetween(received, idRequested) > 5) warnings.push("ID was requested more than 5 days after the request arrived: the ICO expects you to ask promptly.");
+    if (!idReceived) return out({ status: "waiting-for-id", clockStarts: null, due: null, notes: [...notes, "Waiting for ID: the clock hasn't started."] });
+    assertDate(idReceived);
+    if (idReceived > start) {
+      adjustments.push({ change: `start moved from ${start} to ${idReceived} (ID received)`, basis: "UK GDPR Art. 12(6) and 12A(2)(b)", reason: ID_REASONS[idReason] });
+      start = idReceived;
+    }
   }
-  const start = idNeeded ? assertDate(idReceived) : received;
-  if (idNeeded) notes.push(`Clock starts ${start}, when the ID you asked for arrived.`);
-  else notes.push(`Clock starts ${start}, the day the request reached you.`);
-  if (idNeeded && idRequested && daysBetween(received, idRequested) > 5) warnings.push("ID was requested more than 5 days after the request arrived: the ICO expects you to ask promptly.");
+  if (fee && (fee.requested || fee.paid)) {
+    if (!Object.hasOwn(FEE_REASONS, fee.reason || "")) warnings.push("A fee can only be charged for a manifestly unfounded or excessive request, with the reason recorded. It does NOT move the deadline.");
+    else if (!fee.paid) return out({ status: "waiting-for-fee", clockStarts: null, due: null, notes: [...notes, "Waiting for the fee: the clock hasn't started. Explain your reasons and their right to complain to the ICO."] });
+    else if (assertDate(fee.paid) > start) {
+      adjustments.push({ change: `start moved from ${start} to ${fee.paid} (fee paid)`, basis: "UK GDPR Art. 12(5) and 12A(2)(c)", reason: FEE_REASONS[fee.reason] });
+      start = fee.paid;
+    }
+  }
+  notes.push(start === received ? `Clock starts ${start}, the day the request reached you.` : `Clock starts ${start}.`);
 
-  // 2. Pauses for clarification (counted in whole days). Overlapping pauses are merged, and a
-  //    pause asked for after the deadline had already passed doesn't move it.
+  // 2. Clarification pauses: subject access only, with a recorded reason. Overlaps merged; a pause
+  //    asked for after the deadline had passed doesn't move it.
+  const accessOnlyPause = rightsList.includes("access");
   for (const c of clarifications) {
     assertDate(c.requested);
     if (c.received) {
@@ -85,25 +130,32 @@ export function privacyRequestDeadlines({ received, idNeeded = false, idRequeste
     }
     if (c.requested < start) warnings.push(`Clarification requested ${c.requested} before the clock started; it doesn't change the deadline.`);
   }
-  const open = clarifications.find((c) => !c.received && c.requested >= start);
-  const spans = clarifications.filter((c) => c.received && c.requested >= start).map((c) => [c.requested, c.received]).sort((x, y) => (x[0] < y[0] ? -1 : 1));
+  const usable = clarifications.filter((c) => c.requested >= start && accessOnlyPause && Object.hasOwn(CLARIFICATION_REASONS, c.reason || ""));
+  if (clarifications.length && !accessOnlyPause) warnings.push("Clarification doesn't pause the clock for this kind of request: the pause applies to subject access only (Art. 12A(5)). The deadline is unchanged.");
+  else if (clarifications.some((c) => !Object.hasOwn(CLARIFICATION_REASONS, c.reason || ""))) warnings.push("A clarification without a recorded reason doesn't pause the clock (it must be reasonably required to find what's wanted).");
+  const pending = usable.find((c) => !c.received);
+  const spans = usable.filter((c) => c.received).map((c) => [c.requested, c.received, c.reason]).sort((x, y) => (x[0] < y[0] ? -1 : 1));
   let paused = 0;
   let mergedEnd = null;
   let dueSoFar = addCalendarMonths(start, 1);
-  for (const [from, to] of spans) {
+  for (const [from, to, reason] of spans) {
     if (from > dueSoFar) { warnings.push(`Clarification asked on ${from}, after the deadline (${dueSoFar}) had passed: it doesn't extend it.`); continue; }
     const effFrom = mergedEnd && from <= mergedEnd ? addDays(mergedEnd, 1) : from;
     if (effFrom <= to) {
-      paused += daysBetween(effFrom, to) + 1; // paused on the day asked, restarts the day after the answer
+      const days = daysBetween(effFrom, to) + 1; // from the day asked to the day received
+      paused += days;
+      adjustments.push({ change: `paused ${days} day(s), ${effFrom} to ${to} (clarification)`, basis: "UK GDPR Art. 12A(5)", reason: CLARIFICATION_REASONS[reason] });
       mergedEnd = mergedEnd && mergedEnd > to ? mergedEnd : to;
       dueSoFar = addDays(addCalendarMonths(start, 1), paused);
     }
   }
-  if (open) {
-    if (open.requested > dueSoFar) warnings.push(`Clarification asked on ${open.requested}, after the deadline (${dueSoFar}) had passed: the request is overdue.`);
-    else return { type: "privacy", status: "paused", clockStarts: start, due: null, pausedDays: paused, notes: [...notes, `Paused since ${open.requested} while you wait for clarification.`], warnings };
+  if (pending) {
+    if (pending.requested > dueSoFar) warnings.push(`Clarification asked on ${pending.requested}, after the deadline (${dueSoFar}) had passed: the request is overdue.`);
+    else return out({ status: "paused", clockStarts: start, due: null, pausedDays: paused, notes: [...notes, `Paused since ${pending.requested} while you wait for clarification.`] });
   }
   if (paused) notes.push(`Paused for ${paused} day(s) while waiting for clarification, so the deadline moves on by ${paused} day(s).`);
+
+  if (onlyComplaint) return out({ status: "complaint-only", clockStarts: start, due: null, pausedDays: 0, notes: [...notes, "Data protection complaint: no one-month deadline, but acknowledge within 30 days and give the outcome without undue delay."] });
 
   // 3. One calendar month (or three, if VALIDLY extended), plus pauses, rolled to a working day.
   const oneMonth = addDays(addCalendarMonths(start, 1), paused);
@@ -115,6 +167,7 @@ export function privacyRequestDeadlines({ received, idNeeded = false, idRequeste
     const threeMonths = onOrNextWorkingDay(addDays(addCalendarMonths(start, 3), paused));
     if (extensionNotified && assertDate(extensionNotified) <= normalDue) {
       due = threeMonths;
+      adjustments.push({ change: `extended from ${normalDue} to ${due}`, basis: "UK GDPR Art. 12A(3)-(4)", reason: `complex or numerous requests; notified with reasons on ${extensionNotified}` });
       notes.push(`Extended by two months (complex or numerous request), notified ${extensionNotified}: due ${due}.`);
     } else if (extensionNotified) {
       warnings.push(`The extension was notified on ${extensionNotified}, after the first month ended (${normalDue}), so it isn't valid: the deadline stays ${normalDue}.`);
@@ -123,9 +176,9 @@ export function privacyRequestDeadlines({ received, idNeeded = false, idRequeste
       extensionNoticeRemind = subtractWorkingDays(normalDue, 5);
     }
   }
+  if (rightsList.some((r) => r === "direct-marketing-objection" || r === "consent-withdrawal")) warnings.push("Act on this straight away (stop the marketing or the consent-based processing); the one month is only for confirming what you've done.");
   if (!holidaysCover(due)) warnings.push(`The bank holiday list doesn't cover ${due} yet: check the date by hand and update the list.`);
-  return {
-    type: "privacy",
+  return out({
     status: "running",
     clockStarts: start,
     pausedDays: paused,
@@ -134,9 +187,15 @@ export function privacyRequestDeadlines({ received, idNeeded = false, idRequeste
     extensionNoticeRemind,
     remind: subtractWorkingDays(due, 5),
     calendarCovered: holidaysCover(due),
-    notes,
-    warnings,
-  };
+  });
+}
+
+/** Data protection complaint part (DPA 2018 s.164A): acknowledgement within 30 days of receipt. */
+function complaintPart(received, rights) {
+  if (!rights.includes("dp-complaint")) return {};
+  const ack = addDays(received, 30);
+  const ackAim = onWorkday(ack) ? ack : subtractWorkingDays(ack, 1);
+  return { dpComplaintAckDue: ackAim, dpComplaintAckRemind: subtractWorkingDays(ackAim, 5), dpComplaintUpdateBy: addDays(ackAim, 28) };
 }
 
 /** Media enquiries have no legal deadline: your usual 2-working-day reply target. */
