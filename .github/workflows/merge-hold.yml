@@ -1,25 +1,28 @@
 # Merge hold (Development Tracker E-15).
 #
 # Fails while the pull request has a "DO NOT MERGE" label, or changes a workflow
-# or merge-hold file without the director's "WORKFLOW CHANGE APPROVED" label.
-# It only reports pass or fail: it never merges, deploys, comments or changes a setting.
+# or merge-hold file without the director's written approval record for the
+# current head commit plus the label "WORKFLOW CHANGE APPROVED".
+# It never merges, deploys, comments or changes a setting. Its only write is the
+# check run "Merge hold" on the pull request's head commit (checks: write).
 #
 # Why pull_request_target: GitHub runs this workflow, and the script it calls,
 # from main, so a pull request cannot edit or switch off its own hold check.
 # Safe use of pull_request_target: no code from the pull request is checked out
-# or run, the token is read-only, no secrets are used, and nothing from the
-# pull request (title, body, branch name) is placed in a shell command.
+# or run, no secrets are used, and nothing from the pull request (title, body,
+# branch name) is placed in a shell command; the script reads it as data.
 #
 # On its own it is a visible warning. It blocks merging only once the director
-# requires "Merge hold" in a repository ruleset.
+# activates the separate "Merge hold" ruleset (docs/rulesets/merge-hold.json).
 name: Merge hold
 
 on:
   # Reviewed: no pull request code is checked out or run (see the note above).
   pull_request_target: # zizmor: ignore[dangerous-triggers]
-    types: [opened, reopened, synchronize, ready_for_review, labeled, unlabeled]
+    types: [opened, reopened, synchronize, ready_for_review, labeled, unlabeled, edited]
 
 permissions:
+  checks: write
   contents: read
   issues: read
   pull-requests: read
@@ -30,7 +33,9 @@ concurrency:
 
 jobs:
   merge-hold:
-    name: Merge hold
+    # The required check is the "Merge hold" check run that the script posts on
+    # the head commit; this job's own name is deliberately different.
+    name: Merge hold runner
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -44,7 +49,8 @@ jobs:
         with:
           node-version: 24
 
-      - name: Fail while a merge hold or an unapproved workflow change is present
+      - name: Check for a merge hold or an unapproved workflow change, and post "Merge hold"
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          MERGE_HOLD_POST_CHECK: 'true'
         run: node scripts/merge-hold.mjs
