@@ -1,6 +1,6 @@
 # EXPERIMENT ONLY (E-15). Never merge. The pull request will be closed.
-# Control: the same-name job PASSES, to show whether the pull request is then
-# mergeable (so that "blocked" in the other variants is caused by the lookalike).
+# Variant 2: the same-name job waits 45 seconds and then FAILS, so it finishes
+# AFTER the genuine check has passed.
 name: Lookalike experiment
 
 on:
@@ -15,5 +15,5 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Pass at once (control)
-        run: exit 0
+      - name: Wait, then fail (variant 2)
+        run: sleep 45 && exit 1
