@@ -1,33 +1,40 @@
 // Unit tests for scripts/merge-hold.mjs (E-15). Fictional data only.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluate, isHoldLabel, isProtectedPath, nextLink, fetchAllPages, run } from '../scripts/merge-hold.mjs';
+import { evaluate, isHoldLabel, isProtectedPath, nextLink, fetchAllPages, parseApproval, run } from '../scripts/merge-hold.mjs';
 
 const TOKEN = 'ghs_fictionalTokenForTestsOnly000000000000';
 const API = 'https://api.example.com';
+const HEAD = 'a'.repeat(40);
+const OTHER = 'b'.repeat(40);
+
+const approval = (commit = HEAD, extra = '') =>
+  `Some description.\n\nDirector workflow-change approval\n- Approved by: Lucindha Lawson (director)\n- Approval date: 2026-11-20\n- Reviewed commit: \`${commit}\`\n- Tracker: E-15\n${extra}`;
 
 function page(body, link) {
   return { ok: true, status: 200, json: async () => body, headers: { get: (h) => (h === 'link' ? link ?? null : null) } };
 }
 
-// A fake GitHub API: routes keyed by URL.
-function fakeApi(routes, calls = []) {
-  return async (url, options) => {
+// A fake GitHub API: routes keyed by URL (GET), plus the check-runs POST.
+function fakeApi(routes, calls = [], { postStatus = 201 } = {}) {
+  return async (url, options = {}) => {
     calls.push({ url, options });
+    if (options.method === 'POST') return { ok: postStatus < 300, status: postStatus, json: async () => ({}) };
     const route = routes[url];
     if (!route) return { ok: false, status: 404, json: async () => ({}), headers: { get: () => null } };
     return route;
   };
 }
 
-function routesFor({ labels = [], files = ['site/index.html'] } = {}) {
+function routesFor({ labels = [], files = ['site/index.html'], body = '', head = HEAD } = {}) {
   return {
+    [`${API}/repos/example-owner/example-repo/pulls/7`]: page({ head: { sha: head }, body }),
     [`${API}/repos/example-owner/example-repo/issues/7/labels?per_page=100`]: page(labels.map((name) => ({ name }))),
     [`${API}/repos/example-owner/example-repo/pulls/7/files?per_page=100`]: page(files.map((filename) => ({ filename }))),
   };
 }
 
-function runWith({ routes = routesFor(), argv = [], event = { pull_request: { number: 7 } }, env = {} } = {}) {
+function runWith({ routes = routesFor(), event = { pull_request: { number: 7 } }, env = {}, postStatus } = {}) {
   const lines = [];
   const summary = [];
   const calls = [];
@@ -38,22 +45,24 @@ function runWith({ routes = routesFor(), argv = [], event = { pull_request: { nu
       GITHUB_REPOSITORY: 'example-owner/example-repo',
       GITHUB_API_URL: API,
       GITHUB_STEP_SUMMARY: '/fictional/summary.md',
+      MERGE_HOLD_POST_CHECK: 'true',
       ...env,
     },
-    argv,
-    fetchImpl: fakeApi(routes, calls),
+    fetchImpl: fakeApi(routes, calls, { postStatus }),
     readFileImpl: async () => JSON.stringify(event),
     appendFileImpl: async (_path, text) => summary.push(text),
     log: (line) => lines.push(line),
-  }).then((code) => ({ code, lines, summary, calls }));
+  }).then((code) => ({ code, lines, summary, calls, posts: calls.filter((c) => c.options.method === 'POST') }));
 }
 
+const W = ['.github/workflows/x.yml'];
+
 test('no labels and an ordinary change: pass', () => {
-  assert.equal(evaluate({ labels: [], files: ['site/index.html'] }).held, false);
+  assert.equal(evaluate({ labels: [], files: ['site/index.html'], headSha: HEAD }).held, false);
 });
 
 test('DO NOT MERGE label: fail, whatever the files', () => {
-  const result = evaluate({ labels: ['dependencies', 'DO NOT MERGE'], files: [] });
+  const result = evaluate({ labels: ['dependencies', 'DO NOT MERGE'], files: [], headSha: HEAD });
   assert.equal(result.held, true);
   assert.equal(result.reason, 'hold-label');
 });
@@ -79,18 +88,48 @@ test('protected paths', () => {
   }
 });
 
-test('a workflow change without approval: fail', () => {
-  const result = evaluate({ labels: [], files: ['.github/workflows/sneaky.yml'] });
-  assert.equal(result.held, true);
+test('a workflow change without the label: fail', () => {
+  const result = evaluate({ labels: [], files: ['.github/workflows/sneaky.yml'], body: approval(), headSha: HEAD });
   assert.equal(result.reason, 'workflow-change');
 });
 
-test('a workflow change with WORKFLOW CHANGE APPROVED: pass', () => {
-  assert.equal(evaluate({ labels: ['workflow-change-approved'], files: ['.github/workflows/x.yml'] }).held, false);
+test('the label alone is not approval: fail without a written record', () => {
+  const result = evaluate({ labels: ['WORKFLOW CHANGE APPROVED'], files: W, body: 'Looks fine.', headSha: HEAD });
+  assert.equal(result.held, true);
+  assert.equal(result.reason, 'approval-record');
 });
 
-test('approval does not lift a hold', () => {
-  assert.equal(evaluate({ labels: ['WORKFLOW CHANGE APPROVED', 'DO NOT MERGE'], files: ['.github/workflows/x.yml'] }).held, true);
+test('label plus a complete record for the current head commit: pass', () => {
+  assert.equal(evaluate({ labels: ['workflow-change-approved'], files: W, body: approval(), headSha: HEAD }).held, false);
+});
+
+test('a record for an earlier commit is stale: fail', () => {
+  const result = evaluate({ labels: ['WORKFLOW CHANGE APPROVED'], files: W, body: approval(OTHER), headSha: HEAD });
+  assert.equal(result.reason, 'approval-stale');
+});
+
+test('each missing or malformed field of the record fails', () => {
+  const bad = [
+    approval().replace('Director workflow-change approval', 'Approval'),
+    approval().replace('Lucindha Lawson (director)', 'A session'),
+    approval().replace('2026-11-20', '20 Nov'),
+    approval().replace(`\`${HEAD}\``, 'abc1234'),
+    approval().replace('E-15', 'tracker row'),
+  ];
+  for (const body of bad) {
+    assert.equal(evaluate({ labels: ['WORKFLOW CHANGE APPROVED'], files: W, body, headSha: HEAD }).reason, 'approval-record', body);
+  }
+});
+
+test('parseApproval reads the record', () => {
+  const { record, missing } = parseApproval(approval());
+  assert.deepEqual(missing, []);
+  assert.equal(record.commit, HEAD);
+  assert.equal(record.tracker, 'E-15');
+});
+
+test('approval never lifts a hold', () => {
+  assert.equal(evaluate({ labels: ['WORKFLOW CHANGE APPROVED', 'DO NOT MERGE'], files: W, body: approval(), headSha: HEAD }).reason, 'hold-label');
 });
 
 test('missing data fails closed', () => {
@@ -152,35 +191,51 @@ test('a renamed workflow file is caught by its previous name', async () => {
   assert.equal((await runWith({ routes })).code, 1);
 });
 
-test('run: pass without a hold label (exit 0)', async () => {
-  const { code, lines, summary } = await runWith();
+test('run: pass posts a success "Merge hold" check run on the current head commit', async () => {
+  const { code, posts, summary } = await runWith();
   assert.equal(code, 0);
-  assert.match(lines.join(''), /^PASS/);
+  assert.equal(posts.length, 1);
+  assert.equal(posts[0].url, `${API}/repos/example-owner/example-repo/check-runs`);
+  const sent = JSON.parse(posts[0].options.body);
+  assert.equal(sent.name, 'Merge hold');
+  assert.equal(sent.head_sha, HEAD);
+  assert.equal(sent.conclusion, 'success');
   assert.match(summary.join(''), /Merge hold: PASS/);
 });
 
-test('run: fail with a hold label (exit 1)', async () => {
-  const { code, lines } = await runWith({ routes: routesFor({ labels: ['DO NOT MERGE'] }) });
+test('run: a hold posts a failure check run and exits 1', async () => {
+  const { code, posts, lines } = await runWith({ routes: routesFor({ labels: ['DO NOT MERGE'] }) });
   assert.equal(code, 1);
-  assert.match(lines.join(''), /^FAIL: Merge hold in place/);
+  assert.equal(JSON.parse(posts[0].options.body).conclusion, 'failure');
+  assert.match(lines.join('\n'), /^FAIL: Merge hold in place/);
 });
 
-test('run: --only-hold-label skips the file list', async () => {
-  const { code, calls, lines } = await runWith({ routes: routesFor({ files: ['.github/workflows/x.yml'] }), argv: ['--only-hold-label'] });
+test('run: an approved workflow change at the reviewed commit passes', async () => {
+  const { code } = await runWith({ routes: routesFor({ labels: ['WORKFLOW CHANGE APPROVED'], files: W, body: approval() }) });
   assert.equal(code, 0);
-  assert.equal(calls.some((c) => c.url.includes('/files')), false);
-  assert.match(lines.join(''), /demonstration/);
 });
 
-test('run: API refusal, missing token or non-PR event fail closed', async () => {
-  assert.equal((await runWith({ routes: {} })).code, 1);
-  assert.equal((await runWith({ env: { GITHUB_TOKEN: '' } })).code, 1);
-  assert.equal((await runWith({ event: { push: {} } })).code, 1);
-  assert.equal((await runWith({ env: { GITHUB_REPOSITORY: '../../x' } })).code, 1);
+test('run: a push after approval (new head commit) fails', async () => {
+  const { code, lines } = await runWith({ routes: routesFor({ labels: ['WORKFLOW CHANGE APPROVED'], files: W, body: approval(), head: OTHER }) });
+  assert.equal(code, 1);
+  assert.match(lines.join(''), /fresh approval/);
+});
+
+test('run: if the check run cannot be posted, the job fails', async () => {
+  const { code, lines } = await runWith({ postStatus: 403 });
+  assert.equal(code, 1);
+  assert.match(lines.join('\n'), /Posting the check run failed with status 403/);
+});
+
+test('run: API refusal, missing token or non-PR event fail closed and post nothing', async () => {
+  for (const options of [{ routes: {} }, { env: { GITHUB_TOKEN: '' } }, { event: { push: {} } }, { env: { GITHUB_REPOSITORY: '../../x' } }]) {
+    const { code } = await runWith(options);
+    assert.equal(code, 1);
+  }
 });
 
 test('the token is never printed, in the log or the summary', async () => {
-  for (const options of [{}, { routes: routesFor({ labels: ['DO NOT MERGE'] }) }, { routes: {} }]) {
+  for (const options of [{}, { routes: routesFor({ labels: ['DO NOT MERGE'] }) }, { routes: {} }, { postStatus: 500 }]) {
     const { lines, summary } = await runWith(options);
     assert.equal(lines.join('\n').includes(TOKEN), false);
     assert.equal(summary.join('').includes(TOKEN), false);
