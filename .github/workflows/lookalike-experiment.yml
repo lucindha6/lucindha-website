@@ -1,8 +1,6 @@
 # EXPERIMENT ONLY (E-15). Never merge. The pull request will be closed.
-# A job with the same name as the required check "Tests and dependency audit",
-# also reported by GitHub Actions. Variant 1: it fails at once, so it finishes
-# BEFORE the genuine check passes. If the pull request is then mergeable, a later
-# same-name result overrides an earlier one (the lookalike attack would work).
+# Control: the same-name job PASSES, to show whether the pull request is then
+# mergeable (so that "blocked" in the other variants is caused by the lookalike).
 name: Lookalike experiment
 
 on:
@@ -17,5 +15,5 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Fail at once (variant 1)
-        run: exit 1
+      - name: Pass at once (control)
+        run: exit 0
