@@ -1,41 +1,21 @@
-# EXPERIMENT ONLY (E-15, second test). Never merge. The pull request is closed afterwards.
-# On each label added, posts or updates a check run named like the required check
-# "Tests and dependency audit" through the Checks API (as merge-hold.mjs does), so
-# GitHub's merge enforcement can be observed for several API-posted runs on one commit.
-name: Check-run experiment
+# EXPERIMENT ONLY (E-15, Option B). Never merged.
+# A SECOND workflow with the same workflow name ("Checks") and job name as the
+# genuine one. It runs only when the pull request title is edited, waits 30
+# seconds and passes, to see whether it can override a genuine failure.
+name: Checks
 
 on:
   pull_request:
-    types: [labeled]
+    types: [edited]
 
 permissions:
-  checks: write
   contents: read
 
 jobs:
-  act:
-    name: Experiment actor
+  lookalike:
+    name: Tests and dependency audit
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 3
     steps:
-      - name: Post or update a check run as the label says
-        env:
-          GH_TOKEN: ${{ github.token }}
-          LABEL: ${{ github.event.label.name }}
-          SHA: ${{ github.event.pull_request.head.sha }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          NAME='Tests and dependency audit'
-          post() { gh api "repos/$REPO/check-runs" -f name="$NAME" -f head_sha="$SHA" -f 'output[title]=EXP' -f 'output[summary]=E-15 experiment' "$@" --jq .id; }
-          latest() { gh api "repos/$REPO/commits/$SHA/check-runs?check_name=Tests%20and%20dependency%20audit&filter=all&per_page=100" --jq '[.check_runs[] | select(.output.title=="EXP")] | sort_by(.id) | last | .id'; }
-          case "$LABEL" in
-            exp-fail) echo "posted failure $(post -f status=completed -f conclusion=failure)" ;;
-            exp-pass) echo "posted success $(post -f status=completed -f conclusion=success)" ;;
-            exp-pending-then-pass)
-              id=$(post -f status=in_progress); echo "posted in_progress $id"; sleep 75
-              echo "patched $id to $(gh api -X PATCH "repos/$REPO/check-runs/$id" -f status=completed -f conclusion=success --jq .conclusion)" ;;
-            exp-patch-fail) id=$(latest); echo "patched $id to $(gh api -X PATCH "repos/$REPO/check-runs/$id" -f status=completed -f conclusion=failure --jq .conclusion)" ;;
-            exp-patch-pass) id=$(latest); echo "patched $id to $(gh api -X PATCH "repos/$REPO/check-runs/$id" -f status=completed -f conclusion=success --jq .conclusion)" ;;
-            *) echo "No action for this label: nothing is posted." ;;
-          esac
+      - name: Wait, then pass
+        run: sleep 30

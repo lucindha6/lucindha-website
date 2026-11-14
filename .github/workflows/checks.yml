@@ -1,42 +1,22 @@
-# Automatic checks for every pull request and every change to main.
-# They run on GitHub's own servers, cost nothing on this public repository,
-# and never deploy, change Netlify or send email. Netlify still publishes
-# main exactly as before; these checks only report pass or fail.
+# EXPERIMENT ONLY (E-15, Option B). This test branch is never merged.
+# Same workflow and job names as the real checks.yml. The job fails while the
+# label exp-hold is present, so repeat runs of ONE workflow can be compared.
 name: Checks
 
 on:
   pull_request:
-  push:
-    branches: [main]
-  workflow_dispatch:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 permissions:
   contents: read
-
-concurrency:
-  group: checks-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   tests:
     name: Tests and dependency audit
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 3
     steps:
-      # Actions are pinned to exact commits (v4.3.1 and v4.4.0), not movable tags.
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          # Netlify runs the enquiry function on Node.js 24 (deploy 6af49adb).
-          node-version: 24
-          cache: npm
-
-      - name: Install exactly what package-lock.json lists
-        run: npm ci --no-audit --no-fund
-
-      - name: Enquiry acknowledgement tests
-        run: npm test
-
-      - name: Dependency audit (fails on high or critical issues)
-        run: npm audit --audit-level=high
+      - name: Fail while the exp-hold label is present
+        env:
+          HAS_HOLD: ${{ contains(github.event.pull_request.labels.*.name, 'exp-hold') }}
+        run: test "$HAS_HOLD" != "true"
