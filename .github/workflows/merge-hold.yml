@@ -3,8 +3,8 @@
 # Fails while the pull request has a "DO NOT MERGE" label, or changes a workflow
 # or merge-hold file without the director's written approval record for the
 # current head commit plus the label "WORKFLOW CHANGE APPROVED".
-# It never merges, deploys, comments or changes a setting. Its only write is the
-# check run "Merge hold" on the pull request's head commit (checks: write).
+# It never merges, deploys, comments or changes a setting. Its only writes are the
+# check run "Merge hold" on the head commit: posted in progress, then completed.
 #
 # Why pull_request_target: GitHub runs this workflow, and the script it calls,
 # from main, so a pull request cannot edit or switch off its own hold check.

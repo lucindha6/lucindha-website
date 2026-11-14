@@ -10,9 +10,18 @@
 //      A new push changes the head commit, so it needs a fresh approval.
 //      An approval never lifts a DO NOT MERGE hold.
 //
-// The verdict is posted as the check run "Merge hold" on the pull request's
-// current head commit (Checks API), so it is always attached to the commit a
-// ruleset evaluates, whatever commit the workflow itself ran on.
+// The verdict is posted as the check run "Merge hold" on the pull request's head
+// commit (Checks API), so it is attached to the commit a ruleset evaluates.
+//
+// Fail-safe order (tested against GitHub's merge enforcement, PR #5): GitHub
+// keeps an earlier pass valid if a later event posts nothing, and the latest
+// API-posted run with the name replaces earlier ones. So, before reading
+// anything, every run first posts a NEW "Merge hold" run that is in progress.
+// That replaces any earlier pass at once and blocks merging. The run is then
+// completed with the verdict. If the check crashes, times out, is cancelled or
+// cannot complete the run, the run stays in progress and merging stays blocked.
+// Writes are retried three times. Only if even the first write fails can an
+// earlier pass remain; the job then fails visibly.
 //
 // Safety properties:
 // - It is run by .github/workflows/merge-hold.yml on pull_request_target, so the
@@ -170,22 +179,58 @@ export async function fetchAllPages({ apiUrl, path, token, maxPages, fetchImpl =
   return items;
 }
 
-// Posts the verdict as the check run "Merge hold" on the given commit.
-export async function postCheckRun({ apiUrl, repository, token, headSha, result, fetchImpl = fetch }) {
-  const url = `${apiUrl}/repos/${repository}/check-runs`;
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Retries a GitHub write up to three times (after 2 and 4 seconds).
+export async function withRetry(action, { attempts = 3, sleep = pause } = {}) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await action();
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) await sleep(2000 * attempt);
+    }
+  }
+  throw lastError;
+}
+
+async function writeJson({ apiUrl, token, fetchImpl, method, path, body }) {
+  const url = `${apiUrl}${path}`;
   sameOrigin(url, apiUrl);
   const response = await fetchImpl(url, {
-    method: 'POST',
+    method,
     headers: { ...headers(token), 'content-type': 'application/json' },
-    body: JSON.stringify({
-      name: CHECK_NAME,
-      head_sha: headSha,
-      status: 'completed',
-      conclusion: result.held ? 'failure' : 'success',
-      output: { title: result.held ? 'Merge hold: FAIL' : 'Merge hold: PASS', summary: result.message },
-    }),
+    body: JSON.stringify(body),
   });
-  if (!response.ok) throw new Error(`Posting the check run failed with status ${response.status}.`);
+  if (!response.ok) throw new Error(`Writing the check run failed with status ${response.status}.`);
+  return response.json();
+}
+
+// Step 1: a NEW "Merge hold" run, in progress. It replaces any earlier result and blocks.
+export async function startCheckRun({ apiUrl, repository, token, headSha, fetchImpl = fetch, sleep }) {
+  const created = await withRetry(
+    () =>
+      writeJson({
+        apiUrl, token, fetchImpl, method: 'POST', path: `/repos/${repository}/check-runs`,
+        body: { name: CHECK_NAME, head_sha: headSha, status: 'in_progress', output: { title: 'Merge hold: checking', summary: 'Checking labels, approval record and changed files. Merging is blocked until this completes.' } },
+      }),
+    { sleep },
+  );
+  if (!Number.isInteger(created?.id)) throw new Error('GitHub did not return the new check run.');
+  return created.id;
+}
+
+// Step 2: complete that same run with the verdict.
+export async function completeCheckRun({ apiUrl, repository, token, id, result, fetchImpl = fetch, sleep }) {
+  await withRetry(
+    () =>
+      writeJson({
+        apiUrl, token, fetchImpl, method: 'PATCH', path: `/repos/${repository}/check-runs/${id}`,
+        body: { status: 'completed', conclusion: result.held ? 'failure' : 'success', output: { title: result.held ? 'Merge hold: FAIL' : 'Merge hold: PASS', summary: result.message } },
+      }),
+    { sleep },
+  );
 }
 
 export async function run({
@@ -194,11 +239,14 @@ export async function run({
   readFileImpl = readFile,
   appendFileImpl = appendFile,
   log = console.log,
+  sleep = pause,
 } = {}) {
+  const posting = env.MERGE_HOLD_POST_CHECK === 'true';
   let result;
-  let headSha;
   let common;
   let repository;
+  let checkRunId = null;
+  let startFailed = false;
   try {
     if (!env.GITHUB_TOKEN) throw new Error('No GitHub token was provided to the check.');
     repository = env.GITHUB_REPOSITORY ?? '';
@@ -206,10 +254,25 @@ export async function run({
     const event = JSON.parse(await readFileImpl(env.GITHUB_EVENT_PATH, 'utf8'));
     const number = event?.pull_request?.number;
     if (!Number.isInteger(number) || number < 1) throw new Error('This event has no pull request.');
+    const eventHead = event?.pull_request?.head?.sha;
+    if (!/^[0-9a-f]{40}$/.test(String(eventHead ?? ''))) throw new Error('The event has no head commit.');
     common = { apiUrl: env.GITHUB_API_URL || 'https://api.github.com', token: env.GITHUB_TOKEN, fetchImpl };
+
+    // Step 1 happens before anything is read, so an earlier pass stops counting at once.
+    if (posting) {
+      try {
+        checkRunId = await startCheckRun({ ...common, repository, headSha: eventHead, sleep });
+        log(`Merge hold set to "in progress" on ${eventHead.slice(0, 7)} (blocks merging until completed).`);
+      } catch (error) {
+        startFailed = true;
+        throw new Error(`${error.message} The in-progress "Merge hold" run could not be posted, so an earlier result on this commit may still count.`);
+      }
+    }
+
     const pull = await fetchJson({ ...common, path: `/repos/${repository}/pulls/${number}` });
-    headSha = pull?.head?.sha;
+    const headSha = pull?.head?.sha;
     if (!/^[0-9a-f]{40}$/.test(String(headSha ?? ''))) throw new Error('The pull request head commit could not be read.');
+    if (headSha !== eventHead) throw new Error(`The pull request moved from ${eventHead.slice(0, 7)} to ${headSha.slice(0, 7)} while checking; the run for the new commit decides.`);
     const labels = (
       await fetchAllPages({ ...common, path: `/repos/${repository}/issues/${number}/labels?per_page=100`, maxPages: MAX_LABEL_PAGES })
     ).map((label) => label?.name);
@@ -226,16 +289,16 @@ export async function run({
     await appendFileImpl(env.GITHUB_STEP_SUMMARY, `### Merge hold: ${status}\n\n${result.message}\n`);
   }
   let exitCode = result.held ? 1 : 0;
-  if (env.MERGE_HOLD_POST_CHECK === 'true') {
-    if (!headSha || !common) {
-      log('FAIL: no head commit is known, so no "Merge hold" check run was posted. A required check stays missing, which blocks merging.');
+  if (posting) {
+    if (checkRunId === null) {
+      log(startFailed ? 'FAIL: no "Merge hold" run was posted for this event.' : 'FAIL: the check stopped before posting, so no "Merge hold" run was posted for this event.');
       exitCode = 1;
     } else {
       try {
-        await postCheckRun({ ...common, repository, headSha, result });
-        log(`Posted check run "${CHECK_NAME}" (${status}) on ${headSha.slice(0, 7)}.`);
+        await completeCheckRun({ ...common, repository, id: checkRunId, result, sleep });
+        log(`Merge hold completed: ${status}.`);
       } catch (error) {
-        log(`FAIL: ${error.message} A required check stays missing, which blocks merging.`);
+        log(`FAIL: ${error.message} The "Merge hold" run stays in progress, which keeps merging blocked.`);
         exitCode = 1;
       }
     }
