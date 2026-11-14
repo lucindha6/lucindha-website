@@ -37,7 +37,8 @@ Fill in one copy per release on the pull request. Write "Not applicable" with a 
 ### A2. Required automated checks (on the tested head commit)
 
 - [ ] Every check required by the repository rulesets has passed. List each one with its run link.
-- [ ] "Merge hold" has passed.
+- [ ] "Merge hold" has passed, and its run was completed **after** the last label, description or commit change on the pull request. Compare the time on the check with the pull request's timeline, because GitHub keeps an earlier pass if a later event posted nothing.
+- [ ] The latest "Merge hold" run was posted by the "Merge hold runner" job of the workflow on `main`, not by another workflow (open the check's details).
 - [ ] Any other failing check is explained and accepted in writing by the director.
 - [ ] `npm run check`, or the repository's equivalent, passes. The count of existing tests is unchanged or higher.
 
@@ -48,7 +49,8 @@ Fill in one copy per release on the pull request. Write "Not applicable" with a 
 - [ ] No Development Tracker row records "MERGE HOLD:" for this repository or pull request, unless it has been lifted with evidence.
 - [ ] If workflow or merge-hold files changed:
   - the director's written approval record is in the description, naming the **reviewed commit**, which equals the tested head commit, and the **tracker reference**;
-  - only then was the label WORKFLOW CHANGE APPROVED applied.
+  - only then was the label WORKFLOW CHANGE APPROVED applied;
+  - the review looked for any workflow that requests `checks: write` or posts a check named "Merge hold".
 
 | Open merge holds (pull request, tracker row, condition) | Lifted by / date / evidence |
 | --- | --- |
