@@ -15,11 +15,24 @@ function page(body, link) {
   return { ok: true, status: 200, json: async () => body, headers: { get: (h) => (h === 'link' ? link ?? null : null) } };
 }
 
-// A fake GitHub API: routes keyed by URL (GET), plus the check-runs POST.
-function fakeApi(routes, calls = [], { postStatus = 201 } = {}) {
+// A fake GitHub API: routes keyed by URL (GET), plus check-run POST and PATCH.
+// postStatus / patchStatus may be a number or a list (one per attempt).
+function fakeApi(routes, calls = [], { postStatus = 201, patchStatus = 200 } = {}) {
+  const next = (value, method) => {
+    if (!Array.isArray(value)) return value;
+    const used = calls.filter((c) => c.options.method === method).length - 1;
+    return value[Math.min(used, value.length - 1)];
+  };
   return async (url, options = {}) => {
     calls.push({ url, options });
-    if (options.method === 'POST') return { ok: postStatus < 300, status: postStatus, json: async () => ({}) };
+    if (options.method === 'POST') {
+      const status = next(postStatus, 'POST');
+      return { ok: status < 300, status, json: async () => ({ id: 101 }) };
+    }
+    if (options.method === 'PATCH') {
+      const status = next(patchStatus, 'PATCH');
+      return { ok: status < 300, status, json: async () => ({}) };
+    }
     const route = routes[url];
     if (!route) return { ok: false, status: 404, json: async () => ({}), headers: { get: () => null } };
     return route;
@@ -34,7 +47,7 @@ function routesFor({ labels = [], files = ['site/index.html'], body = '', head =
   };
 }
 
-function runWith({ routes = routesFor(), event = { pull_request: { number: 7 } }, env = {}, postStatus } = {}) {
+function runWith({ routes = routesFor(), event = { pull_request: { number: 7, head: { sha: HEAD } } }, env = {}, postStatus, patchStatus } = {}) {
   const lines = [];
   const summary = [];
   const calls = [];
@@ -48,11 +61,19 @@ function runWith({ routes = routesFor(), event = { pull_request: { number: 7 } }
       MERGE_HOLD_POST_CHECK: 'true',
       ...env,
     },
-    fetchImpl: fakeApi(routes, calls, { postStatus }),
+    fetchImpl: fakeApi(routes, calls, { postStatus, patchStatus }),
     readFileImpl: async () => JSON.stringify(event),
     appendFileImpl: async (_path, text) => summary.push(text),
     log: (line) => lines.push(line),
-  }).then((code) => ({ code, lines, summary, calls, posts: calls.filter((c) => c.options.method === 'POST') }));
+    sleep: async () => {},
+  }).then((code) => ({
+    code,
+    lines,
+    summary,
+    calls,
+    posts: calls.filter((c) => c.options.method === 'POST'),
+    patches: calls.filter((c) => c.options.method === 'PATCH'),
+  }));
 }
 
 const W = ['.github/workflows/x.yml'];
@@ -191,23 +212,36 @@ test('a renamed workflow file is caught by its previous name', async () => {
   assert.equal((await runWith({ routes })).code, 1);
 });
 
-test('run: pass posts a success "Merge hold" check run on the current head commit', async () => {
-  const { code, posts, summary } = await runWith();
+test('run: first posts a NEW in-progress "Merge hold" on the head commit, before reading anything', async () => {
+  const { calls } = await runWith();
+  assert.equal(calls[0].options.method, 'POST');
+  assert.equal(calls[0].url, `${API}/repos/example-owner/example-repo/check-runs`);
+  const sent = JSON.parse(calls[0].options.body);
+  assert.deepEqual([sent.name, sent.head_sha, sent.status], ['Merge hold', HEAD, 'in_progress']);
+  assert.equal('conclusion' in sent, false);
+});
+
+test('run: pass completes that same run as a success', async () => {
+  const { code, patches, summary } = await runWith();
   assert.equal(code, 0);
-  assert.equal(posts.length, 1);
-  assert.equal(posts[0].url, `${API}/repos/example-owner/example-repo/check-runs`);
-  const sent = JSON.parse(posts[0].options.body);
-  assert.equal(sent.name, 'Merge hold');
-  assert.equal(sent.head_sha, HEAD);
-  assert.equal(sent.conclusion, 'success');
+  assert.equal(patches.length, 1);
+  assert.equal(patches[0].url, `${API}/repos/example-owner/example-repo/check-runs/101`);
+  const sent = JSON.parse(patches[0].options.body);
+  assert.deepEqual([sent.status, sent.conclusion], ['completed', 'success']);
   assert.match(summary.join(''), /Merge hold: PASS/);
 });
 
-test('run: a hold posts a failure check run and exits 1', async () => {
-  const { code, posts, lines } = await runWith({ routes: routesFor({ labels: ['DO NOT MERGE'] }) });
+test('run: a hold completes the run as a failure and exits 1', async () => {
+  const { code, patches, lines } = await runWith({ routes: routesFor({ labels: ['DO NOT MERGE'] }) });
   assert.equal(code, 1);
-  assert.equal(JSON.parse(posts[0].options.body).conclusion, 'failure');
-  assert.match(lines.join('\n'), /^FAIL: Merge hold in place/);
+  assert.equal(JSON.parse(patches[0].options.body).conclusion, 'failure');
+  assert.match(lines.join('\n'), /FAIL: Merge hold in place/);
+});
+
+test('run: an error after the run started completes it as a failure (fails closed)', async () => {
+  const { code, patches } = await runWith({ routes: {} });
+  assert.equal(code, 1);
+  assert.equal(JSON.parse(patches[0].options.body).conclusion, 'failure');
 });
 
 test('run: an approved workflow change at the reviewed commit passes', async () => {
@@ -216,26 +250,50 @@ test('run: an approved workflow change at the reviewed commit passes', async () 
 });
 
 test('run: a push after approval (new head commit) fails', async () => {
-  const { code, lines } = await runWith({ routes: routesFor({ labels: ['WORKFLOW CHANGE APPROVED'], files: W, body: approval(), head: OTHER }) });
+  const event = { pull_request: { number: 7, head: { sha: OTHER } } };
+  const { code, lines } = await runWith({ event, routes: routesFor({ labels: ['WORKFLOW CHANGE APPROVED'], files: W, body: approval(), head: OTHER }) });
   assert.equal(code, 1);
   assert.match(lines.join(''), /fresh approval/);
 });
 
-test('run: if the check run cannot be posted, the job fails', async () => {
-  const { code, lines } = await runWith({ postStatus: 403 });
+test('run: if the pull request moved while checking, this run fails and the newer run decides', async () => {
+  const { code, lines, patches } = await runWith({ routes: routesFor({ head: OTHER }) });
   assert.equal(code, 1);
-  assert.match(lines.join('\n'), /Posting the check run failed with status 403/);
+  assert.match(lines.join(''), /moved from/);
+  assert.equal(JSON.parse(patches[0].options.body).conclusion, 'failure');
 });
 
-test('run: API refusal, missing token or non-PR event fail closed and post nothing', async () => {
-  for (const options of [{ routes: {} }, { env: { GITHUB_TOKEN: '' } }, { event: { push: {} } }, { env: { GITHUB_REPOSITORY: '../../x' } }]) {
-    const { code } = await runWith(options);
+test('run: a failed write is retried, then succeeds', async () => {
+  const { code, posts } = await runWith({ postStatus: [502, 201] });
+  assert.equal(code, 0);
+  assert.equal(posts.length, 2);
+});
+
+test('run: if the in-progress run cannot be posted after 3 tries, the job fails and nothing is read', async () => {
+  const { code, posts, calls, lines } = await runWith({ postStatus: 403 });
+  assert.equal(code, 1);
+  assert.equal(posts.length, 3);
+  assert.equal(calls.some((c) => !c.options.method), false);
+  assert.match(lines.join('\n'), /earlier result on this commit may still count/);
+});
+
+test('run: if the run cannot be completed, the job fails and the run stays in progress (blocks)', async () => {
+  const { code, patches, lines } = await runWith({ patchStatus: 500 });
+  assert.equal(code, 1);
+  assert.equal(patches.length, 3);
+  assert.match(lines.join('\n'), /stays in progress, which keeps merging blocked/);
+});
+
+test('run: missing token, non-PR event, missing head commit or bad repository fail closed and post nothing', async () => {
+  for (const options of [{ env: { GITHUB_TOKEN: '' } }, { event: { push: {} } }, { event: { pull_request: { number: 7 } } }, { env: { GITHUB_REPOSITORY: '../../x' } }]) {
+    const { code, posts } = await runWith(options);
     assert.equal(code, 1);
+    assert.equal(posts.length, 0);
   }
 });
 
 test('the token is never printed, in the log or the summary', async () => {
-  for (const options of [{}, { routes: routesFor({ labels: ['DO NOT MERGE'] }) }, { routes: {} }, { postStatus: 500 }]) {
+  for (const options of [{}, { routes: routesFor({ labels: ['DO NOT MERGE'] }) }, { routes: {} }, { postStatus: 500 }, { patchStatus: 500 }]) {
     const { lines, summary } = await runWith(options);
     assert.equal(lines.join('\n').includes(TOKEN), false);
     assert.equal(summary.join('').includes(TOKEN), false);
